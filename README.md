@@ -22,6 +22,10 @@ Linus coded Git. Now, let's talk about Tig.
 
 ## Development
 
-Tig is developed in a LLM-native way.
+Tig is developed in [the LLM-native way](https://github.com/welldefined-ai/sublang): its requirements and design are expressed through talks with an LLM and translated into code.
+These talks must be coherent, consistent, and self-contained by defining working states with the help of the LLM.
+
+These working states serve as language-agnostic specifications that can be translated into code across different programming languages.
+Currently, we provide implementations in Python and Node.js.
 
 ## Contribution
