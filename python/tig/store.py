@@ -125,7 +125,11 @@ class TigStore:
         """
         ref_name = f"refs/tig/{object_id}"
         
+        # First check if the ref exists
         try:
-            self._run_git(["update-ref", "-d", ref_name])
+            self._run_git(["rev-parse", "--verify", ref_name])
         except subprocess.CalledProcessError:
             raise KeyError(f"Object not found: {object_id}")
+        
+        # Delete the ref
+        self._run_git(["update-ref", "-d", ref_name])
