@@ -1,7 +1,7 @@
 """Core storage implementation for Tig objects."""
 
+import hashlib
 import subprocess
-import uuid
 from pathlib import Path
 from typing import List, Optional
 
@@ -44,14 +44,14 @@ class TigStore:
         
         Args:
             content: Text content to store.
-            object_id: Optional ID for the object. Generated if not provided.
+            object_id: Optional ID for the object. Generated from content hash if not provided.
             
         Returns:
             The object ID used to store the content.
         """
-        # Generate object ID if not provided
+        # Generate object ID from content hash if not provided
         if object_id is None:
-            object_id = str(uuid.uuid4())
+            object_id = hashlib.sha1(content.encode('utf-8')).hexdigest()
         
         # Store content as blob
         process = subprocess.Popen(

@@ -21,7 +21,7 @@ uv pip install tig
 ```bash
 # Store text content
 tig store "Hello, this is my chat content"
-# Output: generated-uuid-1234
+# Output: a1b2c3d4e5f6...
 
 # Store with custom ID
 tig store "Another chat" --id my-chat-1
