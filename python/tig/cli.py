@@ -104,11 +104,11 @@ def sync(ctx: click.Context, push: bool, pull: bool, remote: str) -> None:
 
     try:
         if push:
-            store._run_git(["push", remote, "refs/tig/*:refs/tig/*"])
+            store._run_git(["push", remote, "refs/tig/chats/*:refs/tig/chats/*"])
             click.echo(f"Pushed objects to {remote}")
 
         if pull:
-            store._run_git(["fetch", remote, "refs/tig/*:refs/tig/*"])
+            store._run_git(["fetch", remote, "refs/tig/chats/*:refs/tig/chats/*"])
             click.echo(f"Pulled objects from {remote}")
     except Exception as e:
         click.echo(f"Error: {e}", err=True)

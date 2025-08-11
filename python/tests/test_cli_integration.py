@@ -39,13 +39,13 @@ class TestIntegration:
 
         # Verify ref exists using git command
         result = subprocess.run(
-            ["git", "show-ref", "refs/tig/check-ref"],
+            ["git", "show-ref", "refs/tig/chats/check-ref"],
             cwd=git_repo,
             capture_output=True,
             text=True
         )
         assert result.returncode == 0
-        assert "refs/tig/check-ref" in result.stdout
+        assert "refs/tig/chats/check-ref" in result.stdout
 
     def test_multiple_repos(self, runner, tmp_path):
         """Test working with multiple repositories."""

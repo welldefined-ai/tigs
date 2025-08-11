@@ -68,7 +68,7 @@ class TigStore:
         blob_sha = stdout.strip()
 
         # Create ref
-        ref_name = f"refs/tig/{object_id}"
+        ref_name = f"refs/tig/chats/{object_id}"
         self._run_git(["update-ref", ref_name, blob_sha])
 
         return object_id
@@ -85,7 +85,7 @@ class TigStore:
         Raises:
             KeyError: If object_id doesn't exist.
         """
-        ref_name = f"refs/tig/{object_id}"
+        ref_name = f"refs/tig/chats/{object_id}"
 
         # Get blob SHA from ref
         try:
@@ -104,13 +104,13 @@ class TigStore:
         Returns:
             List of object IDs.
         """
-        result = self._run_git(["for-each-ref", "--format=%(refname:short)", "refs/tig"])
+        result = self._run_git(["for-each-ref", "--format=%(refname:short)", "refs/tig/chats"])
         if not result.stdout.strip():
             return []
 
         refs = result.stdout.strip().split("\n")
-        # Extract object IDs from refs (remove "tig/" prefix)
-        return [ref.split("/", 1)[1] for ref in refs]
+        # Extract object IDs from refs (remove "tig/chats/" prefix)
+        return [ref.split("/", 2)[2] for ref in refs]
 
     def delete(self, object_id: str) -> None:
         """Delete an object by removing its ref.
@@ -123,7 +123,7 @@ class TigStore:
         Raises:
             KeyError: If object_id doesn't exist.
         """
-        ref_name = f"refs/tig/{object_id}"
+        ref_name = f"refs/tig/chats/{object_id}"
 
         # First check if the ref exists
         try:
