@@ -15,7 +15,7 @@ from .store import TigStore
 @click.pass_context
 def main(ctx: click.Context, repo: Optional[Path]) -> None:
     """Tig - Talk in Git.
-    
+
     Store and manage text objects in Git repositories.
     """
     ctx.ensure_object(dict)
@@ -99,14 +99,14 @@ def sync(ctx: click.Context, push: bool, pull: bool, remote: str) -> None:
     if not push and not pull:
         click.echo("Error: Specify --push or --pull", err=True)
         sys.exit(1)
-    
+
     store = ctx.obj["store"]
-    
+
     try:
         if push:
             store._run_git(["push", remote, "refs/tig/*:refs/tig/*"])
             click.echo(f"Pushed objects to {remote}")
-        
+
         if pull:
             store._run_git(["fetch", remote, "refs/tig/*:refs/tig/*"])
             click.echo(f"Pulled objects from {remote}")
@@ -117,3 +117,4 @@ def sync(ctx: click.Context, push: bool, pull: bool, remote: str) -> None:
 
 if __name__ == "__main__":
     main()
+
