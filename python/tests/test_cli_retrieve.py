@@ -1,6 +1,6 @@
 """Test cases for retrieve-related CLI commands."""
 
-from tig.cli import main
+from tigs.cli import main
 
 
 class TestShow:

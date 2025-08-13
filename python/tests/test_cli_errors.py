@@ -1,6 +1,6 @@
 """Test cases for error handling in CLI."""
 
-from tig.cli import main
+from tigs.cli import main
 
 
 class TestErrorHandling:

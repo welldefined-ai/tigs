@@ -1,4 +1,4 @@
-"""Core storage implementation for Tig objects."""
+"""Core storage implementation for Tigs objects."""
 
 import hashlib
 import subprocess
@@ -6,11 +6,11 @@ from pathlib import Path
 from typing import List, Optional
 
 
-class TigStore:
+class TigsStore:
     """Store and retrieve text objects in Git repositories."""
 
     def __init__(self, repo_path: Optional[Path] = None):
-        """Initialize TigStore.
+        """Initialize TigsStore.
 
         Args:
             repo_path: Path to Git repository. Defaults to current directory.
@@ -68,7 +68,7 @@ class TigStore:
         blob_sha = stdout.strip()
 
         # Create ref
-        ref_name = f"refs/tig/chats/{object_id}"
+        ref_name = f"refs/tigs/chats/{object_id}"
         self._run_git(["update-ref", ref_name, blob_sha])
 
         return object_id
@@ -85,7 +85,7 @@ class TigStore:
         Raises:
             KeyError: If object_id doesn't exist.
         """
-        ref_name = f"refs/tig/chats/{object_id}"
+        ref_name = f"refs/tigs/chats/{object_id}"
 
         # Get blob SHA from ref
         try:
@@ -104,12 +104,12 @@ class TigStore:
         Returns:
             List of object IDs.
         """
-        result = self._run_git(["for-each-ref", "--format=%(refname:short)", "refs/tig/chats"])
+        result = self._run_git(["for-each-ref", "--format=%(refname:short)", "refs/tigs/chats"])
         if not result.stdout.strip():
             return []
 
         refs = result.stdout.strip().split("\n")
-        # Extract object IDs from refs (remove "tig/chats/" prefix)
+        # Extract object IDs from refs (remove "tigs/chats/" prefix)
         return [ref.split("/", 2)[2] for ref in refs]
 
     def delete(self, object_id: str) -> None:
@@ -123,7 +123,7 @@ class TigStore:
         Raises:
             KeyError: If object_id doesn't exist.
         """
-        ref_name = f"refs/tig/chats/{object_id}"
+        ref_name = f"refs/tigs/chats/{object_id}"
 
         # First check if the ref exists
         try:

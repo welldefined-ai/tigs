@@ -1,4 +1,4 @@
-"""Command-line interface for Tig."""
+"""Command-line interface for Tigs."""
 
 import sys
 from pathlib import Path
@@ -6,7 +6,7 @@ from typing import Optional
 
 import click
 
-from .store import TigStore
+from .store import TigsStore
 
 
 @click.group()
@@ -14,13 +14,13 @@ from .store import TigStore
               help="Path to Git repository (defaults to current directory)")
 @click.pass_context
 def main(ctx: click.Context, repo: Optional[Path]) -> None:
-    """Tig - Talk in Git.
+    """Tigs - Talks in Git → Specs.
 
     Store and manage text objects in Git repositories.
     """
     ctx.ensure_object(dict)
     try:
-        ctx.obj["store"] = TigStore(repo)
+        ctx.obj["store"] = TigsStore(repo)
     except ValueError as e:
         click.echo(f"Error: {e}", err=True)
         sys.exit(1)
@@ -104,11 +104,11 @@ def sync(ctx: click.Context, push: bool, pull: bool, remote: str) -> None:
 
     try:
         if push:
-            store._run_git(["push", remote, "refs/tig/chats/*:refs/tig/chats/*"])
+            store._run_git(["push", remote, "refs/tigs/chats/*:refs/tigs/chats/*"])
             click.echo(f"Pushed objects to {remote}")
 
         if pull:
-            store._run_git(["fetch", remote, "refs/tig/chats/*:refs/tig/chats/*"])
+            store._run_git(["fetch", remote, "refs/tigs/chats/*:refs/tigs/chats/*"])
             click.echo(f"Pulled objects from {remote}")
     except Exception as e:
         click.echo(f"Error: {e}", err=True)
