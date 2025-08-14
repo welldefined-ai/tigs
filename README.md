@@ -24,7 +24,7 @@ Linus coded Git. Now, let's talk about Tigs.
 
 ## Development
 
-Tigs is developed in [this LLM-native way](https://github.com/welldefined-ai/sublang): its requirements and design are expressed through talks with an LLM and translated into code.
+Tigs is developed in [this LLM-native way](https://github.com/sublang-ai/sublang): its requirements and design are expressed through talks with an LLM and translated into code.
 
 By bootstrapping itself, Tigs manages its own talks and defines its own specifications.
 

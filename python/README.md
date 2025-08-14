@@ -1,17 +1,17 @@
-# Tig Python Package
+# Tigs Python Package
 
-This is the Python implementation of Tig (Talk in Git) - a system for storing and managing text objects in Git repositories.
+This is the Python implementation of Tigs (Talks in Git → Specs) - a system for storing and managing text objects in Git repositories.
 
 ## Installation
 
 ```bash
-pip install tig
+pip install tigs
 ```
 
 Or using uv:
 
 ```bash
-uv pip install tig
+uv pip install tigs
 ```
 
 ## Usage
@@ -20,33 +20,33 @@ uv pip install tig
 
 ```bash
 # Store text content
-tig store "Hello, this is my chat content"
+tigs store "Hello, this is my chat content"
 # Output: a1b2c3d4e5f6...
 
 # Store with custom ID
-tig store "Another chat" --id my-chat-1
+tigs store "Another chat" --id my-chat-1
 
 # Show content
-tig show my-chat-1
+tigs show my-chat-1
 
 # List all objects
-tig list
+tigs list
 
 # Delete an object
-tig delete my-chat-1
+tigs delete my-chat-1
 
 # Sync with remote
-tig sync --push origin
-tig sync --pull origin
+tigs sync --push origin
+tigs sync --pull origin
 ```
 
 ### Python API
 
 ```python
-from tig import TigStore
+from tigs import TigsStore
 
 # Initialize store
-store = TigStore()
+store = TigsStore()
 
 # Store content
 object_id = store.store("My chat content")
@@ -65,8 +65,8 @@ store.delete(object_id)
 
 ```bash
 # Clone the repository
-git clone https://github.com/welldefined-ai/tig.git
-cd tig/python
+git clone https://github.com/sublang-ai/tigs.git
+cd tigs/python
 
 # Install with uv
 uv pip install -e .
@@ -75,7 +75,7 @@ uv pip install -e .
 uv run pytest
 
 # Type checking
-uv run mypy tig
+uv run mypy src
 
 # Linting
 uv run ruff check .

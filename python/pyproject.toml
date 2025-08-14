@@ -1,14 +1,14 @@
 [project]
 name = "tigs"
 version = "0.1.0"
-description = "Talks in Git → Specs - Store and manage text objects in Git repositories"
+description = "Talks in Git → Specs - Git-based chat management system for AI-assisted software development"
 readme = "README.md"
 requires-python = ">=3.8"
 license = {text = "AGPL-3.0"}
 authors = [
-    {name = "WellDefined AI", email = "info@welldefined.ai"},
+    {name = "SubLang Community", email = "hi@sublang.ai"},
 ]
-keywords = ["git", "chat", "conversation", "version-control"]
+keywords = ["git", "chat", "version-control", "ai", "llm", "chatgpt", "claude", "gemini", "qwen", "specifications", "specs", "vibe-coding", "software-development", "spec-driven", "prompts", "development-tools"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -20,6 +20,9 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Topic :: Software Development :: Version Control :: Git",
+    "Topic :: Software Development :: Documentation",
+    "Environment :: Console",
+    "Operating System :: OS Independent",
 ]
 
 dependencies = [
@@ -28,9 +31,10 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/welldefined-ai/tigs"
-Repository = "https://github.com/welldefined-ai/tigs"
-Issues = "https://github.com/welldefined-ai/tigs/issues"
+Homepage = "https://github.com/sublang-ai/tigs"
+Repository = "https://github.com/sublang-ai/tigs"
+Issues = "https://github.com/sublang-ai/tigs/issues"
+Discord = "https://discord.gg/8krkc4z5wK"
 
 [project.scripts]
 tigs = "tigs.cli:main"
