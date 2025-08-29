@@ -9,43 +9,46 @@ class TestIntegration:
     """Test complete workflows and integration scenarios."""
 
     def test_roundtrip_workflow(self, runner, git_repo):
-        """Test a complete hash-chat/ls-chats/cat-chat/rm-chat workflow."""
+        """Test a complete add-chat/show-chat/list-chats/remove-chat workflow."""
         content = "Integration test content"
 
-        # Store
-        result = runner.invoke(main, ["--repo", str(git_repo), "hash-chat", content, "--id", "test-1"])
+        # Add chat
+        result = runner.invoke(main, ["--repo", str(git_repo), "add-chat", "-m", content])
         assert result.exit_code == 0
+        commit_sha = result.output.split(":")[-1].strip()
 
         # List should contain it
-        result = runner.invoke(main, ["--repo", str(git_repo), "ls-chats"])
-        assert "test-1" in result.output
+        result = runner.invoke(main, ["--repo", str(git_repo), "list-chats"])
+        assert commit_sha in result.output
 
-        # Display should return exact content
-        result = runner.invoke(main, ["--repo", str(git_repo), "cat-chat", "test-1"])
+        # Show should return exact content
+        result = runner.invoke(main, ["--repo", str(git_repo), "show-chat"])
         assert result.output == content
 
         # Remove
-        result = runner.invoke(main, ["--repo", str(git_repo), "rm-chat", "test-1"])
+        result = runner.invoke(main, ["--repo", str(git_repo), "remove-chat"])
         assert result.exit_code == 0
 
         # List should not contain it
-        result = runner.invoke(main, ["--repo", str(git_repo), "ls-chats"])
-        assert "test-1" not in result.output
+        result = runner.invoke(main, ["--repo", str(git_repo), "list-chats"])
+        assert commit_sha not in result.output or result.output.strip() == ""
 
-    def test_git_refs_created(self, runner, git_repo):
-        """Test that Git refs are created in the correct location."""
-        # Store with known ID
-        runner.invoke(main, ["--repo", str(git_repo), "hash-chat", "content", "--id", "check-ref"])
+    def test_git_notes_created(self, runner, git_repo):
+        """Test that Git notes are created in the correct location."""
+        # Add chat
+        result = runner.invoke(main, ["--repo", str(git_repo), "add-chat", "-m", "content"])
+        assert result.exit_code == 0
+        commit_sha = result.output.split(":")[-1].strip()
 
-        # Verify ref exists using git command
+        # Verify note exists using git command
         result = subprocess.run(
-            ["git", "show-ref", "refs/tigs/chats/check-ref"],
+            ["git", "notes", "--ref=refs/notes/chats", "show", commit_sha],
             cwd=git_repo,
             capture_output=True,
             text=True
         )
         assert result.returncode == 0
-        assert "refs/tigs/chats/check-ref" in result.stdout
+        assert "content" in result.stdout
 
     def test_multiple_repos(self, runner, tmp_path):
         """Test working with multiple repositories."""
@@ -56,21 +59,45 @@ class TestIntegration:
         for repo in [repo1, repo2]:
             repo.mkdir()
             subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)
+            subprocess.run(["git", "config", "user.name", "Test User"], cwd=repo, check=True)
+            subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=repo, check=True)
+            
+            # Create initial commit (with unique content)
+            (repo / "README.md").write_text(f"Test repository {repo.name}")
+            subprocess.run(["git", "add", "README.md"], cwd=repo, check=True)
+            subprocess.run(["git", "commit", "-m", f"Initial commit for {repo.name}"], cwd=repo, check=True, capture_output=True)
 
-        # Store in repo1
-        result = runner.invoke(main, ["--repo", str(repo1), "hash-chat", "Repo 1 content", "--id", "obj1"])
+        # Add chat in repo1
+        result = runner.invoke(main, ["--repo", str(repo1), "add-chat", "-m", "Repo 1 content"])
         assert result.exit_code == 0
+        commit_sha1 = result.output.split(":")[-1].strip()
 
-        # Store in repo2
-        result = runner.invoke(main, ["--repo", str(repo2), "hash-chat", "Repo 2 content", "--id", "obj2"])
+        # Add chat in repo2
+        result = runner.invoke(main, ["--repo", str(repo2), "add-chat", "-m", "Repo 2 content"])
         assert result.exit_code == 0
+        commit_sha2 = result.output.split(":")[-1].strip()
 
         # Verify isolation
-        result = runner.invoke(main, ["--repo", str(repo1), "ls-chats"])
-        assert "obj1" in result.output
-        assert "obj2" not in result.output
+        result = runner.invoke(main, ["--repo", str(repo1), "list-chats"])
+        assert commit_sha1 in result.output
+        assert commit_sha2 not in result.output
 
-        result = runner.invoke(main, ["--repo", str(repo2), "ls-chats"])
-        assert "obj1" not in result.output
-        assert "obj2" in result.output
+        result = runner.invoke(main, ["--repo", str(repo2), "list-chats"])
+        assert commit_sha1 not in result.output
+        assert commit_sha2 in result.output
 
+    def test_git_ref_shortcuts(self, runner, git_repo):
+        """Test that Git ref shortcuts work (HEAD~1, branch names, etc.)."""
+        # Create a second commit
+        (git_repo / "file2.txt").write_text("Second file")
+        subprocess.run(["git", "add", "file2.txt"], cwd=git_repo, check=True)
+        subprocess.run(["git", "commit", "-m", "Second commit"], cwd=git_repo, check=True, capture_output=True)
+
+        # Add chat to HEAD~1 (first commit)
+        result = runner.invoke(main, ["--repo", str(git_repo), "add-chat", "HEAD~1", "-m", "Chat for first commit"])
+        assert result.exit_code == 0
+
+        # Verify we can show it
+        result = runner.invoke(main, ["--repo", str(git_repo), "show-chat", "HEAD~1"])
+        assert result.exit_code == 0
+        assert result.output == "Chat for first commit"

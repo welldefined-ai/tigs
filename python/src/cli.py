@@ -16,7 +16,7 @@ from .store import TigsStore
 def main(ctx: click.Context, repo: Optional[Path]) -> None:
     """Tigs - Talks in Git → Specs.
 
-    Store and manage chat objects in Git repositories.
+    Store and manage chats for Git commits using Git notes.
     """
     ctx.ensure_object(dict)
     try:
@@ -26,63 +26,89 @@ def main(ctx: click.Context, repo: Optional[Path]) -> None:
         sys.exit(1)
 
 
-@main.command("hash-chat")
-@click.argument("content", type=str)
-@click.option("--id", "-i", "object_id", help="Chat ID (generated if not provided)")
+@main.command("add-chat")
+@click.argument("commit", type=str, default="HEAD", required=False)
+@click.option("--message", "-m", help="Chat content (if not provided, opens editor)")
 @click.pass_context
-def hash_chat(ctx: click.Context, content: str, object_id: Optional[str]) -> None:
-    """Compute chat ID and store chat content in the repository."""
+def add_chat(ctx: click.Context, commit: str, message: Optional[str]) -> None:
+    """Add chat content to a commit."""
     store = ctx.obj["store"]
+    
+    # Get chat content
+    if message is None:
+        message = click.edit("# Enter your chat content here\n")
+        if message is None:
+            click.echo("Aborted: No content provided", err=True)
+            sys.exit(1)
+        # Remove the comment line
+        message = "\n".join(line for line in message.split("\n") 
+                           if not line.strip().startswith("#")).strip()
+        if not message:
+            click.echo("Aborted: No content provided", err=True)
+            sys.exit(1)
+    elif not message.strip():
+        click.echo("Error: No content provided", err=True)
+        sys.exit(1)
+    
     try:
-        obj_id = store.store(content, object_id)
-        click.echo(obj_id)
+        resolved_sha = store.add_chat(commit, message)
+        click.echo(f"Added chat to commit: {resolved_sha}")
+    except ValueError as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
     except Exception as e:
         click.echo(f"Error: {e}", err=True)
         sys.exit(1)
 
 
-@main.command("cat-chat")
-@click.argument("chat_id", type=str)
+@main.command("show-chat")
+@click.argument("commit", type=str, default="HEAD", required=False)
 @click.pass_context
-def cat_chat(ctx: click.Context, chat_id: str) -> None:
-    """Display content of a stored chat."""
+def show_chat(ctx: click.Context, commit: str) -> None:
+    """Show chat content for a commit."""
     store = ctx.obj["store"]
     try:
-        content = store.retrieve(chat_id)
+        content = store.show_chat(commit)
         click.echo(content, nl=False)
     except KeyError:
-        click.echo(f"Error: Chat not found: {chat_id}", err=True)
+        click.echo(f"Error: No chat found for commit: {commit}", err=True)
+        sys.exit(1)
+    except ValueError as e:
+        click.echo(f"Error: {e}", err=True)
         sys.exit(1)
     except Exception as e:
         click.echo(f"Error: {e}", err=True)
         sys.exit(1)
 
 
-@main.command("ls-chats")
+@main.command("list-chats")
 @click.pass_context
-def ls_chats(ctx: click.Context) -> None:
-    """List all stored chat IDs."""
+def list_chats(ctx: click.Context) -> None:
+    """List all commits that have chats."""
     store = ctx.obj["store"]
     try:
-        object_ids = store.list()
-        for obj_id in object_ids:
-            click.echo(obj_id)
+        commit_shas = store.list_chats()
+        for commit_sha in commit_shas:
+            click.echo(commit_sha)
     except Exception as e:
         click.echo(f"Error: {e}", err=True)
         sys.exit(1)
 
 
-@main.command("rm-chat")
-@click.argument("chat_id", type=str)
+@main.command("remove-chat")
+@click.argument("commit", type=str, default="HEAD", required=False)
 @click.pass_context
-def rm_chat(ctx: click.Context, chat_id: str) -> None:
-    """Remove a stored chat."""
+def remove_chat(ctx: click.Context, commit: str) -> None:
+    """Remove chat from a commit."""
     store = ctx.obj["store"]
     try:
-        store.delete(chat_id)
-        click.echo(f"Deleted: {chat_id}")
+        store.remove_chat(commit)
+        click.echo(f"Removed chat from commit: {commit}")
     except KeyError:
-        click.echo(f"Error: Chat not found: {chat_id}", err=True)
+        click.echo(f"Error: No chat found for commit: {commit}", err=True)
+        sys.exit(1)
+    except ValueError as e:
+        click.echo(f"Error: {e}", err=True)
         sys.exit(1)
     except Exception as e:
         click.echo(f"Error: {e}", err=True)
@@ -93,10 +119,10 @@ def rm_chat(ctx: click.Context, chat_id: str) -> None:
 @click.argument("remote", type=str, default="origin")
 @click.pass_context
 def push_chats(ctx: click.Context, remote: str) -> None:
-    """Push chat objects to remote repository."""
+    """Push chat notes to remote repository."""
     store = ctx.obj["store"]
     try:
-        store._run_git(["push", remote, "refs/tigs/chats/*:refs/tigs/chats/*"])
+        store._run_git(["push", remote, "refs/notes/chats:refs/notes/chats"])
         click.echo(f"Pushed chats to {remote}")
     except Exception as e:
         click.echo(f"Error: {e}", err=True)
@@ -107,10 +133,10 @@ def push_chats(ctx: click.Context, remote: str) -> None:
 @click.argument("remote", type=str, default="origin")
 @click.pass_context
 def fetch_chats(ctx: click.Context, remote: str) -> None:
-    """Fetch chat objects from remote repository."""
+    """Fetch chat notes from remote repository."""
     store = ctx.obj["store"]
     try:
-        store._run_git(["fetch", remote, "refs/tigs/chats/*:refs/tigs/chats/*"])
+        store._run_git(["fetch", remote, "refs/notes/chats:refs/notes/chats"])
         click.echo(f"Fetched chats from {remote}")
     except Exception as e:
         click.echo(f"Error: {e}", err=True)
@@ -119,4 +145,3 @@ def fetch_chats(ctx: click.Context, remote: str) -> None:
 
 if __name__ == "__main__":
     main()
-
