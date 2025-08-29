@@ -1,21 +1,22 @@
-"""Test cases for sync-related CLI commands."""
+"""Test cases for push-chats and fetch-chats CLI commands."""
 
 from tigs.cli import main
 
 
-class TestSync:
-    """Test the 'tig sync' command."""
+class TestPushFetchChats:
+    """Test the 'tigs push-chats' and 'tigs fetch-chats' commands."""
 
-    def test_sync_requires_flag(self, runner, git_repo):
-        """Test that sync requires either --push or --pull flag."""
-        result = runner.invoke(main, ["--repo", str(git_repo), "sync"])
+    def test_push_chats_with_invalid_remote(self, runner, git_repo):
+        """Test push-chats with a non-existent remote."""
+        # This should fail because 'nonexistent' doesn't exist in our test repo
+        result = runner.invoke(main, ["--repo", str(git_repo), "push-chats", "nonexistent"])
         assert result.exit_code == 1
-        assert "Specify --push or --pull" in result.output
+        assert "Error:" in result.output
 
-    def test_sync_with_invalid_remote(self, runner, git_repo):
-        """Test sync with a non-existent remote."""
-        # This should fail because 'origin' doesn't exist in our test repo
-        result = runner.invoke(main, ["--repo", str(git_repo), "sync", "--push", "nonexistent"])
+    def test_fetch_chats_with_invalid_remote(self, runner, git_repo):
+        """Test fetch-chats with a non-existent remote."""
+        # This should fail because 'nonexistent' doesn't exist in our test repo
+        result = runner.invoke(main, ["--repo", str(git_repo), "fetch-chats", "nonexistent"])
         assert result.exit_code == 1
         assert "Error:" in result.output
 

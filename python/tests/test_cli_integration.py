@@ -9,33 +9,33 @@ class TestIntegration:
     """Test complete workflows and integration scenarios."""
 
     def test_roundtrip_workflow(self, runner, git_repo):
-        """Test a complete store-list-show-delete workflow."""
+        """Test a complete hash-chat/ls-chats/cat-chat/rm-chat workflow."""
         content = "Integration test content"
 
         # Store
-        result = runner.invoke(main, ["--repo", str(git_repo), "store", content, "--id", "test-1"])
+        result = runner.invoke(main, ["--repo", str(git_repo), "hash-chat", content, "--id", "test-1"])
         assert result.exit_code == 0
 
         # List should contain it
-        result = runner.invoke(main, ["--repo", str(git_repo), "list"])
+        result = runner.invoke(main, ["--repo", str(git_repo), "ls-chats"])
         assert "test-1" in result.output
 
-        # Show should return exact content
-        result = runner.invoke(main, ["--repo", str(git_repo), "show", "test-1"])
+        # Display should return exact content
+        result = runner.invoke(main, ["--repo", str(git_repo), "cat-chat", "test-1"])
         assert result.output == content
 
-        # Delete
-        result = runner.invoke(main, ["--repo", str(git_repo), "delete", "test-1"])
+        # Remove
+        result = runner.invoke(main, ["--repo", str(git_repo), "rm-chat", "test-1"])
         assert result.exit_code == 0
 
         # List should not contain it
-        result = runner.invoke(main, ["--repo", str(git_repo), "list"])
+        result = runner.invoke(main, ["--repo", str(git_repo), "ls-chats"])
         assert "test-1" not in result.output
 
     def test_git_refs_created(self, runner, git_repo):
         """Test that Git refs are created in the correct location."""
         # Store with known ID
-        runner.invoke(main, ["--repo", str(git_repo), "store", "content", "--id", "check-ref"])
+        runner.invoke(main, ["--repo", str(git_repo), "hash-chat", "content", "--id", "check-ref"])
 
         # Verify ref exists using git command
         result = subprocess.run(
@@ -58,19 +58,19 @@ class TestIntegration:
             subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)
 
         # Store in repo1
-        result = runner.invoke(main, ["--repo", str(repo1), "store", "Repo 1 content", "--id", "obj1"])
+        result = runner.invoke(main, ["--repo", str(repo1), "hash-chat", "Repo 1 content", "--id", "obj1"])
         assert result.exit_code == 0
 
         # Store in repo2
-        result = runner.invoke(main, ["--repo", str(repo2), "store", "Repo 2 content", "--id", "obj2"])
+        result = runner.invoke(main, ["--repo", str(repo2), "hash-chat", "Repo 2 content", "--id", "obj2"])
         assert result.exit_code == 0
 
         # Verify isolation
-        result = runner.invoke(main, ["--repo", str(repo1), "list"])
+        result = runner.invoke(main, ["--repo", str(repo1), "ls-chats"])
         assert "obj1" in result.output
         assert "obj2" not in result.output
 
-        result = runner.invoke(main, ["--repo", str(repo2), "list"])
+        result = runner.invoke(main, ["--repo", str(repo2), "ls-chats"])
         assert "obj1" not in result.output
         assert "obj2" in result.output
 

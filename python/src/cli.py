@@ -16,7 +16,7 @@ from .store import TigsStore
 def main(ctx: click.Context, repo: Optional[Path]) -> None:
     """Tigs - Talks in Git → Specs.
 
-    Store and manage text objects in Git repositories.
+    Store and manage chat objects in Git repositories.
     """
     ctx.ensure_object(dict)
     try:
@@ -26,12 +26,12 @@ def main(ctx: click.Context, repo: Optional[Path]) -> None:
         sys.exit(1)
 
 
-@main.command()
+@main.command("hash-chat")
 @click.argument("content", type=str)
-@click.option("--id", "-i", "object_id", help="Object ID (generated if not provided)")
+@click.option("--id", "-i", "object_id", help="Chat ID (generated if not provided)")
 @click.pass_context
-def store(ctx: click.Context, content: str, object_id: Optional[str]) -> None:
-    """Store text content in the repository."""
+def hash_chat(ctx: click.Context, content: str, object_id: Optional[str]) -> None:
+    """Compute chat ID and store chat content in the repository."""
     store = ctx.obj["store"]
     try:
         obj_id = store.store(content, object_id)
@@ -41,27 +41,27 @@ def store(ctx: click.Context, content: str, object_id: Optional[str]) -> None:
         sys.exit(1)
 
 
-@main.command()
-@click.argument("object_id", type=str)
+@main.command("cat-chat")
+@click.argument("chat_id", type=str)
 @click.pass_context
-def show(ctx: click.Context, object_id: str) -> None:
-    """Show content of a stored object."""
+def cat_chat(ctx: click.Context, chat_id: str) -> None:
+    """Display content of a stored chat."""
     store = ctx.obj["store"]
     try:
-        content = store.retrieve(object_id)
+        content = store.retrieve(chat_id)
         click.echo(content, nl=False)
     except KeyError:
-        click.echo(f"Error: Object not found: {object_id}", err=True)
+        click.echo(f"Error: Chat not found: {chat_id}", err=True)
         sys.exit(1)
     except Exception as e:
         click.echo(f"Error: {e}", err=True)
         sys.exit(1)
 
 
-@main.command()
+@main.command("ls-chats")
 @click.pass_context
-def list(ctx: click.Context) -> None:
-    """List all stored object IDs."""
+def ls_chats(ctx: click.Context) -> None:
+    """List all stored chat IDs."""
     store = ctx.obj["store"]
     try:
         object_ids = store.list()
@@ -72,44 +72,46 @@ def list(ctx: click.Context) -> None:
         sys.exit(1)
 
 
-@main.command()
-@click.argument("object_id", type=str)
+@main.command("rm-chat")
+@click.argument("chat_id", type=str)
 @click.pass_context
-def delete(ctx: click.Context, object_id: str) -> None:
-    """Delete a stored object."""
+def rm_chat(ctx: click.Context, chat_id: str) -> None:
+    """Remove a stored chat."""
     store = ctx.obj["store"]
     try:
-        store.delete(object_id)
-        click.echo(f"Deleted: {object_id}")
+        store.delete(chat_id)
+        click.echo(f"Deleted: {chat_id}")
     except KeyError:
-        click.echo(f"Error: Object not found: {object_id}", err=True)
+        click.echo(f"Error: Chat not found: {chat_id}", err=True)
         sys.exit(1)
     except Exception as e:
         click.echo(f"Error: {e}", err=True)
         sys.exit(1)
 
 
-@main.command()
-@click.option("--push", is_flag=True, help="Push objects to remote")
-@click.option("--pull", is_flag=True, help="Pull objects from remote")
+@main.command("push-chats")
 @click.argument("remote", type=str, default="origin")
 @click.pass_context
-def sync(ctx: click.Context, push: bool, pull: bool, remote: str) -> None:
-    """Sync objects with remote repository."""
-    if not push and not pull:
-        click.echo("Error: Specify --push or --pull", err=True)
+def push_chats(ctx: click.Context, remote: str) -> None:
+    """Push chat objects to remote repository."""
+    store = ctx.obj["store"]
+    try:
+        store._run_git(["push", remote, "refs/tigs/chats/*:refs/tigs/chats/*"])
+        click.echo(f"Pushed chats to {remote}")
+    except Exception as e:
+        click.echo(f"Error: {e}", err=True)
         sys.exit(1)
 
+
+@main.command("fetch-chats")
+@click.argument("remote", type=str, default="origin")
+@click.pass_context
+def fetch_chats(ctx: click.Context, remote: str) -> None:
+    """Fetch chat objects from remote repository."""
     store = ctx.obj["store"]
-
     try:
-        if push:
-            store._run_git(["push", remote, "refs/tigs/chats/*:refs/tigs/chats/*"])
-            click.echo(f"Pushed objects to {remote}")
-
-        if pull:
-            store._run_git(["fetch", remote, "refs/tigs/chats/*:refs/tigs/chats/*"])
-            click.echo(f"Pulled objects from {remote}")
+        store._run_git(["fetch", remote, "refs/tigs/chats/*:refs/tigs/chats/*"])
+        click.echo(f"Fetched chats from {remote}")
     except Exception as e:
         click.echo(f"Error: {e}", err=True)
         sys.exit(1)

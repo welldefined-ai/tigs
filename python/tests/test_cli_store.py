@@ -1,47 +1,47 @@
-"""Test cases for store-related CLI commands."""
+"""Test cases for hash-chat CLI command."""
 
 from tigs.cli import main
 
 
-class TestStore:
-    """Test the 'tig store' command."""
+class TestHashChat:
+    """Test the 'tigs hash-chat' command."""
 
-    def test_store_basic(self, runner, git_repo):
-        """Test basic content storage."""
-        result = runner.invoke(main, ["--repo", str(git_repo), "store", "Hello, World!"])
+    def test_hash_chat_basic(self, runner, git_repo):
+        """Test basic chat content storage."""
+        result = runner.invoke(main, ["--repo", str(git_repo), "hash-chat", "Hello, World!"])
         assert result.exit_code == 0
         assert len(result.output.strip()) > 0  # Should return an object ID
 
-    def test_store_with_custom_id(self, runner, git_repo):
+    def test_hash_chat_with_custom_id(self, runner, git_repo):
         """Test storing with a custom ID."""
-        result = runner.invoke(main, ["--repo", str(git_repo), "store", "Content", "--id", "my-id"])
+        result = runner.invoke(main, ["--repo", str(git_repo), "hash-chat", "Content", "--id", "my-id"])
         assert result.exit_code == 0
         assert result.output.strip() == "my-id"
 
-    def test_store_empty_content(self, runner, git_repo):
+    def test_hash_chat_empty_content(self, runner, git_repo):
         """Test storing empty content."""
-        result = runner.invoke(main, ["--repo", str(git_repo), "store", ""])
+        result = runner.invoke(main, ["--repo", str(git_repo), "hash-chat", ""])
         assert result.exit_code == 0
         assert len(result.output.strip()) > 0
 
-    def test_store_multiline_content(self, runner, git_repo):
+    def test_hash_chat_multiline_content(self, runner, git_repo):
         """Test storing multiline content."""
         content = "Line 1\nLine 2\nLine 3"
-        result = runner.invoke(main, ["--repo", str(git_repo), "store", content])
+        result = runner.invoke(main, ["--repo", str(git_repo), "hash-chat", content])
         assert result.exit_code == 0
         assert len(result.output.strip()) > 0
 
-    def test_store_unicode_content(self, runner, git_repo):
+    def test_hash_chat_unicode_content(self, runner, git_repo):
         """Test storing Unicode content."""
         content = "Hello 世界! 🌍"
-        result = runner.invoke(main, ["--repo", str(git_repo), "store", content])
+        result = runner.invoke(main, ["--repo", str(git_repo), "hash-chat", content])
         assert result.exit_code == 0
         assert len(result.output.strip()) > 0
 
-    def test_store_generates_hash_id(self, runner, git_repo):
-        """Test that store generates hash-based IDs."""
+    def test_hash_chat_generates_hash_id(self, runner, git_repo):
+        """Test that hash-chat generates hash-based IDs."""
         content = "Test content for hashing"
-        result = runner.invoke(main, ["--repo", str(git_repo), "store", content])
+        result = runner.invoke(main, ["--repo", str(git_repo), "hash-chat", content])
         assert result.exit_code == 0
 
         object_id = result.output.strip()
@@ -49,13 +49,13 @@ class TestStore:
         assert len(object_id) == 40
         assert all(c in '0123456789abcdef' for c in object_id)
 
-    def test_store_same_content_same_id(self, runner, git_repo):
+    def test_hash_chat_same_content_same_id(self, runner, git_repo):
         """Test that identical content produces the same ID (deduplication)."""
         content = "Duplicate content test"
 
         # Store the same content twice
-        result1 = runner.invoke(main, ["--repo", str(git_repo), "store", content])
-        result2 = runner.invoke(main, ["--repo", str(git_repo), "store", content])
+        result1 = runner.invoke(main, ["--repo", str(git_repo), "hash-chat", content])
+        result2 = runner.invoke(main, ["--repo", str(git_repo), "hash-chat", content])
 
         assert result1.exit_code == 0
         assert result2.exit_code == 0
@@ -67,18 +67,18 @@ class TestStore:
         assert id1 == id2
 
         # List should only show one object (deduplication)
-        result = runner.invoke(main, ["--repo", str(git_repo), "list"])
+        result = runner.invoke(main, ["--repo", str(git_repo), "ls-chats"])
         listed_ids = result.output.strip().split("\n") if result.output.strip() else []
         assert listed_ids.count(id1) == 1
 
-    def test_store_predictable_hash(self, runner, git_repo):
+    def test_hash_chat_predictable_hash(self, runner, git_repo):
         """Test that hash generation is predictable."""
         import hashlib
 
         content = "Predictable hash test"
         expected_hash = hashlib.sha1(content.encode('utf-8')).hexdigest()
 
-        result = runner.invoke(main, ["--repo", str(git_repo), "store", content])
+        result = runner.invoke(main, ["--repo", str(git_repo), "hash-chat", content])
         assert result.exit_code == 0
 
         actual_id = result.output.strip()

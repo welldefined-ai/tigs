@@ -13,11 +13,11 @@ class TestErrorHandling:
 
         # Test various commands
         commands = [
-            ["list"],
-            ["store", "content"],
-            ["show", "some-id"],
-            ["delete", "some-id"],
-            ["sync", "--push"]
+            ["ls-chats"],
+            ["hash-chat", "content"],
+            ["cat-chat", "some-id"],
+            ["rm-chat", "some-id"],
+            ["push-chats"]
         ]
 
         for cmd in commands:
@@ -27,6 +27,6 @@ class TestErrorHandling:
 
     def test_invalid_repo_path(self, runner):
         """Test with a non-existent repository path."""
-        result = runner.invoke(main, ["--repo", "/nonexistent/path", "list"])
+        result = runner.invoke(main, ["--repo", "/nonexistent/path", "ls-chats"])
         assert result.exit_code == 2  # Click's exit code for invalid path
 
