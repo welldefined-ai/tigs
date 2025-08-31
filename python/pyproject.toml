@@ -28,6 +28,7 @@ classifiers = [
 dependencies = [
     "click>=8.0",
     "gitpython>=3.1.30",
+    "cligent>=0.1.2",
 ]
 
 [project.urls]
