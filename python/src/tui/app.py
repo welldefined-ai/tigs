@@ -2,7 +2,14 @@
 
 import curses
 import sys
-from typing import List, Tuple
+from datetime import datetime, timedelta
+from typing import List, Tuple, Optional
+
+try:
+    from cligent import ChatParser
+    CLIGENT_AVAILABLE = True
+except ImportError:
+    CLIGENT_AVAILABLE = False
 
 
 class TigsStoreApp:
@@ -20,6 +27,21 @@ class TigsStoreApp:
         self.store = store
         self.focused_pane = 0  # 0=commits, 1=messages, 2=sessions
         self.running = True
+        
+        # Session management
+        self.sessions = []
+        self.selected_session_idx = 0
+        self.session_scroll_offset = 0
+        self.chat_parser = None
+        
+        # Initialize cligent if available
+        if CLIGENT_AVAILABLE:
+            try:
+                self.chat_parser = ChatParser('claude-code')
+                self._load_sessions()
+            except Exception as e:
+                # Handle cligent initialization errors gracefully
+                self.chat_parser = None
         
     def run(self) -> None:
         """Run the TUI application."""
@@ -109,9 +131,12 @@ class TigsStoreApp:
                            "Messages", self.focused_pane == 1,
                            ["(Messages will appear here)"])
             
+            # Get session display lines
+            session_lines = self._get_session_display_lines(pane_height)
+            
             self._draw_pane(stdscr, 0, commit_width + message_width, pane_height, session_width,
                            "Sessions", self.focused_pane == 2,
-                           ["(Sessions will appear here)"])
+                           session_lines)
             
             # Draw status bar
             self._draw_status_bar(stdscr, height - 1, width)
@@ -129,6 +154,15 @@ class TigsStoreApp:
                 self.focused_pane = (self.focused_pane - 1) % 3
             elif key == curses.KEY_RESIZE:
                 pass  # Will redraw on next iteration
+            elif self.focused_pane == 2:  # Sessions pane focused
+                if key == curses.KEY_UP and self.sessions:
+                    if self.selected_session_idx > 0:
+                        self.selected_session_idx -= 1
+                        # TODO: Trigger message reload
+                elif key == curses.KEY_DOWN and self.sessions:
+                    if self.selected_session_idx < len(self.sessions) - 1:
+                        self.selected_session_idx += 1
+                        # TODO: Trigger message reload
                 
     def _draw_pane(self, stdscr, y: int, x: int, height: int, width: int, 
                    title: str, focused: bool, content: List[str]) -> None:
@@ -241,3 +275,96 @@ class TigsStoreApp:
             pass
             
         stdscr.attroff(curses.A_REVERSE)
+    
+    def _load_sessions(self) -> None:
+        """Load sessions from cligent."""
+        if not self.chat_parser:
+            return
+            
+        try:
+            logs = self.chat_parser.list_logs()
+            # Sort by modification time (newest first)
+            self.sessions = sorted(logs, key=lambda x: x[1]['modified'], reverse=True)
+            
+            # Auto-select the latest session
+            if self.sessions and self.selected_session_idx == 0:
+                self.selected_session_idx = 0
+        except Exception:
+            self.sessions = []
+    
+    def _format_timestamp(self, timestamp_str: str) -> str:
+        """Format timestamp to relative time.
+        
+        Args:
+            timestamp_str: ISO format timestamp string
+            
+        Returns:
+            Formatted relative time string
+        """
+        try:
+            # Parse the timestamp
+            ts = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+            now = datetime.now(ts.tzinfo) if ts.tzinfo else datetime.now()
+            
+            # Calculate difference
+            diff = now - ts
+            
+            # Format based on time difference
+            if diff < timedelta(minutes=1):
+                return "just now"
+            elif diff < timedelta(hours=1):
+                mins = int(diff.total_seconds() / 60)
+                return f"{mins}m ago"
+            elif diff < timedelta(hours=24):
+                hours = int(diff.total_seconds() / 3600)
+                return f"{hours}h ago"
+            elif diff < timedelta(days=2):
+                return "yesterday"
+            elif diff < timedelta(days=7):
+                return f"{diff.days}d ago"
+            else:
+                # Show time for older sessions
+                return ts.strftime("%m/%d %H:%M")
+        except:
+            # Fallback to showing part of the timestamp
+            return timestamp_str[:10] if len(timestamp_str) > 10 else timestamp_str
+    
+    def _get_session_display_lines(self, height: int) -> List[str]:
+        """Get display lines for sessions pane.
+        
+        Args:
+            height: Available height for content
+            
+        Returns:
+            List of formatted session lines
+        """
+        lines = []
+        
+        if not self.sessions:
+            if self.chat_parser:
+                lines.append("No sessions found")
+            else:
+                lines.append("Cligent not available")
+            return lines
+        
+        # Calculate visible range with scrolling
+        visible_count = min(height - 2, len(self.sessions))  # -2 for borders
+        
+        # Adjust scroll offset if needed
+        if self.selected_session_idx < self.session_scroll_offset:
+            self.session_scroll_offset = self.selected_session_idx
+        elif self.selected_session_idx >= self.session_scroll_offset + visible_count:
+            self.session_scroll_offset = self.selected_session_idx - visible_count + 1
+        
+        # Build display lines
+        for i in range(self.session_scroll_offset, min(self.session_scroll_offset + visible_count, len(self.sessions))):
+            session_id, metadata = self.sessions[i]
+            timestamp = self._format_timestamp(metadata.get('modified', ''))
+            
+            # Format: "• timestamp" for selected, "  timestamp" for others
+            if i == self.selected_session_idx:
+                lines.append(f"• {timestamp}")
+            else:
+                lines.append(f"  {timestamp}")
+        
+        return lines
