@@ -1,86 +1,81 @@
-"""Test cases for store-related CLI commands."""
+"""Test cases for add-chat CLI command."""
 
+import subprocess
 from tigs.cli import main
 
 
-class TestStore:
-    """Test the 'tig store' command."""
+class TestAddChat:
+    """Test the 'tigs add-chat' command."""
 
-    def test_store_basic(self, runner, git_repo):
-        """Test basic content storage."""
-        result = runner.invoke(main, ["--repo", str(git_repo), "store", "Hello, World!"])
+    def test_add_chat_basic(self, runner, git_repo):
+        """Test basic chat addition to HEAD."""
+        result = runner.invoke(main, ["--repo", str(git_repo), "add-chat", "-m", "Hello, World!"])
         assert result.exit_code == 0
-        assert len(result.output.strip()) > 0  # Should return an object ID
+        assert "Added chat to commit:" in result.output
+        # Should contain a 40-character commit SHA
+        commit_sha = result.output.split(":")[-1].strip()
+        assert len(commit_sha) == 40
 
-    def test_store_with_custom_id(self, runner, git_repo):
-        """Test storing with a custom ID."""
-        result = runner.invoke(main, ["--repo", str(git_repo), "store", "Content", "--id", "my-id"])
+    def test_add_chat_to_specific_commit(self, runner, git_repo):
+        """Test adding chat to a specific commit."""
+        # Get HEAD commit SHA
+        head_result = subprocess.run(
+            ["git", "rev-parse", "HEAD"], 
+            cwd=git_repo, 
+            capture_output=True, 
+            text=True
+        )
+        head_sha = head_result.stdout.strip()
+        
+        result = runner.invoke(main, ["--repo", str(git_repo), "add-chat", head_sha, "-m", "Chat for specific commit"])
         assert result.exit_code == 0
-        assert result.output.strip() == "my-id"
+        assert f"Added chat to commit: {head_sha}" in result.output
 
-    def test_store_empty_content(self, runner, git_repo):
-        """Test storing empty content."""
-        result = runner.invoke(main, ["--repo", str(git_repo), "store", ""])
-        assert result.exit_code == 0
-        assert len(result.output.strip()) > 0
-
-    def test_store_multiline_content(self, runner, git_repo):
-        """Test storing multiline content."""
+    def test_add_chat_multiline_content(self, runner, git_repo):
+        """Test adding multiline chat content."""
         content = "Line 1\nLine 2\nLine 3"
-        result = runner.invoke(main, ["--repo", str(git_repo), "store", content])
+        result = runner.invoke(main, ["--repo", str(git_repo), "add-chat", "-m", content])
         assert result.exit_code == 0
-        assert len(result.output.strip()) > 0
+        assert "Added chat to commit:" in result.output
 
-    def test_store_unicode_content(self, runner, git_repo):
-        """Test storing Unicode content."""
+    def test_add_chat_unicode_content(self, runner, git_repo):
+        """Test adding Unicode content."""
         content = "Hello 世界! 🌍"
-        result = runner.invoke(main, ["--repo", str(git_repo), "store", content])
+        result = runner.invoke(main, ["--repo", str(git_repo), "add-chat", "-m", content])
         assert result.exit_code == 0
-        assert len(result.output.strip()) > 0
+        assert "Added chat to commit:" in result.output
 
-    def test_store_generates_hash_id(self, runner, git_repo):
-        """Test that store generates hash-based IDs."""
-        content = "Test content for hashing"
-        result = runner.invoke(main, ["--repo", str(git_repo), "store", content])
-        assert result.exit_code == 0
-
-        object_id = result.output.strip()
-        # Should be a 40-character hex string (SHA-1)
-        assert len(object_id) == 40
-        assert all(c in '0123456789abcdef' for c in object_id)
-
-    def test_store_same_content_same_id(self, runner, git_repo):
-        """Test that identical content produces the same ID (deduplication)."""
-        content = "Duplicate content test"
-
-        # Store the same content twice
-        result1 = runner.invoke(main, ["--repo", str(git_repo), "store", content])
-        result2 = runner.invoke(main, ["--repo", str(git_repo), "store", content])
-
+    def test_add_chat_duplicate_fails(self, runner, git_repo):
+        """Test that adding chat to same commit twice fails."""
+        # Add first chat
+        result1 = runner.invoke(main, ["--repo", str(git_repo), "add-chat", "-m", "First chat"])
         assert result1.exit_code == 0
-        assert result2.exit_code == 0
+        
+        # Try to add second chat to same commit - should fail
+        result2 = runner.invoke(main, ["--repo", str(git_repo), "add-chat", "-m", "Second chat"])
+        assert result2.exit_code == 1
+        assert "already has a chat" in result2.output
 
-        id1 = result1.output.strip()
-        id2 = result2.output.strip()
+    def test_add_chat_invalid_commit(self, runner, git_repo):
+        """Test adding chat to invalid commit fails."""
+        result = runner.invoke(main, ["--repo", str(git_repo), "add-chat", "invalid-commit", "-m", "Test"])
+        assert result.exit_code == 1
+        assert "Invalid commit" in result.output
 
-        # Should be the same ID
-        assert id1 == id2
+    def test_add_chat_no_message_aborts(self, runner, git_repo):
+        """Test that providing no message aborts the operation."""
+        # This test is difficult in headless environments, so we test the equivalent
+        # by testing what happens when editor returns empty content
+        import os
+        os.environ["EDITOR"] = "true"  # Set a no-op editor
+        
+        result = runner.invoke(main, ["--repo", str(git_repo), "add-chat"])
+        assert result.exit_code == 1
+        # Should abort due to empty content after editor
+        assert "Aborted" in result.output or "No content" in result.output
 
-        # List should only show one object (deduplication)
-        result = runner.invoke(main, ["--repo", str(git_repo), "list"])
-        listed_ids = result.output.strip().split("\n") if result.output.strip() else []
-        assert listed_ids.count(id1) == 1
-
-    def test_store_predictable_hash(self, runner, git_repo):
-        """Test that hash generation is predictable."""
-        import hashlib
-
-        content = "Predictable hash test"
-        expected_hash = hashlib.sha1(content.encode('utf-8')).hexdigest()
-
-        result = runner.invoke(main, ["--repo", str(git_repo), "store", content])
-        assert result.exit_code == 0
-
-        actual_id = result.output.strip()
-        assert actual_id == expected_hash
-
+    def test_add_chat_empty_message_aborts(self, runner, git_repo):
+        """Test that providing empty message aborts the operation."""
+        result = runner.invoke(main, ["--repo", str(git_repo), "add-chat", "-m", ""])
+        assert result.exit_code == 1
+        assert "No content provided" in result.output or result.exit_code == 1

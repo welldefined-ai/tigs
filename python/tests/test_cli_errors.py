@@ -13,11 +13,12 @@ class TestErrorHandling:
 
         # Test various commands
         commands = [
-            ["list"],
-            ["store", "content"],
-            ["show", "some-id"],
-            ["delete", "some-id"],
-            ["sync", "--push"]
+            ["list-chats"],
+            ["add-chat", "-m", "content"],
+            ["show-chat"],
+            ["remove-chat"],
+            ["push-chats"],
+            ["fetch-chats"]
         ]
 
         for cmd in commands:
@@ -27,6 +28,20 @@ class TestErrorHandling:
 
     def test_invalid_repo_path(self, runner):
         """Test with a non-existent repository path."""
-        result = runner.invoke(main, ["--repo", "/nonexistent/path", "list"])
+        result = runner.invoke(main, ["--repo", "/nonexistent/path", "list-chats"])
         assert result.exit_code == 2  # Click's exit code for invalid path
 
+    def test_no_commits_in_repository(self, runner, tmp_path):
+        """Test commands in a Git repo with no commits."""
+        empty_repo = tmp_path / "empty_repo"
+        empty_repo.mkdir()
+        
+        import subprocess
+        subprocess.run(["git", "init"], cwd=empty_repo, check=True, capture_output=True)
+        subprocess.run(["git", "config", "user.name", "Test User"], cwd=empty_repo, check=True)
+        subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=empty_repo, check=True)
+
+        # Try to add chat to HEAD (which doesn't exist)
+        result = runner.invoke(main, ["--repo", str(empty_repo), "add-chat", "-m", "test"])
+        assert result.exit_code == 1
+        assert "No commits" in result.output or "Invalid commit" in result.output

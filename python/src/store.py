@@ -1,13 +1,12 @@
-"""Core storage implementation for Tigs objects."""
+"""Core storage implementation for Tigs chats using Git notes."""
 
-import hashlib
 import subprocess
 from pathlib import Path
 from typing import List, Optional
 
 
 class TigsStore:
-    """Store and retrieve text objects in Git repositories."""
+    """Store and retrieve chat content using Git notes."""
 
     def __init__(self, repo_path: Optional[Path] = None):
         """Initialize TigsStore.
@@ -39,98 +38,125 @@ class TigsStore:
             check=True
         )
 
-    def store(self, content: str, object_id: Optional[str] = None) -> str:
-        """Store text content as a Git object.
+    def add_chat(self, commit_sha: str, content: str) -> str:
+        """Add chat content to a commit using Git notes.
 
         Args:
-            content: Text content to store.
-            object_id: Optional ID for the object. Generated from content hash if not provided.
+            commit_sha: The commit SHA to attach the chat to.
+            content: Chat content to store.
 
         Returns:
-            The object ID used to store the content.
+            The resolved commit SHA.
         """
-        # Generate object ID from content hash if not provided
-        if object_id is None:
-            object_id = hashlib.sha1(content.encode('utf-8')).hexdigest()
+        # Resolve commit SHA (handles HEAD, branch names, etc.)
+        try:
+            resolved_sha = self._run_git(["rev-parse", commit_sha]).stdout.strip()
+        except subprocess.CalledProcessError:
+            raise ValueError(f"Invalid commit: {commit_sha}")
 
-        # Store content as blob
-        process = subprocess.Popen(
-            ["git", "hash-object", "-w", "--stdin"],
-            cwd=self.repo_path,
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True
-        )
-        stdout, stderr = process.communicate(input=content)
-        if process.returncode != 0:
-            raise subprocess.CalledProcessError(process.returncode, "git hash-object", stderr)
-        blob_sha = stdout.strip()
+        # Add note using Git notes
+        try:
+            self._run_git(["notes", "--ref=refs/notes/chats", "add", "-m", content, resolved_sha])
+            return resolved_sha
+        except subprocess.CalledProcessError as e:
+            # Check both stdout and stderr for the "existing notes" message
+            error_output = (e.stderr or "") + (e.stdout or "")
+            if "found existing notes" in error_output.lower() or "already has a note" in error_output.lower():
+                raise ValueError(f"Commit {resolved_sha} already has a chat")
+            else:
+                raise ValueError(f"Failed to add chat: {error_output.strip()}")
 
-        # Create ref
-        ref_name = f"refs/tigs/chats/{object_id}"
-        self._run_git(["update-ref", ref_name, blob_sha])
-
-        return object_id
-
-    def retrieve(self, object_id: str) -> str:
-        """Retrieve content by object ID.
+    def show_chat(self, commit_sha: str) -> str:
+        """Retrieve chat content for a commit.
 
         Args:
-            object_id: The ID of the object to retrieve.
+            commit_sha: The commit SHA to get the chat for.
 
         Returns:
-            The content of the object.
+            The chat content.
 
         Raises:
-            KeyError: If object_id doesn't exist.
+            KeyError: If commit doesn't have a chat.
         """
-        ref_name = f"refs/tigs/chats/{object_id}"
-
-        # Get blob SHA from ref
+        # Resolve commit SHA
         try:
-            result = self._run_git(["rev-parse", ref_name])
-            blob_sha = result.stdout.strip()
+            resolved_sha = self._run_git(["rev-parse", commit_sha]).stdout.strip()
         except subprocess.CalledProcessError:
-            raise KeyError(f"Object not found: {object_id}")
+            raise ValueError(f"Invalid commit: {commit_sha}")
 
-        # Get content
-        result = self._run_git(["cat-file", "blob", blob_sha])
-        return result.stdout
+        # Get note content
+        try:
+            result = self._run_git(["notes", "--ref=refs/notes/chats", "show", resolved_sha])
+            # Git notes adds exactly one trailing newline, remove only that one
+            if result.stdout.endswith('\n'):
+                return result.stdout[:-1]
+            return result.stdout
+        except subprocess.CalledProcessError:
+            raise KeyError(f"No chat found for commit: {resolved_sha}")
 
-    def list(self) -> List[str]:
-        """List all object IDs.
+    def list_chats(self) -> List[str]:
+        """List all commits that have chats.
 
         Returns:
-            List of object IDs.
+            List of commit SHAs that have chats attached.
         """
-        result = self._run_git(["for-each-ref", "--format=%(refname:short)", "refs/tigs/chats"])
-        if not result.stdout.strip():
+        try:
+            result = self._run_git(["notes", "--ref=refs/notes/chats", "list"])
+            if not result.stdout.strip():
+                return []
+            
+            # Parse output: each line is "note_blob_sha commit_sha"
+            lines = result.stdout.strip().split("\n")
+            return [line.split()[1] for line in lines if line.strip()]
+        except subprocess.CalledProcessError:
             return []
 
-        refs = result.stdout.strip().split("\n")
-        # Extract object IDs from refs (remove "tigs/chats/" prefix)
-        return [ref.split("/", 2)[2] for ref in refs]
-
-    def delete(self, object_id: str) -> None:
-        """Delete an object by removing its ref.
-
-        The blob will be garbage collected later by Git.
+    def remove_chat(self, commit_sha: str) -> None:
+        """Remove chat from a commit.
 
         Args:
-            object_id: The ID of the object to delete.
+            commit_sha: The commit SHA to remove the chat from.
 
         Raises:
-            KeyError: If object_id doesn't exist.
+            KeyError: If commit doesn't have a chat.
         """
-        ref_name = f"refs/tigs/chats/{object_id}"
-
-        # First check if the ref exists
+        # Resolve commit SHA
         try:
-            self._run_git(["rev-parse", "--verify", ref_name])
+            resolved_sha = self._run_git(["rev-parse", commit_sha]).stdout.strip()
         except subprocess.CalledProcessError:
-            raise KeyError(f"Object not found: {object_id}")
+            raise ValueError(f"Invalid commit: {commit_sha}")
 
-        # Delete the ref
-        self._run_git(["update-ref", "-d", ref_name])
+        # Remove the note
+        try:
+            self._run_git(["notes", "--ref=refs/notes/chats", "remove", resolved_sha])
+        except subprocess.CalledProcessError:
+            raise KeyError(f"No chat found for commit: {resolved_sha}")
 
+    def get_current_commit(self) -> str:
+        """Get the current HEAD commit SHA.
+        
+        Returns:
+            Current HEAD commit SHA.
+        """
+        try:
+            return self._run_git(["rev-parse", "HEAD"]).stdout.strip()
+        except subprocess.CalledProcessError:
+            raise ValueError("No commits in repository")
+
+    # Legacy methods for backward compatibility (will be removed)
+    def store(self, content: str, object_id: Optional[str] = None) -> str:
+        """Legacy method - use add_chat instead."""
+        commit_sha = object_id if object_id else self.get_current_commit()
+        return self.add_chat(commit_sha, content)
+
+    def retrieve(self, object_id: str) -> str:
+        """Legacy method - use show_chat instead."""
+        return self.show_chat(object_id)
+
+    def list(self) -> List[str]:
+        """Legacy method - use list_chats instead."""
+        return self.list_chats()
+
+    def delete(self, object_id: str) -> None:
+        """Legacy method - use remove_chat instead."""
+        self.remove_chat(object_id)
