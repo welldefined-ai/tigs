@@ -168,7 +168,7 @@ class TigsStoreApp:
             elif key == curses.KEY_RESIZE:
                 pass  # Will redraw on next iteration
             elif self.focused_pane == 1:  # Messages pane focused
-                self._handle_message_input(key)
+                self._handle_message_input(stdscr, key)
             elif self.focused_pane == 2:  # Sessions pane focused
                 if key == curses.KEY_UP and self.sessions:
                     if self.selected_session_idx > 0:
@@ -402,7 +402,11 @@ class TigsStoreApp:
             # Extract messages
             self.messages = []
             for msg in conversation.messages:
-                role = msg.role  # 'user' or 'assistant'
+                # Convert role to string (it might be an enum)
+                role = str(msg.role).lower()
+                # Handle enum format like "Role.USER" -> "user"
+                if '.' in role:
+                    role = role.split('.')[-1].lower()
                 content = msg.content if hasattr(msg, 'content') else str(msg)
                 self.messages.append((role, content))
             
@@ -489,18 +493,19 @@ class TigsStoreApp:
         
         return lines
     
-    def _handle_message_input(self, key: int) -> None:
+    def _handle_message_input(self, stdscr, key: int) -> None:
         """Handle input when messages pane is focused.
         
         Args:
+            stdscr: The curses screen
             key: The key pressed
         """
         if not self.messages:
             return
             
         # Get visible message count
-        height = curses.LINES - 1
-        visible_count = height - 2
+        height, _ = stdscr.getmaxyx()
+        visible_count = height - 3  # -1 for status bar, -2 for borders
         
         # Navigation with Up/Down arrows
         if key == curses.KEY_UP:
