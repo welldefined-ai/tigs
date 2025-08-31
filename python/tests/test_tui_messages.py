@@ -178,8 +178,8 @@ class TestMessageView:
         lines = app._get_message_display_lines(height=10)
         assert '(No messages to display)' in lines[0]
     
-    def test_message_content_extraction(self):
-        """Test different ways message content might be structured."""
+    def test_role_enum_conversion(self):
+        """Test conversion of Role enums to strings."""
         mock_store = Mock()
         
         with patch('src.tui.app.CLIGENT_AVAILABLE', True), \
@@ -191,17 +191,18 @@ class TestMessageView:
                 ('session-1', {'modified': '2024-01-01T10:00:00Z'})
             ]
             
-            # Test with content attribute
+            # Test with Role enum (like Role.USER)
             mock_conv = Mock()
             mock_msg1 = Mock()
-            mock_msg1.role = 'user'
+            mock_msg1.role = Mock()
+            mock_msg1.role.__str__ = Mock(return_value='Role.USER')
             mock_msg1.content = 'Test content'
             
-            # Test without content attribute (falls back to str())
+            # Test with Role enum (like Role.ASSISTANT)
             mock_msg2 = Mock()
-            mock_msg2.role = 'assistant'
-            del mock_msg2.content  # Remove content attribute
-            mock_msg2.__str__ = Mock(return_value='Stringified message')
+            mock_msg2.role = Mock()
+            mock_msg2.role.__str__ = Mock(return_value='Role.ASSISTANT')
+            mock_msg2.content = 'Assistant response'
             
             mock_conv.messages = [mock_msg1, mock_msg2]
             mock_parser.parse.return_value = mock_conv
@@ -209,4 +210,37 @@ class TestMessageView:
             app = TigsStoreApp(mock_store)
             
             assert app.messages[0] == ('user', 'Test content')
-            assert app.messages[1] == ('assistant', 'Stringified message')
+            assert app.messages[1] == ('assistant', 'Assistant response')
+    
+    def test_real_cligent_integration(self):
+        """Test with real cligent if available in current directory."""
+        try:
+            from cligent import ChatParser
+            
+            # Test if we can find real sessions in current directory
+            cp = ChatParser('claude-code')
+            logs = cp.list_logs()
+            
+            if logs:
+                # We have real data - test the full integration
+                mock_store = Mock()
+                app = TigsStoreApp(mock_store)
+                
+                # Should have loaded real sessions and messages
+                assert len(app.sessions) > 0, "Should find real sessions"
+                assert len(app.messages) > 0, "Should load real messages"
+                
+                # Test display generation
+                lines = app._get_message_display_lines(height=20)
+                assert len(lines) > 0, "Should generate display lines"
+                
+                # Verify message format
+                for role, content in app.messages:
+                    assert role in ['user', 'assistant', 'system']
+                    assert isinstance(content, str)
+                    assert len(content) > 0
+            else:
+                pytest.skip("No Claude Code sessions found in current directory")
+                
+        except ImportError:
+            pytest.skip("cligent not available")
