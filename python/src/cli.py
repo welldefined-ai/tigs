@@ -7,6 +7,7 @@ from typing import Optional
 import click
 
 from .store import TigsStore
+from .tui import TigsStoreApp, CURSES_AVAILABLE
 
 
 @click.group()
@@ -138,6 +139,23 @@ def fetch_chats(ctx: click.Context, remote: str) -> None:
     try:
         store._run_git(["fetch", remote, "refs/notes/chats:refs/notes/chats"])
         click.echo(f"Fetched chats from {remote}")
+    except Exception as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+
+
+@main.command("store")
+@click.pass_context
+def store_command(ctx: click.Context) -> None:
+    """Launch interactive TUI for selecting commits and messages."""
+    if not CURSES_AVAILABLE:
+        click.echo("Error: curses library not available", err=True)
+        sys.exit(1)
+        
+    store = ctx.obj["store"]
+    app = TigsStoreApp(store)
+    try:
+        app.run()
     except Exception as e:
         click.echo(f"Error: {e}", err=True)
         sys.exit(1)
