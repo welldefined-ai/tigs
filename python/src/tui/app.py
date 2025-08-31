@@ -34,11 +34,21 @@ class TigsStoreApp:
         self.session_scroll_offset = 0
         self.chat_parser = None
         
+        # Message management
+        self.messages = []  # List of (role, content) tuples
+        self.message_scroll_offset = 0
+        self.selected_messages = set()  # Set of selected message indices
+        self.visual_mode = False  # Visual selection mode
+        self.visual_start_idx = None  # Start of visual selection
+        
         # Initialize cligent if available
         if CLIGENT_AVAILABLE:
             try:
                 self.chat_parser = ChatParser('claude-code')
                 self._load_sessions()
+                # Load messages for the first session if available
+                if self.sessions:
+                    self._load_messages()
             except Exception as e:
                 # Handle cligent initialization errors gracefully
                 self.chat_parser = None
@@ -127,9 +137,12 @@ class TigsStoreApp:
                            "Commits", self.focused_pane == 0,
                            ["(Commits will appear here)"])
             
+            # Get message display lines
+            message_lines = self._get_message_display_lines(pane_height)
+            
             self._draw_pane(stdscr, 0, commit_width, pane_height, message_width,
                            "Messages", self.focused_pane == 1,
-                           ["(Messages will appear here)"])
+                           message_lines)
             
             # Get session display lines
             session_lines = self._get_session_display_lines(pane_height)
@@ -154,15 +167,17 @@ class TigsStoreApp:
                 self.focused_pane = (self.focused_pane - 1) % 3
             elif key == curses.KEY_RESIZE:
                 pass  # Will redraw on next iteration
+            elif self.focused_pane == 1:  # Messages pane focused
+                self._handle_message_input(key)
             elif self.focused_pane == 2:  # Sessions pane focused
                 if key == curses.KEY_UP and self.sessions:
                     if self.selected_session_idx > 0:
                         self.selected_session_idx -= 1
-                        # TODO: Trigger message reload
+                        self._load_messages()
                 elif key == curses.KEY_DOWN and self.sessions:
                     if self.selected_session_idx < len(self.sessions) - 1:
                         self.selected_session_idx += 1
-                        # TODO: Trigger message reload
+                        self._load_messages()
                 
     def _draw_pane(self, stdscr, y: int, x: int, height: int, width: int, 
                    title: str, focused: bool, content: List[str]) -> None:
@@ -368,3 +383,175 @@ class TigsStoreApp:
                 lines.append(f"  {timestamp}")
         
         return lines
+    
+    def _load_messages(self) -> None:
+        """Load messages for the currently selected session."""
+        if not self.chat_parser or not self.sessions:
+            self.messages = []
+            return
+            
+        if self.selected_session_idx >= len(self.sessions):
+            self.messages = []
+            return
+            
+        try:
+            session_id = self.sessions[self.selected_session_idx][0]
+            # Parse the session to get messages
+            conversation = self.chat_parser.parse(session_id)
+            
+            # Extract messages
+            self.messages = []
+            for msg in conversation.messages:
+                role = msg.role  # 'user' or 'assistant'
+                content = msg.content if hasattr(msg, 'content') else str(msg)
+                self.messages.append((role, content))
+            
+            # Clear selections when loading new messages
+            self.selected_messages.clear()
+            self.visual_mode = False
+            self.visual_start_idx = None
+            
+            # Auto-scroll to bottom (newest messages)
+            self.message_scroll_offset = max(0, len(self.messages) - 10)
+        except Exception:
+            self.messages = []
+    
+    def _get_message_display_lines(self, height: int) -> List[str]:
+        """Get display lines for messages pane with bottom-anchored display.
+        
+        Args:
+            height: Available height for content
+            
+        Returns:
+            List of formatted message lines
+        """
+        lines = []
+        
+        if not self.messages:
+            lines.append("(No messages to display)")
+            return lines
+        
+        # Calculate visible range (bottom-anchored)
+        visible_count = height - 2  # -2 for borders
+        
+        # For bottom-anchored display, we show the latest messages
+        if len(self.messages) <= visible_count:
+            # All messages fit
+            start_idx = 0
+            end_idx = len(self.messages)
+        else:
+            # Need scrolling - show from scroll offset
+            start_idx = self.message_scroll_offset
+            end_idx = min(start_idx + visible_count, len(self.messages))
+            
+            # Adjust if we're at the bottom
+            if end_idx == len(self.messages):
+                start_idx = max(0, end_idx - visible_count)
+        
+        # Build display lines
+        for i in range(start_idx, end_idx):
+            role, content = self.messages[i]
+            
+            # Format message header
+            if role == 'user':
+                header = f"[{i+1}] User:"
+            else:
+                header = f"[{i+1}] Assistant:"
+            
+            # Check if selected
+            is_selected = i in self.selected_messages
+            
+            # In visual mode, check if in range
+            if self.visual_mode and self.visual_start_idx is not None:
+                visual_min = min(self.visual_start_idx, i)
+                visual_max = max(self.visual_start_idx, i)
+                if visual_min <= i <= visual_max:
+                    is_selected = True
+            
+            # Format the line with selection indicator
+            if is_selected:
+                line = f"▶ {header}"
+            else:
+                line = f"  {header}"
+            
+            lines.append(line)
+            
+            # Add first line of content (truncated if needed)
+            content_lines = content.split('\n')
+            if content_lines:
+                first_line = content_lines[0][:40] + "..." if len(content_lines[0]) > 40 else content_lines[0]
+                lines.append(f"    {first_line}")
+        
+        # Add status line if in visual mode
+        if self.visual_mode:
+            lines.append("")
+            lines.append("-- VISUAL MODE --")
+        
+        return lines
+    
+    def _handle_message_input(self, key: int) -> None:
+        """Handle input when messages pane is focused.
+        
+        Args:
+            key: The key pressed
+        """
+        if not self.messages:
+            return
+            
+        # Get visible message count
+        height = curses.LINES - 1
+        visible_count = height - 2
+        
+        # Navigation with Up/Down arrows
+        if key == curses.KEY_UP:
+            if self.message_scroll_offset > 0:
+                self.message_scroll_offset -= 1
+        elif key == curses.KEY_DOWN:
+            max_offset = max(0, len(self.messages) - visible_count)
+            if self.message_scroll_offset < max_offset:
+                self.message_scroll_offset += 1
+        
+        # Selection operations
+        elif key == ord(' '):  # Space - toggle selection
+            # Find current message index based on cursor position
+            current_idx = self.message_scroll_offset
+            if current_idx < len(self.messages):
+                if current_idx in self.selected_messages:
+                    self.selected_messages.remove(current_idx)
+                else:
+                    self.selected_messages.add(current_idx)
+                # Exit visual mode when using space
+                self.visual_mode = False
+                self.visual_start_idx = None
+        
+        elif key == ord('v'):  # Start visual selection mode
+            if not self.visual_mode:
+                self.visual_mode = True
+                self.visual_start_idx = self.message_scroll_offset
+            else:
+                # Exit visual mode and confirm selection
+                if self.visual_start_idx is not None:
+                    visual_min = min(self.visual_start_idx, self.message_scroll_offset)
+                    visual_max = max(self.visual_start_idx, self.message_scroll_offset)
+                    for i in range(visual_min, visual_max + 1):
+                        if i < len(self.messages):
+                            self.selected_messages.add(i)
+                self.visual_mode = False
+                self.visual_start_idx = None
+        
+        elif key == ord('c'):  # Clear all selections
+            self.selected_messages.clear()
+            self.visual_mode = False
+            self.visual_start_idx = None
+        
+        elif key == ord('a'):  # Select all visible messages
+            start_idx = self.message_scroll_offset
+            end_idx = min(start_idx + visible_count, len(self.messages))
+            for i in range(start_idx, end_idx):
+                self.selected_messages.add(i)
+            self.visual_mode = False
+            self.visual_start_idx = None
+        
+        elif key == 27:  # Escape - cancel visual mode
+            self.visual_mode = False
+            self.visual_start_idx = None
