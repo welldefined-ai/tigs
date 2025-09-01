@@ -145,31 +145,32 @@ class TestMessageView:
         # Mock stdscr for screen dimensions
         mock_stdscr = Mock()
         mock_stdscr.getmaxyx.return_value = (24, 80)
+        pane_height = 24 - 1  # Terminal height minus status bar
         
         # Set cursor position and test space key toggles selection
         app.message_cursor_idx = 0
-        app._handle_message_input(mock_stdscr, ord(' '))
+        app._handle_message_input(mock_stdscr, ord(' '), pane_height)
         assert 0 in app.selected_messages
         
-        app._handle_message_input(mock_stdscr, ord(' '))
+        app._handle_message_input(mock_stdscr, ord(' '), pane_height)
         assert 0 not in app.selected_messages
         
         # Test cursor movement
         app.message_cursor_idx = 0
-        app._handle_message_input(mock_stdscr, 258)  # KEY_DOWN
+        app._handle_message_input(mock_stdscr, 258, pane_height)  # KEY_DOWN
         assert app.message_cursor_idx == 1
         
-        app._handle_message_input(mock_stdscr, 259)  # KEY_UP  
+        app._handle_message_input(mock_stdscr, 259, pane_height)  # KEY_UP  
         assert app.message_cursor_idx == 0
         
         # Test clear selections
         app.selected_messages.add(0)
         app.selected_messages.add(1)
-        app._handle_message_input(mock_stdscr, ord('c'))
+        app._handle_message_input(mock_stdscr, ord('c'), pane_height)
         assert len(app.selected_messages) == 0
         
         # Test select all
-        app._handle_message_input(mock_stdscr, ord('a'))
+        app._handle_message_input(mock_stdscr, ord('a'), pane_height)
         assert len(app.selected_messages) == 3  # All 3 messages selected
     
     @patch('src.tui.app.CLIGENT_AVAILABLE', False)
@@ -272,6 +273,10 @@ class TestMessageView:
                 ('assistant', 'Second message'),
                 ('user', 'Third message')
             ]
+            
+            # Mark that initialization has already been done to prevent override
+            app._needs_message_view_init = False
+            app.message_scroll_offset = 0  # Show all messages from the top
             app.message_cursor_idx = 1  # Cursor on second message
             app.selected_messages.add(2)  # Third message selected
             
@@ -315,6 +320,7 @@ class TestMessageView:
             
             mock_stdscr = Mock()
             mock_stdscr.getmaxyx.return_value = (20, 80)
+            pane_height = 20 - 1  # Terminal height minus status bar
             
             print(f"\nTesting scrolling with {len(app.messages)} messages")
             print(f"Initial: cursor={app.message_cursor_idx}, scroll={app.message_scroll_offset}")
@@ -326,7 +332,7 @@ class TestMessageView:
             
             # Phase 1: Scroll UP significantly 
             for i in range(25):  # Move up 25 positions
-                app._handle_message_input(mock_stdscr, 259)  # KEY_UP
+                app._handle_message_input(mock_stdscr, 259, pane_height)  # KEY_UP
                 lines = app._get_message_display_lines(height=20)  # Trigger scrolling logic
                 
                 # Cursor should always be visible
@@ -345,7 +351,7 @@ class TestMessageView:
                 old_cursor = app.message_cursor_idx
                 old_scroll = app.message_scroll_offset
                 
-                app._handle_message_input(mock_stdscr, 258)  # KEY_DOWN
+                app._handle_message_input(mock_stdscr, 258, pane_height)  # KEY_DOWN
                 lines = app._get_message_display_lines(height=20)  # Trigger scrolling logic
                 
                 # Cursor should always be visible
@@ -392,6 +398,7 @@ class TestMessageView:
             
             mock_stdscr = Mock()
             mock_stdscr.getmaxyx.return_value = (24, 80)
+            pane_height = 24 - 1  # Terminal height minus status bar
             
             print(f"\nReal scenario test with {len(app.messages)} messages")
             print(f"Initial: cursor={app.message_cursor_idx}, scroll={app.message_scroll_offset}")
@@ -405,7 +412,7 @@ class TestMessageView:
             up_presses_needed = 0
             for i in range(50):  # User keeps pressing UP
                 up_presses_needed += 1
-                app._handle_message_input(mock_stdscr, 259)  # KEY_UP
+                app._handle_message_input(mock_stdscr, 259, pane_height)  # KEY_UP
                 lines = app._get_message_display_lines(height=24)
                 
                 cursor_lines = [j for j, line in enumerate(lines) if line.startswith('▶')]
@@ -425,7 +432,7 @@ class TestMessageView:
                 old_cursor = app.message_cursor_idx
                 down_presses += 1
                 
-                app._handle_message_input(mock_stdscr, 258)  # KEY_DOWN
+                app._handle_message_input(mock_stdscr, 258, pane_height)  # KEY_DOWN
                 lines = app._get_message_display_lines(height=24)
                 
                 max_cursor_reached = max(max_cursor_reached, app.message_cursor_idx)
@@ -534,6 +541,7 @@ class TestMessageView:
             
             mock_stdscr = Mock()
             mock_stdscr.getmaxyx.return_value = (24, 80)  # Standard terminal size
+            pane_height = 24 - 1  # Terminal height minus status bar
             
             print(f"\nUser issue reproduction test:")
             print(f"Messages: {len(app.messages)}")
@@ -552,7 +560,7 @@ class TestMessageView:
             print(f"\\nScrolling UP to simulate user experience...")
             up_count = 0
             for i in range(100):  # Scroll up significantly
-                app._handle_message_input(mock_stdscr, 259)  # KEY_UP
+                app._handle_message_input(mock_stdscr, 259, pane_height)  # KEY_UP
                 up_count += 1
                 lines = app._get_message_display_lines(height=24)
                 
@@ -571,7 +579,7 @@ class TestMessageView:
             stuck_count = 0
             
             for i in range(300):  # Try many DOWN presses
-                app._handle_message_input(mock_stdscr, 258)  # KEY_DOWN
+                app._handle_message_input(mock_stdscr, 258, pane_height)  # KEY_DOWN
                 down_count += 1
                 lines = app._get_message_display_lines(height=24)
                 

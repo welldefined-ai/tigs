@@ -170,7 +170,7 @@ class TigsStoreApp:
             elif key == curses.KEY_RESIZE:
                 pass  # Will redraw on next iteration
             elif self.focused_pane == 1:  # Messages pane focused
-                self._handle_message_input(stdscr, key)
+                self._handle_message_input(stdscr, key, pane_height)
             elif self.focused_pane == 2:  # Sessions pane focused
                 if key == curses.KEY_UP and self.sessions:
                     if self.selected_session_idx > 0:
@@ -492,19 +492,19 @@ class TigsStoreApp:
         
         return lines
     
-    def _handle_message_input(self, stdscr, key: int) -> None:
+    def _handle_message_input(self, stdscr, key: int, pane_height: int) -> None:
         """Handle input when messages pane is focused.
         
         Args:
             stdscr: The curses screen
             key: The key pressed
+            pane_height: Height of the messages pane
         """
         if not self.messages:
             return
             
-        # Get current screen dimensions for scrolling calculations
-        height, _ = stdscr.getmaxyx()
-        visible_items = self._visible_message_items(height)
+        # Use pane height for scrolling calculations, not full screen height
+        visible_items = self._visible_message_items(pane_height)
         
         # Navigation with Up/Down arrows - move cursor and adjust scroll immediately
         if key == curses.KEY_UP:
@@ -519,15 +519,13 @@ class TigsStoreApp:
                 self.message_cursor_idx += 1
                 # If cursor moved below visible area, scroll down to keep cursor visible
                 if self.message_cursor_idx >= self.message_scroll_offset + visible_items:
-                    # Calculate new scroll to keep cursor at bottom edge of visible area
-                    new_scroll = self.message_cursor_idx - visible_items + 1
-                    # Clamp to valid range
-                    max_scroll = max(0, len(self.messages) - visible_items)
-                    self.message_scroll_offset = min(new_scroll, max_scroll)
+                    # Calculate new scroll to keep cursor visible
+                    # The cursor should remain at its new position, we just adjust scroll
+                    self.message_scroll_offset = self.message_cursor_idx - visible_items + 1
                     
-                    # Double-check: if cursor is still outside after clamping, adjust cursor
-                    if self.message_cursor_idx >= self.message_scroll_offset + visible_items:
-                        self.message_cursor_idx = self.message_scroll_offset + visible_items - 1
+                    # Ensure scroll doesn't go beyond the last page
+                    max_scroll = max(0, len(self.messages) - visible_items)
+                    self.message_scroll_offset = min(self.message_scroll_offset, max_scroll)
         
         # Selection operations
         elif key == ord(' '):  # Space - toggle selection at cursor position
