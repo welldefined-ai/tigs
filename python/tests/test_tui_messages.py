@@ -76,10 +76,10 @@ class TestMessageView:
         # Get display lines
         lines = app._get_message_display_lines(height=10)
         
-        # Verify formatting
-        assert '[1] User:' in lines[0]
+        # Verify formatting (new format with cursor and selection indicators)
+        assert '[ ] User:' in lines[0] or '>[ ] User:' in lines[0]  # May have cursor
         assert 'This is a test message' in lines[1]
-        assert '[2] Assistant:' in lines[2]
+        assert '[ ] Assistant:' in lines[2] or '>[ ] Assistant:' in lines[2]
         assert '...' in lines[3]  # Long message should be truncated
     
     @patch('src.tui.app.CLIGENT_AVAILABLE', True)
@@ -146,13 +146,21 @@ class TestMessageView:
         mock_stdscr = Mock()
         mock_stdscr.getmaxyx.return_value = (24, 80)
         
-        # Test space key toggles selection
-        app.message_scroll_offset = 0
+        # Set cursor position and test space key toggles selection
+        app.message_cursor_idx = 0
         app._handle_message_input(mock_stdscr, ord(' '))
         assert 0 in app.selected_messages
         
         app._handle_message_input(mock_stdscr, ord(' '))
         assert 0 not in app.selected_messages
+        
+        # Test cursor movement
+        app.message_cursor_idx = 0
+        app._handle_message_input(mock_stdscr, 258)  # KEY_DOWN
+        assert app.message_cursor_idx == 1
+        
+        app._handle_message_input(mock_stdscr, 259)  # KEY_UP  
+        assert app.message_cursor_idx == 0
         
         # Test clear selections
         app.selected_messages.add(0)
@@ -160,9 +168,9 @@ class TestMessageView:
         app._handle_message_input(mock_stdscr, ord('c'))
         assert len(app.selected_messages) == 0
         
-        # Test select all visible
+        # Test select all
         app._handle_message_input(mock_stdscr, ord('a'))
-        assert len(app.selected_messages) > 0
+        assert len(app.selected_messages) == 3  # All 3 messages selected
     
     @patch('src.tui.app.CLIGENT_AVAILABLE', False)
     def test_no_cligent_available(self):
@@ -244,3 +252,42 @@ class TestMessageView:
                 
         except ImportError:
             pytest.skip("cligent not available")
+    
+    def test_cursor_and_selection_indicators(self):
+        """Test the new cursor (>) and selection ([x]) indicators."""
+        mock_store = Mock()
+        
+        with patch('src.tui.app.CLIGENT_AVAILABLE', True), \
+             patch('src.tui.app.ChatParser') as mock_parser_class:
+            
+            mock_parser = MagicMock()
+            mock_parser_class.return_value = mock_parser
+            mock_parser.list_logs.return_value = []
+            
+            app = TigsStoreApp(mock_store)
+            
+            # Set up test messages
+            app.messages = [
+                ('user', 'First message'),
+                ('assistant', 'Second message'),
+                ('user', 'Third message')
+            ]
+            app.message_cursor_idx = 1  # Cursor on second message
+            app.selected_messages.add(2)  # Third message selected
+            
+            lines = app._get_message_display_lines(height=20)
+            
+            # Check that cursor indicator appears on the right message
+            cursor_lines = [line for line in lines if line.startswith('>')]
+            assert len(cursor_lines) == 1, "Should have exactly one cursor indicator"
+            assert '>[ ] Assistant:' in cursor_lines[0], "Cursor should be on second message (assistant)"
+            
+            # Check that selection indicator appears on the right message  
+            selected_lines = [line for line in lines if '[x]' in line]
+            assert len(selected_lines) == 1, "Should have exactly one selected message"
+            assert ' [x] User:' in selected_lines[0], "Third message should be selected (user)"
+            
+            # Check that unselected messages have [ ] indicator
+            unselected_lines = [line for line in lines if '[ ]' in line and not line.startswith('>')]
+            assert len(unselected_lines) == 1, "Should have one unselected message without cursor"
+            assert ' [ ] User:' in unselected_lines[0], "First message should be unselected"

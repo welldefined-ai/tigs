@@ -37,6 +37,7 @@ class TigsStoreApp:
         # Message management
         self.messages = []  # List of (role, content) tuples
         self.message_scroll_offset = 0
+        self.message_cursor_idx = 0  # Current cursor position in message list
         self.selected_messages = set()  # Set of selected message indices
         self.visual_mode = False  # Visual selection mode
         self.visual_start_idx = None  # Start of visual selection
@@ -415,8 +416,9 @@ class TigsStoreApp:
             self.visual_mode = False
             self.visual_start_idx = None
             
-            # Auto-scroll to bottom (newest messages)
+            # Auto-scroll to bottom and position cursor on last message
             self.message_scroll_offset = max(0, len(self.messages) - 10)
+            self.message_cursor_idx = len(self.messages) - 1 if self.messages else 0
         except Exception:
             self.messages = []
     
@@ -452,38 +454,55 @@ class TigsStoreApp:
             if end_idx == len(self.messages):
                 start_idx = max(0, end_idx - visible_count)
         
+        # Ensure cursor position is visible (adjust scroll if needed)
+        if self.messages:
+            if self.message_cursor_idx < start_idx:
+                start_idx = self.message_cursor_idx
+                end_idx = min(start_idx + visible_count, len(self.messages))
+                self.message_scroll_offset = start_idx
+            elif self.message_cursor_idx >= end_idx:
+                end_idx = self.message_cursor_idx + 1
+                start_idx = max(0, end_idx - visible_count)
+                self.message_scroll_offset = start_idx
+
         # Build display lines
         for i in range(start_idx, end_idx):
             role, content = self.messages[i]
-            
-            # Format message header
-            if role == 'user':
-                header = f"[{i+1}] User:"
-            else:
-                header = f"[{i+1}] Assistant:"
             
             # Check if selected
             is_selected = i in self.selected_messages
             
             # In visual mode, check if in range
             if self.visual_mode and self.visual_start_idx is not None:
-                visual_min = min(self.visual_start_idx, i)
-                visual_max = max(self.visual_start_idx, i)
+                visual_min = min(self.visual_start_idx, self.message_cursor_idx)
+                visual_max = max(self.visual_start_idx, self.message_cursor_idx)
                 if visual_min <= i <= visual_max:
                     is_selected = True
             
-            # Format the line with selection indicator
+            # Format selection indicator
             if is_selected:
-                line = f"▶ {header}"
+                selection_indicator = "[x]"
             else:
-                line = f"  {header}"
+                selection_indicator = "[ ]"
             
-            lines.append(line)
+            # Format cursor indicator
+            if i == self.message_cursor_idx:
+                cursor_indicator = ">"
+            else:
+                cursor_indicator = " "
+            
+            # Format message header
+            if role == 'user':
+                header = f"{cursor_indicator}{selection_indicator} User:"
+            else:
+                header = f"{cursor_indicator}{selection_indicator} Assistant:"
+            
+            lines.append(header)
             
             # Add first line of content (truncated if needed)
             content_lines = content.split('\n')
             if content_lines:
-                first_line = content_lines[0][:40] + "..." if len(content_lines[0]) > 40 else content_lines[0]
+                first_line = content_lines[0][:37] + "..." if len(content_lines[0]) > 37 else content_lines[0]
                 lines.append(f"    {first_line}")
         
         # Add status line if in visual mode
@@ -503,41 +522,33 @@ class TigsStoreApp:
         if not self.messages:
             return
             
-        # Get visible message count
-        height, _ = stdscr.getmaxyx()
-        visible_count = height - 3  # -1 for status bar, -2 for borders
-        
-        # Navigation with Up/Down arrows
+        # Navigation with Up/Down arrows - move cursor instead of scrolling
         if key == curses.KEY_UP:
-            if self.message_scroll_offset > 0:
-                self.message_scroll_offset -= 1
+            if self.message_cursor_idx > 0:
+                self.message_cursor_idx -= 1
         elif key == curses.KEY_DOWN:
-            max_offset = max(0, len(self.messages) - visible_count)
-            if self.message_scroll_offset < max_offset:
-                self.message_scroll_offset += 1
+            if self.message_cursor_idx < len(self.messages) - 1:
+                self.message_cursor_idx += 1
         
         # Selection operations
-        elif key == ord(' '):  # Space - toggle selection
-            # Find current message index based on cursor position
-            current_idx = self.message_scroll_offset
-            if current_idx < len(self.messages):
-                if current_idx in self.selected_messages:
-                    self.selected_messages.remove(current_idx)
-                else:
-                    self.selected_messages.add(current_idx)
-                # Exit visual mode when using space
-                self.visual_mode = False
-                self.visual_start_idx = None
+        elif key == ord(' '):  # Space - toggle selection at cursor position
+            if self.message_cursor_idx in self.selected_messages:
+                self.selected_messages.remove(self.message_cursor_idx)
+            else:
+                self.selected_messages.add(self.message_cursor_idx)
+            # Exit visual mode when using space
+            self.visual_mode = False
+            self.visual_start_idx = None
         
         elif key == ord('v'):  # Start visual selection mode
             if not self.visual_mode:
                 self.visual_mode = True
-                self.visual_start_idx = self.message_scroll_offset
+                self.visual_start_idx = self.message_cursor_idx
             else:
                 # Exit visual mode and confirm selection
                 if self.visual_start_idx is not None:
-                    visual_min = min(self.visual_start_idx, self.message_scroll_offset)
-                    visual_max = max(self.visual_start_idx, self.message_scroll_offset)
+                    visual_min = min(self.visual_start_idx, self.message_cursor_idx)
+                    visual_max = max(self.visual_start_idx, self.message_cursor_idx)
                     for i in range(visual_min, visual_max + 1):
                         if i < len(self.messages):
                             self.selected_messages.add(i)
@@ -549,10 +560,8 @@ class TigsStoreApp:
             self.visual_mode = False
             self.visual_start_idx = None
         
-        elif key == ord('a'):  # Select all visible messages
-            start_idx = self.message_scroll_offset
-            end_idx = min(start_idx + visible_count, len(self.messages))
-            for i in range(start_idx, end_idx):
+        elif key == ord('a'):  # Select all messages
+            for i in range(len(self.messages)):
                 self.selected_messages.add(i)
             self.visual_mode = False
             self.visual_start_idx = None
