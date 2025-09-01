@@ -41,6 +41,7 @@ class TigsStoreApp:
         self.selected_messages = set()  # Set of selected message indices
         self.visual_mode = False  # Visual selection mode
         self.visual_start_idx = None  # Start of visual selection
+        self._needs_message_view_init = True  # Flag to init cursor position on first draw
         
         # Initialize cligent if available
         if CLIGENT_AVAILABLE:
@@ -416,9 +417,8 @@ class TigsStoreApp:
             self.visual_mode = False
             self.visual_start_idx = None
             
-            # Auto-scroll to bottom and position cursor on last message
-            self.message_scroll_offset = max(0, len(self.messages) - 10)
-            self.message_cursor_idx = len(self.messages) - 1 if self.messages else 0
+            # Defer cursor positioning until first draw when we have screen height
+            self._needs_message_view_init = True
         except Exception:
             self.messages = []
     
@@ -437,33 +437,13 @@ class TigsStoreApp:
             lines.append("(No messages to display)")
             return lines
         
-        # Calculate visible range (bottom-anchored)
-        visible_count = height - 2  # -2 for borders
+        # Initialize message view on first draw when we have screen height
+        if self._needs_message_view_init:
+            self._init_message_view(height)
+            self._needs_message_view_init = False
         
-        # For bottom-anchored display, we show the latest messages
-        if len(self.messages) <= visible_count:
-            # All messages fit
-            start_idx = 0
-            end_idx = len(self.messages)
-        else:
-            # Need scrolling - show from scroll offset
-            start_idx = self.message_scroll_offset
-            end_idx = min(start_idx + visible_count, len(self.messages))
-            
-            # Adjust if we're at the bottom
-            if end_idx == len(self.messages):
-                start_idx = max(0, end_idx - visible_count)
-        
-        # Ensure cursor position is visible (adjust scroll if needed)
-        if self.messages:
-            if self.message_cursor_idx < start_idx:
-                start_idx = self.message_cursor_idx
-                end_idx = min(start_idx + visible_count, len(self.messages))
-                self.message_scroll_offset = start_idx
-            elif self.message_cursor_idx >= end_idx:
-                end_idx = self.message_cursor_idx + 1
-                start_idx = max(0, end_idx - visible_count)
-                self.message_scroll_offset = start_idx
+        # Get message view parameters (single source of truth)
+        visible_items, start_idx, end_idx = self._message_view(height)
 
         # Build display lines
         for i in range(start_idx, end_idx):
@@ -487,7 +467,7 @@ class TigsStoreApp:
             
             # Format cursor indicator
             if i == self.message_cursor_idx:
-                cursor_indicator = ">"
+                cursor_indicator = "▶"
             else:
                 cursor_indicator = " "
             
@@ -522,13 +502,32 @@ class TigsStoreApp:
         if not self.messages:
             return
             
-        # Navigation with Up/Down arrows - move cursor instead of scrolling
+        # Get current screen dimensions for scrolling calculations
+        height, _ = stdscr.getmaxyx()
+        visible_items = self._visible_message_items(height)
+        
+        # Navigation with Up/Down arrows - move cursor and adjust scroll immediately
         if key == curses.KEY_UP:
             if self.message_cursor_idx > 0:
                 self.message_cursor_idx -= 1
+                # If cursor moved above visible area, scroll up
+                if self.message_cursor_idx < self.message_scroll_offset:
+                    self.message_scroll_offset = self.message_cursor_idx
+                    
         elif key == curses.KEY_DOWN:
             if self.message_cursor_idx < len(self.messages) - 1:
                 self.message_cursor_idx += 1
+                # If cursor moved below visible area, scroll down to keep cursor visible
+                if self.message_cursor_idx >= self.message_scroll_offset + visible_items:
+                    # Calculate new scroll to keep cursor at bottom edge of visible area
+                    new_scroll = self.message_cursor_idx - visible_items + 1
+                    # Clamp to valid range
+                    max_scroll = max(0, len(self.messages) - visible_items)
+                    self.message_scroll_offset = min(new_scroll, max_scroll)
+                    
+                    # Double-check: if cursor is still outside after clamping, adjust cursor
+                    if self.message_cursor_idx >= self.message_scroll_offset + visible_items:
+                        self.message_cursor_idx = self.message_scroll_offset + visible_items - 1
         
         # Selection operations
         elif key == ord(' '):  # Space - toggle selection at cursor position
@@ -569,3 +568,80 @@ class TigsStoreApp:
         elif key == 27:  # Escape - cancel visual mode
             self.visual_mode = False
             self.visual_start_idx = None
+    
+    def _visible_message_items(self, height: int) -> int:
+        """Calculate how many message items can fit in the given height.
+        
+        Args:
+            height: Screen height
+            
+        Returns:
+            Number of message items that can be displayed
+        """
+        # Rows available for content between borders
+        rows = max(0, height - 2)
+        
+        # Reserve rows for any status footer we append
+        if self.visual_mode:
+            rows = max(0, rows - 2)  # One blank + "-- VISUAL MODE --"
+        
+        LINES_PER_MESSAGE = 2  # Header + first content line
+        return max(1, rows // LINES_PER_MESSAGE)
+    
+    def _message_view(self, height: int):
+        """Get message view parameters - single source of truth.
+        
+        Args:
+            height: Screen height
+            
+        Returns:
+            Tuple of (visible_items, start_idx, end_idx)
+        """
+        visible_items = self._visible_message_items(height)
+        start_idx = self.message_scroll_offset
+        end_idx = min(start_idx + visible_items, len(self.messages))
+        return visible_items, start_idx, end_idx
+    
+    def _init_message_view(self, height: int) -> None:
+        """Initialize cursor and scroll position based on actual screen height.
+        
+        Args:
+            height: Screen height
+        """
+        if not self.messages:
+            self.message_cursor_idx = 0
+            self.message_scroll_offset = 0
+            return
+        
+        visible_items = self._visible_message_items(height)
+        
+        # Show last visible_items messages, with cursor at bottom of visible area
+        self.message_scroll_offset = max(0, len(self.messages) - visible_items)
+        # Position cursor at bottom of visible area, ensuring room to scroll down
+        self.message_cursor_idx = min(
+            len(self.messages) - 1,
+            self.message_scroll_offset + visible_items - 1
+        )
+    
+    def _adjust_scroll_for_cursor(self, height: int) -> None:
+        """Adjust scroll position to ensure cursor is visible.
+        
+        Args:
+            height: Screen height to calculate visible items
+        """
+        if not self.messages:
+            return
+            
+        visible_items = self._visible_message_items(height)
+        
+        # Ensure cursor is in visible range
+        if self.message_cursor_idx < self.message_scroll_offset:
+            # Cursor above visible area - scroll up
+            self.message_scroll_offset = self.message_cursor_idx
+        elif self.message_cursor_idx >= self.message_scroll_offset + visible_items:
+            # Cursor below visible area - scroll down
+            self.message_scroll_offset = max(0, self.message_cursor_idx - visible_items + 1)
+        
+        # Clamp scroll when list shrinks or pane resizes
+        max_scroll = max(0, len(self.messages) - visible_items)
+        self.message_scroll_offset = min(self.message_scroll_offset, max_scroll)
