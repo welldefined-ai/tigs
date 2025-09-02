@@ -26,50 +26,23 @@ class MessageView:
         self._needs_message_view_init = True
     
     def get_selected_messages_content(self) -> str:
-        """Get the content of selected messages in export format.
+        """Get the exported chat content from cligent.
         
         Returns:
-            The message content in the proper format for storage
+            The exported chat content from cligent
         """
-        if not self.chat_parser or not hasattr(self, 'current_chat'):
-            # Fallback if we don't have the chat object
-            lines = []
-            for idx in sorted(self.selected_messages):
-                if 0 <= idx < len(self.messages):
-                    role, content = self.messages[idx]
-                    lines.append(f"### {role.title()}:\n{content}\n")
-            return "\n".join(lines)
+        if not self.chat_parser or not hasattr(self, 'current_session_id'):
+            raise ValueError("No chat loaded")
         
-        # Export the entire chat and extract selected messages
-        full_export = self.current_chat.export()
+        # Clear any previous selections
+        self.chat_parser.clear_selection()
         
-        # Parse the YAML to extract only selected messages
-        import yaml
-        try:
-            data = yaml.safe_load(full_export)
-            selected_data = {
-                'messages': []
-            }
-            
-            # Copy metadata if present
-            if 'metadata' in data:
-                selected_data['metadata'] = data['metadata']
-            
-            # Add only selected messages
-            for idx in sorted(self.selected_messages):
-                if 0 <= idx < len(data.get('messages', [])):
-                    selected_data['messages'].append(data['messages'][idx])
-            
-            # Convert back to YAML
-            return yaml.dump(selected_data, default_flow_style=False, sort_keys=False)
-        except Exception:
-            # If YAML parsing fails, fall back to simple format
-            lines = []
-            for idx in sorted(self.selected_messages):
-                if 0 <= idx < len(self.messages):
-                    role, content = self.messages[idx]
-                    lines.append(f"### {role.title()}:\n{content}\n")
-            return "\n".join(lines)
+        # Select the messages we want
+        selected_indices = sorted(self.selected_messages)
+        self.chat_parser.select(self.current_session_id, selected_indices)
+        
+        # Compose returns the exported text directly
+        return self.chat_parser.compose()
     
     def load_messages(self, session_id: str) -> None:
         """Load messages for a specific session.
@@ -83,7 +56,7 @@ class MessageView:
             
         try:
             chat = self.chat_parser.parse(session_id)
-            self.current_chat = chat  # Store the chat object for raw access
+            self.current_session_id = session_id  # Store session ID for compose()
             
             # Extract messages from the chat
             self.messages = []
