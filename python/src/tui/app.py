@@ -6,6 +6,7 @@ from typing import List
 
 from cligent import ChatParser
 
+from .commits import CommitView
 from .messages import MessageView
 from .logs import LogView
 
@@ -34,6 +35,7 @@ class TigsStoreApp:
             self.chat_parser = None
         
         # Initialize view components
+        self.commit_view = CommitView(self.store)
         self.message_view = MessageView(self.chat_parser)
         self.log_view = LogView(self.chat_parser)
         
@@ -123,10 +125,17 @@ class TigsStoreApp:
             message_width = int(width * 0.4)
             session_width = width - commit_width - message_width
             
+            # Get commit display lines
+            commit_lines = self.commit_view.get_display_lines(pane_height)
+            
+            # DEBUG: Add status to see if commits are loading
+            if not commit_lines:
+                commit_lines = [f"DEBUG: {len(self.commit_view.commits)} commits"]
+            
             # Draw panes directly on stdscr
             self._draw_pane(stdscr, 0, 0, pane_height, commit_width, 
                            "Commits", self.focused_pane == 0,
-                           ["(Commits will appear here)"])
+                           commit_lines)
             
             # Get message display lines
             message_lines = self.message_view.get_display_lines(pane_height)
@@ -158,6 +167,8 @@ class TigsStoreApp:
                 self.focused_pane = (self.focused_pane - 1) % 3
             elif key == curses.KEY_RESIZE:
                 pass  # Will redraw on next iteration
+            elif self.focused_pane == 0:  # Commits pane focused
+                self.commit_view.handle_input(key)
             elif self.focused_pane == 1:  # Messages pane focused
                 self.message_view.handle_input(stdscr, key, pane_height)
             elif self.focused_pane == 2:  # Logs pane focused
