@@ -1,0 +1,6 @@
+schema: tigs.chat/v1
+messages:
+- role: assistant
+  content: |
+    Perfect! Now I understand the proper API. The ChatParser has `select()` and `compose()` methods that work together. Let me update our code to use it correctly:
+  timestamp: '2025-09-02T09:56:21Z'
