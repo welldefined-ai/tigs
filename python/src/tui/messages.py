@@ -26,10 +26,10 @@ class MessageView:
         self._needs_message_view_init = True
     
     def get_selected_messages_content(self) -> str:
-        """Get the content of selected messages in cligent's export format.
+        """Get the content of selected messages in export format.
         
         Returns:
-            The message content in YAML export format
+            The message content in the proper format for storage
         """
         if not self.chat_parser or not hasattr(self, 'current_chat'):
             # Fallback if we don't have the chat object
@@ -40,21 +40,36 @@ class MessageView:
                     lines.append(f"### {role.title()}:\n{content}\n")
             return "\n".join(lines)
         
-        # Create a subset chat with only selected messages
-        from cligent import Chat
-        selected_msgs = []
-        for idx in sorted(self.selected_messages):
-            if 0 <= idx < len(self.current_chat.messages):
-                selected_msgs.append(self.current_chat.messages[idx])
+        # Export the entire chat and extract selected messages
+        full_export = self.current_chat.export()
         
-        # Create a new chat object with selected messages
-        subset_chat = Chat(
-            messages=selected_msgs,
-            metadata=self.current_chat.metadata if hasattr(self.current_chat, 'metadata') else {}
-        )
-        
-        # Use cligent's export method to get proper format
-        return subset_chat.export()
+        # Parse the YAML to extract only selected messages
+        import yaml
+        try:
+            data = yaml.safe_load(full_export)
+            selected_data = {
+                'messages': []
+            }
+            
+            # Copy metadata if present
+            if 'metadata' in data:
+                selected_data['metadata'] = data['metadata']
+            
+            # Add only selected messages
+            for idx in sorted(self.selected_messages):
+                if 0 <= idx < len(data.get('messages', [])):
+                    selected_data['messages'].append(data['messages'][idx])
+            
+            # Convert back to YAML
+            return yaml.dump(selected_data, default_flow_style=False, sort_keys=False)
+        except Exception:
+            # If YAML parsing fails, fall back to simple format
+            lines = []
+            for idx in sorted(self.selected_messages):
+                if 0 <= idx < len(self.messages):
+                    role, content = self.messages[idx]
+                    lines.append(f"### {role.title()}:\n{content}\n")
+            return "\n".join(lines)
     
     def load_messages(self, session_id: str) -> None:
         """Load messages for a specific session.
