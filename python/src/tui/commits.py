@@ -6,8 +6,10 @@ from typing import List, Tuple, Optional, Set, Dict
 from datetime import datetime, timedelta
 import re
 
+from .selection import VisualSelectionMixin
 
-class CommitView:
+
+class CommitView(VisualSelectionMixin):
     """Manages commit display and interaction."""
     
     def __init__(self, store):
@@ -16,13 +18,15 @@ class CommitView:
         Args:
             store: TigsStore instance for Git operations
         """
+        super().__init__()  # Initialize mixin
         self.store = store
         self.commits: List[Dict] = []  # List of commit info dicts
+        self.items = self.commits  # Alias for mixin compatibility
         self.commit_cursor_idx = 0
+        self.cursor_idx = 0  # Alias for mixin compatibility
         self.commit_scroll_offset = 0
-        self.selected_commits: Set[int] = set()
-        self.visual_mode = False
-        self.visual_start_idx: Optional[int] = None
+        self.selected_commits: Set[int] = set()  # Legacy alias
+        self.selected_items = self.selected_commits  # Point to same set for mixin
         self.commits_with_notes: Set[str] = set()  # Set of SHAs that have notes
         
         # Load commits on initialization
@@ -71,7 +75,10 @@ class CommitView:
             
             # Reset cursor and scroll position
             self.commit_cursor_idx = 0
+            self.cursor_idx = 0  # Keep mixin alias in sync
             self.commit_scroll_offset = 0
+            # Update items reference for mixin
+            self.items = self.commits
             
         except subprocess.CalledProcessError:
             # No commits or git error
@@ -106,15 +113,8 @@ class CommitView:
                       min(self.commit_scroll_offset + visible_count, len(self.commits))):
             commit = self.commits[i]
             
-            # Check if selected
-            is_selected = i in self.selected_commits
-            
-            # In visual mode, check if in range
-            if self.visual_mode and self.visual_start_idx is not None:
-                visual_min = min(self.visual_start_idx, self.commit_cursor_idx)
-                visual_max = max(self.visual_start_idx, self.commit_cursor_idx)
-                if visual_min <= i <= visual_max:
-                    is_selected = True
+            # Check if selected using mixin method
+            is_selected = self.is_item_selected(i)
             
             # Format indicators
             cursor_indicator = ">" if i == self.commit_cursor_idx else " "
@@ -135,11 +135,12 @@ class CommitView:
             lines.append(line)
         
         # Add visual mode indicator if active
-        if self.visual_mode:
+        visual_indicator = self.get_visual_mode_indicator()
+        if visual_indicator:
             # Add at bottom if there's room
             if len(lines) < height - 2:
                 lines.append("")
-                lines.append("-- VISUAL --")
+                lines.append(visual_indicator)
         
         return lines
     
@@ -161,55 +162,16 @@ class CommitView:
         if key == curses.KEY_UP:
             if self.commit_cursor_idx > 0:
                 self.commit_cursor_idx -= 1
+                self.cursor_idx = self.commit_cursor_idx  # Keep mixin alias in sync
                 
         elif key == curses.KEY_DOWN:
             if self.commit_cursor_idx < len(self.commits) - 1:
                 self.commit_cursor_idx += 1
+                self.cursor_idx = self.commit_cursor_idx  # Keep mixin alias in sync
         
-        # Selection operations
-        elif key == ord(' '):  # Space - toggle selection at cursor
-            if self.commit_cursor_idx in self.selected_commits:
-                self.selected_commits.remove(self.commit_cursor_idx)
-            else:
-                self.selected_commits.add(self.commit_cursor_idx)
-            selection_changed = True
-            # Exit visual mode when using space
-            self.visual_mode = False
-            self.visual_start_idx = None
-        
-        elif key == ord('v'):  # Visual selection mode
-            if not self.visual_mode:
-                self.visual_mode = True
-                self.visual_start_idx = self.commit_cursor_idx
-            else:
-                # Exit visual mode and confirm selection
-                if self.visual_start_idx is not None:
-                    visual_min = min(self.visual_start_idx, self.commit_cursor_idx)
-                    visual_max = max(self.visual_start_idx, self.commit_cursor_idx)
-                    for i in range(visual_min, visual_max + 1):
-                        if i < len(self.commits):
-                            self.selected_commits.add(i)
-                    selection_changed = True
-                self.visual_mode = False
-                self.visual_start_idx = None
-        
-        elif key == ord('c'):  # Clear all selections
-            if self.selected_commits:
-                self.selected_commits.clear()
-                selection_changed = True
-            self.visual_mode = False
-            self.visual_start_idx = None
-        
-        elif key == ord('a'):  # Select all visible commits
-            for i in range(len(self.commits)):
-                self.selected_commits.add(i)
-            selection_changed = True
-            self.visual_mode = False
-            self.visual_start_idx = None
-        
-        elif key == 27:  # Escape - cancel visual mode
-            self.visual_mode = False
-            self.visual_start_idx = None
+        # Delegate selection operations to mixin
+        else:
+            selection_changed = self.handle_selection_input(key)
         
         return selection_changed
     
