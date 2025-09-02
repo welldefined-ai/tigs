@@ -366,8 +366,8 @@ class TigsStoreApp:
         
         # Clear selections after successful storage
         if stored_count > 0:
-            self.commit_view.selected_commits.clear()
-            self.message_view.selected_messages.clear()
+            self.commit_view.clear_selection()
+            self.message_view.clear_selection()
             
             # Update commit indicators (reload to get updated notes status)
             self.commit_view.load_commits()

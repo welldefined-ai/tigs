@@ -72,6 +72,7 @@ sha3456789012|Third commit|Author Three|1700000200"""
                 'has_note': False
             }
         ]
+        commit_view.items = commit_view.commits  # Update mixin reference
         
         lines = commit_view.get_display_lines(height=10)
         
@@ -99,6 +100,7 @@ sha3456789012|Third commit|Author Three|1700000200"""
              'author': 'Test', 'time': datetime.now(), 'has_note': False}
             for i in range(5)
         ]
+        commit_view.items = commit_view.commits  # Update mixin reference
         
         # Test space toggles selection
         commit_view.handle_input(ord(' '))
@@ -139,6 +141,7 @@ sha3456789012|Third commit|Author Three|1700000200"""
              'author': 'Test', 'time': datetime.now(), 'has_note': False}
             for i in range(5)
         ]
+        commit_view.items = commit_view.commits  # Update mixin reference
         
         # Start visual mode
         commit_view.handle_input(ord('v'))
@@ -186,6 +189,7 @@ sha3456789012|Third commit|Author Three|1700000200"""
                 'has_note': True
             }
         ]
+        commit_view.items = commit_view.commits  # Update mixin reference
         
         lines = commit_view.get_display_lines(height=10)
         
@@ -249,6 +253,7 @@ sha3456789012|Third commit|Author Three|1700000200"""
              'author': 'Test', 'time': datetime.now(), 'has_note': False}
             for i in range(3)
         ]
+        commit_view.items = commit_view.commits  # Update mixin reference
         
         # Select some commits
         commit_view.selected_commits = {0, 2}
@@ -291,6 +296,7 @@ sha3456789012|Third commit|Author Three|1700000200"""
              'author': 'Test', 'time': datetime.now(), 'has_note': False}
             for i in range(100)
         ]
+        commit_view.items = commit_view.commits  # Update mixin reference
         
         # Small height - should trigger scrolling
         lines = commit_view.get_display_lines(height=10)
@@ -301,6 +307,9 @@ sha3456789012|Third commit|Author Three|1700000200"""
         import curses
         for _ in range(15):
             commit_view.handle_input(curses.KEY_DOWN)
+        
+        # Get display lines to trigger scroll adjustment
+        lines = commit_view.get_display_lines(height=10)
         
         # Should have scrolled
         assert commit_view.commit_scroll_offset > 0

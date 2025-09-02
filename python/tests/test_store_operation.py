@@ -65,6 +65,10 @@ class TestStoreOperation:
             app.commit_view.selected_commits = set([0, 1])
             app.commit_view.load_commits = Mock()
             
+            # Add clear_selection method to mocks
+            app.commit_view.clear_selection = Mock(side_effect=lambda: app.commit_view.selected_commits.clear())
+            app.message_view.clear_selection = Mock(side_effect=lambda: app.message_view.selected_messages.clear())
+            
             # Execute store operation
             app._handle_store_operation(None)
             
@@ -109,6 +113,10 @@ class TestStoreOperation:
             app.commit_view.selected_commits = set([0])
             app.commit_view.load_commits = Mock()
             
+            # Add clear_selection method to mocks
+            app.commit_view.clear_selection = Mock(side_effect=lambda: app.commit_view.selected_commits.clear())
+            app.message_view.clear_selection = Mock(side_effect=lambda: app.message_view.selected_messages.clear())
+            
             # Execute store operation
             app._handle_store_operation(None)
             
@@ -144,6 +152,10 @@ class TestStoreOperation:
             app.message_view.get_selected_messages_content = Mock(return_value=yaml_content)
             app.commit_view.selected_commits = set([0])
             app.commit_view.load_commits = Mock()
+            
+            # Add clear_selection method to mocks
+            app.commit_view.clear_selection = Mock(side_effect=lambda: app.commit_view.selected_commits.clear())
+            app.message_view.clear_selection = Mock(side_effect=lambda: app.message_view.selected_messages.clear())
             
             # Execute store operation
             app._handle_store_operation(None)

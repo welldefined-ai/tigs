@@ -5,9 +5,12 @@ from typing import List, Tuple, Optional, Set
 from datetime import datetime
 
 from cligent import Role
+from .selection import VisualSelectionMixin
+from .scrollable import ScrollableMixin
+from .indicators import SelectionIndicators
 
 
-class MessageView:
+class MessageView(VisualSelectionMixin, ScrollableMixin):
     """Manages message display and interaction."""
     
     def __init__(self, chat_parser):
@@ -16,13 +19,16 @@ class MessageView:
         Args:
             chat_parser: ChatParser instance for loading messages
         """
+        VisualSelectionMixin.__init__(self)  # Initialize selection mixin
+        ScrollableMixin.__init__(self)  # Initialize scrollable mixin
         self.chat_parser = chat_parser
         self.messages = []
+        self.items = self.messages  # Alias for mixin compatibility
         self.message_cursor_idx = 0
-        self.message_scroll_offset = 0
-        self.selected_messages: Set[int] = set()
-        self.visual_mode = False
-        self.visual_start_idx: Optional[int] = None
+        self.cursor_idx = 0  # Alias for mixin compatibility
+        self.message_scroll_offset = 0  # Legacy alias
+        self.selected_messages: Set[int] = set()  # Legacy alias
+        self.selected_items = self.selected_messages  # Point to same set for mixin
         self._needs_message_view_init = True
     
     def get_selected_messages_content(self) -> str:
@@ -81,10 +87,11 @@ class MessageView:
             
             # Reset cursor and scroll position for new messages
             self.message_cursor_idx = 0
+            self.cursor_idx = 0  # Keep mixin alias in sync
             self.message_scroll_offset = 0
             self.selected_messages.clear()
-            self.visual_mode = False
-            self.visual_start_idx = None
+            # Update items reference for mixin
+            self.items = self.messages
             
             # Defer cursor positioning until first draw when we have screen height
             self._needs_message_view_init = True
@@ -118,27 +125,14 @@ class MessageView:
         for i in range(start_idx, end_idx):
             role, content = self.messages[i]
             
-            # Check if selected
-            is_selected = i in self.selected_messages
+            # Check if selected using mixin method
+            is_selected = self.is_item_selected(i)
             
-            # In visual mode, check if in range
-            if self.visual_mode and self.visual_start_idx is not None:
-                visual_min = min(self.visual_start_idx, self.message_cursor_idx)
-                visual_max = max(self.visual_start_idx, self.message_cursor_idx)
-                if visual_min <= i <= visual_max:
-                    is_selected = True
-            
-            # Format selection indicator
-            if is_selected:
-                selection_indicator = "[x]"
-            else:
-                selection_indicator = "[ ]"
-            
-            # Format cursor indicator
-            if i == self.message_cursor_idx:
-                cursor_indicator = "▶"
-            else:
-                cursor_indicator = " "
+            # Format selection and cursor indicators using the indicators module
+            selection_indicator = SelectionIndicators.format_selection_box(is_selected)
+            cursor_indicator = SelectionIndicators.format_cursor(
+                i == self.message_cursor_idx, style="triangle"
+            )
             
             # Format message header
             if role == 'user':
@@ -157,7 +151,7 @@ class MessageView:
         # Add status line if in visual mode
         if self.visual_mode:
             lines.append("")
-            lines.append("-- VISUAL MODE --")
+            lines.append(SelectionIndicators.VISUAL_MODE)
         
         return lines
     
@@ -179,6 +173,7 @@ class MessageView:
         if key == curses.KEY_UP:
             if self.message_cursor_idx > 0:
                 self.message_cursor_idx -= 1
+                self.cursor_idx = self.message_cursor_idx  # Keep mixin alias in sync
                 # If cursor moved above visible area, scroll up
                 if self.message_cursor_idx < self.message_scroll_offset:
                     self.message_scroll_offset = self.message_cursor_idx
@@ -186,6 +181,7 @@ class MessageView:
         elif key == curses.KEY_DOWN:
             if self.message_cursor_idx < len(self.messages) - 1:
                 self.message_cursor_idx += 1
+                self.cursor_idx = self.message_cursor_idx  # Keep mixin alias in sync
                 # If cursor moved below visible area, scroll down to keep cursor visible
                 if self.message_cursor_idx >= self.message_scroll_offset + visible_items:
                     # Calculate new scroll to keep cursor visible
@@ -196,45 +192,9 @@ class MessageView:
                     max_scroll = max(0, len(self.messages) - visible_items)
                     self.message_scroll_offset = min(self.message_scroll_offset, max_scroll)
         
-        # Selection operations
-        elif key == ord(' '):  # Space - toggle selection at cursor position
-            if self.message_cursor_idx in self.selected_messages:
-                self.selected_messages.remove(self.message_cursor_idx)
-            else:
-                self.selected_messages.add(self.message_cursor_idx)
-            # Exit visual mode when using space
-            self.visual_mode = False
-            self.visual_start_idx = None
-        
-        elif key == ord('v'):  # Start visual selection mode
-            if not self.visual_mode:
-                self.visual_mode = True
-                self.visual_start_idx = self.message_cursor_idx
-            else:
-                # Exit visual mode and confirm selection
-                if self.visual_start_idx is not None:
-                    visual_min = min(self.visual_start_idx, self.message_cursor_idx)
-                    visual_max = max(self.visual_start_idx, self.message_cursor_idx)
-                    for i in range(visual_min, visual_max + 1):
-                        if i < len(self.messages):
-                            self.selected_messages.add(i)
-                self.visual_mode = False
-                self.visual_start_idx = None
-        
-        elif key == ord('c'):  # Clear all selections
-            self.selected_messages.clear()
-            self.visual_mode = False
-            self.visual_start_idx = None
-        
-        elif key == ord('a'):  # Select all messages
-            for i in range(len(self.messages)):
-                self.selected_messages.add(i)
-            self.visual_mode = False
-            self.visual_start_idx = None
-        
-        elif key == 27:  # Escape - cancel visual mode
-            self.visual_mode = False
-            self.visual_start_idx = None
+        # Delegate selection operations to mixin
+        else:
+            self.handle_selection_input(key)
     
     def _visible_message_items(self, height: int) -> int:
         """Calculate how many message items can fit in the given height.
@@ -289,3 +249,4 @@ class MessageView:
             len(self.messages) - 1,
             self.message_scroll_offset + visible_items - 1
         )
+        self.cursor_idx = self.message_cursor_idx  # Keep mixin alias in sync
