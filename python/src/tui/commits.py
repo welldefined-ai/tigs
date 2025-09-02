@@ -124,20 +124,14 @@ class CommitView:
             # Format relative time
             rel_time = self._format_relative_time(commit['time'])
             
-            # Format: >[x]* SHA subject (author, time)
-            # Keep it compact to fit in 40% width
-            line = f"{cursor_indicator}{selection_indicator}{note_indicator} {commit['sha']} {commit['subject']}"
+            # Format: >[x]* SHA subject
+            # Must fit in ~28 chars (32 width - 4 for borders)
+            prefix = f"{cursor_indicator}{selection_indicator}{note_indicator} {commit['sha']} "
+            # prefix is ">[x]* 1234567 " = 14 chars, leaving 14 for subject
+            max_subject_len = 28 - len(prefix)
+            truncated_subject = commit['subject'][:max_subject_len]
             
-            # Add author and time on same line if space allows
-            # Assuming 40% of 80 chars min = 32 chars available
-            if len(line) < 25:  # Leave room for author/time
-                author_time = f" ({commit['author'][:8]}, {rel_time})"
-                # Truncate if needed
-                available = 30 - len(line)
-                if len(author_time) > available:
-                    author_time = author_time[:available-3] + "..."
-                line += author_time
-            
+            line = f"{prefix}{truncated_subject}"
             lines.append(line)
         
         # Add visual mode indicator if active

@@ -128,6 +128,10 @@ class TigsStoreApp:
             # Get commit display lines
             commit_lines = self.commit_view.get_display_lines(pane_height)
             
+            # DEBUG: Add status to see if commits are loading
+            if not commit_lines:
+                commit_lines = [f"DEBUG: {len(self.commit_view.commits)} commits"]
+            
             # Draw panes directly on stdscr
             self._draw_pane(stdscr, 0, 0, pane_height, commit_width, 
                            "Commits", self.focused_pane == 0,
