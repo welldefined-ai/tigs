@@ -2,14 +2,12 @@
 
 import curses
 import sys
-from datetime import datetime, timedelta
-from typing import List, Tuple, Optional
+from typing import List
 
-try:
-    from cligent import ChatParser
-    CLIGENT_AVAILABLE = True
-except ImportError:
-    CLIGENT_AVAILABLE = False
+from cligent import ChatParser
+
+from .messages import MessageView
+from .logs import LogView
 
 
 class TigsStoreApp:
@@ -25,56 +23,49 @@ class TigsStoreApp:
             store: TigsStore instance for Git operations
         """
         self.store = store
-        self.focused_pane = 0  # 0=commits, 1=messages, 2=sessions
+        self.focused_pane = 0  # 0=commits, 1=messages, 2=logs
         self.running = True
         
-        # Session management
-        self.sessions = []
-        self.selected_session_idx = 0
-        self.session_scroll_offset = 0
-        self.chat_parser = None
+        # Initialize chat parser
+        try:
+            self.chat_parser = ChatParser('claude-code')
+        except Exception:
+            # Handle cligent initialization errors gracefully
+            self.chat_parser = None
         
-        # Message management
-        self.messages = []  # List of (role, content) tuples
-        self.message_scroll_offset = 0
-        self.selected_messages = set()  # Set of selected message indices
-        self.visual_mode = False  # Visual selection mode
-        self.visual_start_idx = None  # Start of visual selection
+        # Initialize view components
+        self.message_view = MessageView(self.chat_parser)
+        self.log_view = LogView(self.chat_parser)
         
-        # Initialize cligent if available
-        if CLIGENT_AVAILABLE:
-            try:
-                self.chat_parser = ChatParser('claude-code')
-                self._load_sessions()
-                # Load messages for the first session if available
-                if self.sessions:
-                    self._load_messages()
-            except Exception as e:
-                # Handle cligent initialization errors gracefully
-                self.chat_parser = None
+        # Load initial data
+        if self.chat_parser:
+            self.log_view.load_logs()
+            # Auto-load messages for the first log
+            log_id = self.log_view.get_selected_log_id()
+            if log_id:
+                self.message_view.load_messages(log_id)
         
     def run(self) -> None:
         """Run the TUI application."""
         try:
             curses.wrapper(self._run)
         except KeyboardInterrupt:
-            pass
+            pass  # Exit gracefully on Ctrl+C
         except Exception as e:
             print(f"Error: {e}", file=sys.stderr)
             sys.exit(1)
-            
+    
     def _run(self, stdscr) -> None:
-        """Internal run method wrapped by curses.
+        """Main TUI loop.
         
         Args:
-            stdscr: Standard screen from curses
+            stdscr: The curses standard screen
         """
-        # Hide cursor
-        try:
-            curses.curs_set(0)
-        except:
-            pass
-            
+        # Set up curses
+        curses.curs_set(0)  # Hide cursor
+        stdscr.keypad(True)  # Enable special keys
+        curses.noecho()
+        
         # Initialize colors if available
         if curses.has_colors():
             curses.start_color()
@@ -138,18 +129,18 @@ class TigsStoreApp:
                            ["(Commits will appear here)"])
             
             # Get message display lines
-            message_lines = self._get_message_display_lines(pane_height)
+            message_lines = self.message_view.get_display_lines(pane_height)
             
             self._draw_pane(stdscr, 0, commit_width, pane_height, message_width,
                            "Messages", self.focused_pane == 1,
                            message_lines)
             
-            # Get session display lines
-            session_lines = self._get_session_display_lines(pane_height)
+            # Get log display lines
+            log_lines = self.log_view.get_display_lines(pane_height)
             
             self._draw_pane(stdscr, 0, commit_width + message_width, pane_height, session_width,
-                           "Sessions", self.focused_pane == 2,
-                           session_lines)
+                           "Logs", self.focused_pane == 2,
+                           log_lines)
             
             # Draw status bar
             self._draw_status_bar(stdscr, height - 1, width)
@@ -168,16 +159,13 @@ class TigsStoreApp:
             elif key == curses.KEY_RESIZE:
                 pass  # Will redraw on next iteration
             elif self.focused_pane == 1:  # Messages pane focused
-                self._handle_message_input(key)
-            elif self.focused_pane == 2:  # Sessions pane focused
-                if key == curses.KEY_UP and self.sessions:
-                    if self.selected_session_idx > 0:
-                        self.selected_session_idx -= 1
-                        self._load_messages()
-                elif key == curses.KEY_DOWN and self.sessions:
-                    if self.selected_session_idx < len(self.sessions) - 1:
-                        self.selected_session_idx += 1
-                        self._load_messages()
+                self.message_view.handle_input(stdscr, key, pane_height)
+            elif self.focused_pane == 2:  # Logs pane focused
+                if self.log_view.handle_input(key):
+                    # Log selection changed, reload messages
+                    log_id = self.log_view.get_selected_log_id()
+                    if log_id:
+                        self.message_view.load_messages(log_id)
                 
     def _draw_pane(self, stdscr, y: int, x: int, height: int, width: int, 
                    title: str, focused: bool, content: List[str]) -> None:
@@ -233,18 +221,18 @@ class TigsStoreApp:
             for i in range(1, width - 1):
                 stdscr.addch(y, x + i, hz)
                 stdscr.addch(y + height - 1, x + i, hz)
-            
+                
             # Draw vertical lines
             for i in range(1, height - 1):
                 stdscr.addch(y + i, x, vt)
                 stdscr.addch(y + i, x + width - 1, vt)
-            
+                
             # Draw title
             if title and len(title) + 4 < width:
-                title_str = f" {title} "
-                title_x = x + (width - len(title_str)) // 2
-                stdscr.addstr(y, title_x, title_str)
-            
+                title_text = f" {title} "
+                title_x = x + (width - len(title_text)) // 2
+                stdscr.addstr(y, title_x, title_text)
+                
             # Draw content
             for i, line in enumerate(content):
                 if i + 1 < height - 1:  # Leave room for border
@@ -290,268 +278,3 @@ class TigsStoreApp:
             pass
             
         stdscr.attroff(curses.A_REVERSE)
-    
-    def _load_sessions(self) -> None:
-        """Load sessions from cligent."""
-        if not self.chat_parser:
-            return
-            
-        try:
-            logs = self.chat_parser.list_logs()
-            # Sort by modification time (newest first)
-            self.sessions = sorted(logs, key=lambda x: x[1]['modified'], reverse=True)
-            
-            # Auto-select the latest session
-            if self.sessions and self.selected_session_idx == 0:
-                self.selected_session_idx = 0
-        except Exception:
-            self.sessions = []
-    
-    def _format_timestamp(self, timestamp_str: str) -> str:
-        """Format timestamp to relative time.
-        
-        Args:
-            timestamp_str: ISO format timestamp string
-            
-        Returns:
-            Formatted relative time string
-        """
-        try:
-            # Parse the timestamp
-            ts = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
-            now = datetime.now(ts.tzinfo) if ts.tzinfo else datetime.now()
-            
-            # Calculate difference
-            diff = now - ts
-            
-            # Format based on time difference
-            if diff < timedelta(minutes=1):
-                return "just now"
-            elif diff < timedelta(hours=1):
-                mins = int(diff.total_seconds() / 60)
-                return f"{mins}m ago"
-            elif diff < timedelta(hours=24):
-                hours = int(diff.total_seconds() / 3600)
-                return f"{hours}h ago"
-            elif diff < timedelta(days=2):
-                return "yesterday"
-            elif diff < timedelta(days=7):
-                return f"{diff.days}d ago"
-            else:
-                # Show time for older sessions
-                return ts.strftime("%m/%d %H:%M")
-        except:
-            # Fallback to showing part of the timestamp
-            return timestamp_str[:10] if len(timestamp_str) > 10 else timestamp_str
-    
-    def _get_session_display_lines(self, height: int) -> List[str]:
-        """Get display lines for sessions pane.
-        
-        Args:
-            height: Available height for content
-            
-        Returns:
-            List of formatted session lines
-        """
-        lines = []
-        
-        if not self.sessions:
-            if self.chat_parser:
-                lines.append("No sessions found")
-            else:
-                lines.append("Cligent not available")
-            return lines
-        
-        # Calculate visible range with scrolling
-        visible_count = min(height - 2, len(self.sessions))  # -2 for borders
-        
-        # Adjust scroll offset if needed
-        if self.selected_session_idx < self.session_scroll_offset:
-            self.session_scroll_offset = self.selected_session_idx
-        elif self.selected_session_idx >= self.session_scroll_offset + visible_count:
-            self.session_scroll_offset = self.selected_session_idx - visible_count + 1
-        
-        # Build display lines
-        for i in range(self.session_scroll_offset, min(self.session_scroll_offset + visible_count, len(self.sessions))):
-            session_id, metadata = self.sessions[i]
-            timestamp = self._format_timestamp(metadata.get('modified', ''))
-            
-            # Format: "• timestamp" for selected, "  timestamp" for others
-            if i == self.selected_session_idx:
-                lines.append(f"• {timestamp}")
-            else:
-                lines.append(f"  {timestamp}")
-        
-        return lines
-    
-    def _load_messages(self) -> None:
-        """Load messages for the currently selected session."""
-        if not self.chat_parser or not self.sessions:
-            self.messages = []
-            return
-            
-        if self.selected_session_idx >= len(self.sessions):
-            self.messages = []
-            return
-            
-        try:
-            session_id = self.sessions[self.selected_session_idx][0]
-            # Parse the session to get messages
-            conversation = self.chat_parser.parse(session_id)
-            
-            # Extract messages
-            self.messages = []
-            for msg in conversation.messages:
-                role = msg.role  # 'user' or 'assistant'
-                content = msg.content if hasattr(msg, 'content') else str(msg)
-                self.messages.append((role, content))
-            
-            # Clear selections when loading new messages
-            self.selected_messages.clear()
-            self.visual_mode = False
-            self.visual_start_idx = None
-            
-            # Auto-scroll to bottom (newest messages)
-            self.message_scroll_offset = max(0, len(self.messages) - 10)
-        except Exception:
-            self.messages = []
-    
-    def _get_message_display_lines(self, height: int) -> List[str]:
-        """Get display lines for messages pane with bottom-anchored display.
-        
-        Args:
-            height: Available height for content
-            
-        Returns:
-            List of formatted message lines
-        """
-        lines = []
-        
-        if not self.messages:
-            lines.append("(No messages to display)")
-            return lines
-        
-        # Calculate visible range (bottom-anchored)
-        visible_count = height - 2  # -2 for borders
-        
-        # For bottom-anchored display, we show the latest messages
-        if len(self.messages) <= visible_count:
-            # All messages fit
-            start_idx = 0
-            end_idx = len(self.messages)
-        else:
-            # Need scrolling - show from scroll offset
-            start_idx = self.message_scroll_offset
-            end_idx = min(start_idx + visible_count, len(self.messages))
-            
-            # Adjust if we're at the bottom
-            if end_idx == len(self.messages):
-                start_idx = max(0, end_idx - visible_count)
-        
-        # Build display lines
-        for i in range(start_idx, end_idx):
-            role, content = self.messages[i]
-            
-            # Format message header
-            if role == 'user':
-                header = f"[{i+1}] User:"
-            else:
-                header = f"[{i+1}] Assistant:"
-            
-            # Check if selected
-            is_selected = i in self.selected_messages
-            
-            # In visual mode, check if in range
-            if self.visual_mode and self.visual_start_idx is not None:
-                visual_min = min(self.visual_start_idx, i)
-                visual_max = max(self.visual_start_idx, i)
-                if visual_min <= i <= visual_max:
-                    is_selected = True
-            
-            # Format the line with selection indicator
-            if is_selected:
-                line = f"▶ {header}"
-            else:
-                line = f"  {header}"
-            
-            lines.append(line)
-            
-            # Add first line of content (truncated if needed)
-            content_lines = content.split('\n')
-            if content_lines:
-                first_line = content_lines[0][:40] + "..." if len(content_lines[0]) > 40 else content_lines[0]
-                lines.append(f"    {first_line}")
-        
-        # Add status line if in visual mode
-        if self.visual_mode:
-            lines.append("")
-            lines.append("-- VISUAL MODE --")
-        
-        return lines
-    
-    def _handle_message_input(self, key: int) -> None:
-        """Handle input when messages pane is focused.
-        
-        Args:
-            key: The key pressed
-        """
-        if not self.messages:
-            return
-            
-        # Get visible message count
-        height = curses.LINES - 1
-        visible_count = height - 2
-        
-        # Navigation with Up/Down arrows
-        if key == curses.KEY_UP:
-            if self.message_scroll_offset > 0:
-                self.message_scroll_offset -= 1
-        elif key == curses.KEY_DOWN:
-            max_offset = max(0, len(self.messages) - visible_count)
-            if self.message_scroll_offset < max_offset:
-                self.message_scroll_offset += 1
-        
-        # Selection operations
-        elif key == ord(' '):  # Space - toggle selection
-            # Find current message index based on cursor position
-            current_idx = self.message_scroll_offset
-            if current_idx < len(self.messages):
-                if current_idx in self.selected_messages:
-                    self.selected_messages.remove(current_idx)
-                else:
-                    self.selected_messages.add(current_idx)
-                # Exit visual mode when using space
-                self.visual_mode = False
-                self.visual_start_idx = None
-        
-        elif key == ord('v'):  # Start visual selection mode
-            if not self.visual_mode:
-                self.visual_mode = True
-                self.visual_start_idx = self.message_scroll_offset
-            else:
-                # Exit visual mode and confirm selection
-                if self.visual_start_idx is not None:
-                    visual_min = min(self.visual_start_idx, self.message_scroll_offset)
-                    visual_max = max(self.visual_start_idx, self.message_scroll_offset)
-                    for i in range(visual_min, visual_max + 1):
-                        if i < len(self.messages):
-                            self.selected_messages.add(i)
-                self.visual_mode = False
-                self.visual_start_idx = None
-        
-        elif key == ord('c'):  # Clear all selections
-            self.selected_messages.clear()
-            self.visual_mode = False
-            self.visual_start_idx = None
-        
-        elif key == ord('a'):  # Select all visible messages
-            start_idx = self.message_scroll_offset
-            end_idx = min(start_idx + visible_count, len(self.messages))
-            for i in range(start_idx, end_idx):
-                self.selected_messages.add(i)
-            self.visual_mode = False
-            self.visual_start_idx = None
-        
-        elif key == 27:  # Escape - cancel visual mode
-            self.visual_mode = False
-            self.visual_start_idx = None
