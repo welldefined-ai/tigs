@@ -25,6 +25,25 @@ class MessageView:
         self.visual_start_idx: Optional[int] = None
         self._needs_message_view_init = True
     
+    def get_selected_messages_content(self) -> str:
+        """Get the exported chat content from cligent.
+        
+        Returns:
+            The exported chat content from cligent
+        """
+        if not self.chat_parser or not hasattr(self, 'current_session_id'):
+            raise ValueError("No chat loaded")
+        
+        # Clear any previous selections
+        self.chat_parser.clear_selection()
+        
+        # Select the messages we want
+        selected_indices = sorted(self.selected_messages)
+        self.chat_parser.select(self.current_session_id, selected_indices)
+        
+        # Compose returns the exported text directly
+        return self.chat_parser.compose()
+    
     def load_messages(self, session_id: str) -> None:
         """Load messages for a specific session.
         
@@ -37,6 +56,7 @@ class MessageView:
             
         try:
             chat = self.chat_parser.parse(session_id)
+            self.current_session_id = session_id  # Store session ID for compose()
             
             # Extract messages from the chat
             self.messages = []

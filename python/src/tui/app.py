@@ -2,6 +2,7 @@
 
 import curses
 import sys
+from datetime import datetime, timedelta
 from typing import List
 
 from cligent import ChatParser
@@ -26,6 +27,8 @@ class TigsStoreApp:
         self.store = store
         self.focused_pane = 0  # 0=commits, 1=messages, 2=logs
         self.running = True
+        self.status_message = ""  # Status message to display
+        self.status_message_time = None  # When status was set
         
         # Initialize chat parser
         try:
@@ -161,6 +164,8 @@ class TigsStoreApp:
             key = stdscr.getch()
             if key == ord('q') or key == ord('Q'):
                 self.running = False
+            elif key == ord('\n') or key == 10:  # Enter key
+                self._handle_store_operation(stdscr)
             elif key == ord('\t'):  # Tab
                 self.focused_pane = (self.focused_pane + 1) % 3
             elif key == curses.KEY_BTAB or key == 353:  # Shift-Tab
@@ -271,7 +276,16 @@ class TigsStoreApp:
             y: Y position for status bar
             width: Width of screen
         """
-        status_text = "Tab: switch | q: quit"
+        # Show status message if recent (within 5 seconds)
+        if self.status_message and self.status_message_time:
+            elapsed = datetime.now() - self.status_message_time
+            if elapsed < timedelta(seconds=5):
+                status_text = self.status_message
+            else:
+                self.status_message = ""  # Clear old message
+                status_text = "Tab: switch | Enter: store | q: quit"
+        else:
+            status_text = "Tab: switch | Enter: store | q: quit"
         
         # Add size warning if getting close to minimum
         height = stdscr.getmaxyx()[0]
@@ -289,3 +303,85 @@ class TigsStoreApp:
             pass
             
         stdscr.attroff(curses.A_REVERSE)
+    
+    def _handle_store_operation(self, stdscr) -> None:
+        """Handle the store operation when Enter is pressed.
+        
+        Args:
+            stdscr: The curses screen for prompts
+        """
+        # Get selected commits
+        selected_commits = self.commit_view.get_selected_shas()
+        
+        # Validate that both commits and messages are selected
+        if not selected_commits:
+            self.status_message = "Error: No commits selected"
+            self.status_message_time = datetime.now()
+            return
+        
+        if not self.message_view.selected_messages:
+            self.status_message = "Error: No messages selected"
+            self.status_message_time = datetime.now()
+            return
+        
+        # Get the content in cligent's export format
+        chat_content = self.message_view.get_selected_messages_content()
+        num_messages = len(self.message_view.selected_messages)
+        
+        # Store to each selected commit
+        stored_count = 0
+        overwrite_count = 0
+        errors = []
+        
+        for sha in selected_commits:
+            try:
+                # Try to add the chat
+                self.store.add_chat(sha, chat_content)
+                stored_count += 1
+            except ValueError as e:
+                if "already has a chat" in str(e):
+                    # Offer to overwrite
+                    if self._prompt_overwrite(stdscr, sha):
+                        try:
+                            # Remove existing and add new
+                            self.store.remove_chat(sha)
+                            self.store.add_chat(sha, chat_content)
+                            stored_count += 1
+                            overwrite_count += 1
+                        except Exception as ex:
+                            errors.append(f"{sha[:7]}: {str(ex)}")
+                else:
+                    errors.append(f"{sha[:7]}: {str(e)}")
+        
+        # Update status message
+        if errors:
+            self.status_message = f"Errors: {'; '.join(errors)}"
+        else:
+            msg = f"Stored {num_messages} messages → {stored_count} commits"
+            if overwrite_count > 0:
+                msg += f" ({overwrite_count} overwritten)"
+            self.status_message = msg
+        
+        self.status_message_time = datetime.now()
+        
+        # Clear selections after successful storage
+        if stored_count > 0:
+            self.commit_view.selected_commits.clear()
+            self.message_view.selected_messages.clear()
+            
+            # Update commit indicators (reload to get updated notes status)
+            self.commit_view.load_commits()
+    
+    def _prompt_overwrite(self, stdscr, sha: str) -> bool:
+        """Prompt user to overwrite existing note.
+        
+        Args:
+            stdscr: The curses screen
+            sha: The commit SHA
+            
+        Returns:
+            True if user wants to overwrite
+        """
+        # Simple implementation - always overwrite for now
+        # Could be enhanced with actual prompt dialog
+        return True
