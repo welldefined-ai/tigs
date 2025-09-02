@@ -6,9 +6,11 @@ from datetime import datetime
 
 from cligent import Role
 from .selection import VisualSelectionMixin
+from .scrollable import ScrollableMixin
+from .indicators import SelectionIndicators
 
 
-class MessageView(VisualSelectionMixin):
+class MessageView(VisualSelectionMixin, ScrollableMixin):
     """Manages message display and interaction."""
     
     def __init__(self, chat_parser):
@@ -17,13 +19,14 @@ class MessageView(VisualSelectionMixin):
         Args:
             chat_parser: ChatParser instance for loading messages
         """
-        super().__init__()  # Initialize mixin
+        VisualSelectionMixin.__init__(self)  # Initialize selection mixin
+        ScrollableMixin.__init__(self)  # Initialize scrollable mixin
         self.chat_parser = chat_parser
         self.messages = []
         self.items = self.messages  # Alias for mixin compatibility
         self.message_cursor_idx = 0
         self.cursor_idx = 0  # Alias for mixin compatibility
-        self.message_scroll_offset = 0
+        self.message_scroll_offset = 0  # Legacy alias
         self.selected_messages: Set[int] = set()  # Legacy alias
         self.selected_items = self.selected_messages  # Point to same set for mixin
         self._needs_message_view_init = True
@@ -125,17 +128,11 @@ class MessageView(VisualSelectionMixin):
             # Check if selected using mixin method
             is_selected = self.is_item_selected(i)
             
-            # Format selection indicator
-            if is_selected:
-                selection_indicator = "[x]"
-            else:
-                selection_indicator = "[ ]"
-            
-            # Format cursor indicator
-            if i == self.message_cursor_idx:
-                cursor_indicator = "▶"
-            else:
-                cursor_indicator = " "
+            # Format selection and cursor indicators using the indicators module
+            selection_indicator = SelectionIndicators.format_selection_box(is_selected)
+            cursor_indicator = SelectionIndicators.format_cursor(
+                i == self.message_cursor_idx, style="triangle"
+            )
             
             # Format message header
             if role == 'user':
@@ -152,11 +149,9 @@ class MessageView(VisualSelectionMixin):
                 lines.append(f"    {first_line}")
         
         # Add status line if in visual mode
-        visual_indicator = self.get_visual_mode_indicator()
-        if visual_indicator:
+        if self.visual_mode:
             lines.append("")
-            # Keep the same text as before for MessageView
-            lines.append("-- VISUAL MODE --")
+            lines.append(SelectionIndicators.VISUAL_MODE)
         
         return lines
     

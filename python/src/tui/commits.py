@@ -7,9 +7,11 @@ from datetime import datetime, timedelta
 import re
 
 from .selection import VisualSelectionMixin
+from .scrollable import ScrollableMixin
+from .indicators import SelectionIndicators
 
 
-class CommitView(VisualSelectionMixin):
+class CommitView(VisualSelectionMixin, ScrollableMixin):
     """Manages commit display and interaction."""
     
     def __init__(self, store):
@@ -18,13 +20,14 @@ class CommitView(VisualSelectionMixin):
         Args:
             store: TigsStore instance for Git operations
         """
-        super().__init__()  # Initialize mixin
+        VisualSelectionMixin.__init__(self)  # Initialize selection mixin
+        ScrollableMixin.__init__(self)  # Initialize scrollable mixin
         self.store = store
         self.commits: List[Dict] = []  # List of commit info dicts
         self.items = self.commits  # Alias for mixin compatibility
         self.commit_cursor_idx = 0
         self.cursor_idx = 0  # Alias for mixin compatibility
-        self.commit_scroll_offset = 0
+        self.commit_scroll_offset = 0  # Legacy alias
         self.selected_commits: Set[int] = set()  # Legacy alias
         self.selected_items = self.selected_commits  # Point to same set for mixin
         self.commits_with_notes: Set[str] = set()  # Set of SHAs that have notes
@@ -76,7 +79,8 @@ class CommitView(VisualSelectionMixin):
             # Reset cursor and scroll position
             self.commit_cursor_idx = 0
             self.cursor_idx = 0  # Keep mixin alias in sync
-            self.commit_scroll_offset = 0
+            self.reset_scroll()  # Use scrollable mixin method
+            self.commit_scroll_offset = 0  # Keep legacy alias in sync
             # Update items reference for mixin
             self.items = self.commits
             
@@ -99,26 +103,22 @@ class CommitView(VisualSelectionMixin):
             lines.append("(No commits to display)")
             return lines
         
-        # Calculate visible range with scrolling
-        visible_count = min(height - 2, len(self.commits))  # -2 for borders
-        
-        # Adjust scroll offset if needed
-        if self.commit_cursor_idx < self.commit_scroll_offset:
-            self.commit_scroll_offset = self.commit_cursor_idx
-        elif self.commit_cursor_idx >= self.commit_scroll_offset + visible_count:
-            self.commit_scroll_offset = self.commit_cursor_idx - visible_count + 1
+        # Use scrollable mixin to get visible range
+        visible_count, start_idx, end_idx = self.get_visible_range(height)
+        self.commit_scroll_offset = self.scroll_offset  # Keep legacy alias in sync
         
         # Build display lines
-        for i in range(self.commit_scroll_offset, 
-                      min(self.commit_scroll_offset + visible_count, len(self.commits))):
+        for i in range(start_idx, end_idx):
             commit = self.commits[i]
             
             # Check if selected using mixin method
             is_selected = self.is_item_selected(i)
             
-            # Format indicators
-            cursor_indicator = ">" if i == self.commit_cursor_idx else " "
-            selection_indicator = "[x]" if is_selected else "[ ]"
+            # Format indicators using the indicators module
+            cursor_indicator = SelectionIndicators.format_cursor(
+                i == self.commit_cursor_idx, style="arrow"
+            )
+            selection_indicator = SelectionIndicators.format_selection_box(is_selected)
             note_indicator = "*" if commit['has_note'] else " "
             
             # Format relative time
@@ -135,12 +135,11 @@ class CommitView(VisualSelectionMixin):
             lines.append(line)
         
         # Add visual mode indicator if active
-        visual_indicator = self.get_visual_mode_indicator()
-        if visual_indicator:
+        if self.visual_mode:
             # Add at bottom if there's room
             if len(lines) < height - 2:
                 lines.append("")
-                lines.append(visual_indicator)
+                lines.append(SelectionIndicators.VISUAL_MODE)
         
         return lines
     
