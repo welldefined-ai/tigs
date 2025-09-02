@@ -1,0 +1,16 @@
+### Assistant:
+Great! All tests pass. Let me clean up the test files and create a commit:
+
+### Assistant:
+Done! I've successfully implemented Issue #17 - Git notes storage integration. The implementation includes:
+
+1. **Enter key handler** - Validates selections and stores messages to commits
+2. **Message formatting** - Formats messages with role headers (User/Assistant)
+3. **Validation** - Ensures both commits and messages are selected
+4. **Overwrite handling** - Automatically overwrites existing notes
+5. **Status messages** - Shows confirmation like "Stored 2 messages → 3 commits"
+6. **Indicator updates** - Reloads commits to update '*' indicators after storage
+7. **Selection clearing** - Clears all selections after successful storage
+8. **Unit tests** - Added comprehensive tests for the store operation
+
+The feature is ready to use - select commits with space, tab to messages, select messages with space, then press Enter to store them as git notes.
