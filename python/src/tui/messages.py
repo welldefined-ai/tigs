@@ -25,6 +25,18 @@ class MessageView:
         self.visual_start_idx: Optional[int] = None
         self._needs_message_view_init = True
     
+    def get_selected_messages(self) -> List[Tuple[str, str]]:
+        """Get the content of selected messages.
+        
+        Returns:
+            List of (role, content) tuples for selected messages
+        """
+        selected_messages = []
+        for idx in sorted(self.selected_messages):
+            if 0 <= idx < len(self.messages):
+                selected_messages.append(self.messages[idx])
+        return selected_messages
+    
     def load_messages(self, session_id: str) -> None:
         """Load messages for a specific session.
         
