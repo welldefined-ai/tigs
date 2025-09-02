@@ -25,17 +25,36 @@ class MessageView:
         self.visual_start_idx: Optional[int] = None
         self._needs_message_view_init = True
     
-    def get_selected_messages(self) -> List[Tuple[str, str]]:
-        """Get the content of selected messages.
+    def get_selected_messages_content(self) -> str:
+        """Get the content of selected messages in cligent's export format.
         
         Returns:
-            List of (role, content) tuples for selected messages
+            The message content in YAML export format
         """
-        selected_messages = []
+        if not self.chat_parser or not hasattr(self, 'current_chat'):
+            # Fallback if we don't have the chat object
+            lines = []
+            for idx in sorted(self.selected_messages):
+                if 0 <= idx < len(self.messages):
+                    role, content = self.messages[idx]
+                    lines.append(f"### {role.title()}:\n{content}\n")
+            return "\n".join(lines)
+        
+        # Create a subset chat with only selected messages
+        from cligent import Chat
+        selected_msgs = []
         for idx in sorted(self.selected_messages):
-            if 0 <= idx < len(self.messages):
-                selected_messages.append(self.messages[idx])
-        return selected_messages
+            if 0 <= idx < len(self.current_chat.messages):
+                selected_msgs.append(self.current_chat.messages[idx])
+        
+        # Create a new chat object with selected messages
+        subset_chat = Chat(
+            messages=selected_msgs,
+            metadata=self.current_chat.metadata if hasattr(self.current_chat, 'metadata') else {}
+        )
+        
+        # Use cligent's export method to get proper format
+        return subset_chat.export()
     
     def load_messages(self, session_id: str) -> None:
         """Load messages for a specific session.
@@ -49,6 +68,7 @@ class MessageView:
             
         try:
             chat = self.chat_parser.parse(session_id)
+            self.current_chat = chat  # Store the chat object for raw access
             
             # Extract messages from the chat
             self.messages = []

@@ -310,9 +310,8 @@ class TigsStoreApp:
         Args:
             stdscr: The curses screen for prompts
         """
-        # Get selected commits and messages
+        # Get selected commits
         selected_commits = self.commit_view.get_selected_shas()
-        selected_messages = self.message_view.get_selected_messages()
         
         # Validate that both commits and messages are selected
         if not selected_commits:
@@ -320,24 +319,14 @@ class TigsStoreApp:
             self.status_message_time = datetime.now()
             return
         
-        if not selected_messages:
+        if not self.message_view.selected_messages:
             self.status_message = "Error: No messages selected"
             self.status_message_time = datetime.now()
             return
         
-        # Format messages for storage
-        content_lines = []
-        for role, content in selected_messages:
-            role_str = "User" if role == 'user' else "Assistant"
-            content_lines.append(f"### {role_str}:")
-            content_lines.append(content)
-            content_lines.append("")  # Empty line between messages
-        
-        # Remove trailing empty line
-        if content_lines and content_lines[-1] == "":
-            content_lines.pop()
-        
-        chat_content = "\n".join(content_lines)
+        # Get the content in cligent's export format
+        chat_content = self.message_view.get_selected_messages_content()
+        num_messages = len(self.message_view.selected_messages)
         
         # Store to each selected commit
         stored_count = 0
@@ -368,7 +357,7 @@ class TigsStoreApp:
         if errors:
             self.status_message = f"Errors: {'; '.join(errors)}"
         else:
-            msg = f"Stored {len(selected_messages)} messages → {stored_count} commits"
+            msg = f"Stored {num_messages} messages → {stored_count} commits"
             if overwrite_count > 0:
                 msg += f" ({overwrite_count} overwritten)"
             self.status_message = msg

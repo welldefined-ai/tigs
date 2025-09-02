@@ -27,7 +27,8 @@ class TestStoreOperation:
             
             # Test with no commits selected
             app.commit_view.get_selected_shas.return_value = []
-            app.message_view.get_selected_messages.return_value = [('user', 'test')]
+            app.message_view.selected_messages = set([0])
+            app.message_view.get_selected_messages_content = Mock(return_value='test content')
             
             app._handle_store_operation(None)
             
@@ -36,7 +37,7 @@ class TestStoreOperation:
             
             # Test with no messages selected
             app.commit_view.get_selected_shas.return_value = ['sha123']
-            app.message_view.get_selected_messages.return_value = []
+            app.message_view.selected_messages = set()
             
             app._handle_store_operation(None)
             
@@ -59,12 +60,9 @@ class TestStoreOperation:
             
             # Set up selected items
             app.commit_view.get_selected_shas.return_value = ['sha123', 'sha456']
-            app.message_view.get_selected_messages.return_value = [
-                ('user', 'User message'),
-                ('assistant', 'Assistant response')
-            ]
-            app.commit_view.selected_commits = set([0, 1])
             app.message_view.selected_messages = set([0, 1])
+            app.message_view.get_selected_messages_content = Mock(return_value='test yaml content')
+            app.commit_view.selected_commits = set([0, 1])
             app.commit_view.load_commits = Mock()
             
             # Execute store operation
@@ -106,11 +104,9 @@ class TestStoreOperation:
             
             # Set up selected items
             app.commit_view.get_selected_shas.return_value = ['sha123']
-            app.message_view.get_selected_messages.return_value = [
-                ('user', 'Test message')
-            ]
-            app.commit_view.selected_commits = set([0])
             app.message_view.selected_messages = set([0])
+            app.message_view.get_selected_messages_content = Mock(return_value='test yaml content')
+            app.commit_view.selected_commits = set([0])
             app.commit_view.load_commits = Mock()
             
             # Execute store operation
@@ -142,12 +138,11 @@ class TestStoreOperation:
             
             # Set up selected items
             app.commit_view.get_selected_shas.return_value = ['sha123']
-            app.message_view.get_selected_messages.return_value = [
-                ('user', 'Question?'),
-                ('assistant', 'Answer.')
-            ]
-            app.commit_view.selected_commits = set([0])
             app.message_view.selected_messages = set([0, 1])
+            # Mock to return YAML format like cligent would
+            yaml_content = "messages:\n- role: user\n  content: Question?\n- role: assistant\n  content: Answer."
+            app.message_view.get_selected_messages_content = Mock(return_value=yaml_content)
+            app.commit_view.selected_commits = set([0])
             app.commit_view.load_commits = Mock()
             
             # Execute store operation
@@ -157,6 +152,6 @@ class TestStoreOperation:
             call_args = mock_store.add_chat.call_args
             stored_content = call_args[0][1]  # Second positional argument
             
-            # Verify formatting
-            expected = "### User:\nQuestion?\n\n### Assistant:\nAnswer."
-            assert stored_content == expected
+            # Verify that we're storing the cligent export format
+            assert "messages:" in stored_content
+            assert "role:" in stored_content
