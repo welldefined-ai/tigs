@@ -1,0 +1,2 @@
+### Assistant:
+Fixed! The implementation now exports the full chat, parses the YAML, extracts only the selected messages, and re-exports them in the proper format. This avoids the Chat constructor issue while maintaining the correct format.
