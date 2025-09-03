@@ -31,6 +31,8 @@ class CommitView(VisualSelectionMixin, ScrollableMixin):
         self.selected_commits: Set[int] = set()  # Legacy alias
         self.selected_items = self.selected_commits  # Point to same set for mixin
         self.commits_with_notes: Set[str] = set()  # Set of SHAs that have notes
+        self.title_scroll_offset = 0  # Horizontal scroll for focused commit
+        self.layout_manager = None  # Will be set by app
         
         # Load commits on initialization
         self.load_commits()
@@ -70,7 +72,7 @@ class CommitView(VisualSelectionMixin, ScrollableMixin):
                     self.commits.append({
                         'sha': sha[:7],  # Short SHA
                         'full_sha': sha,
-                        'subject': subject[:50],  # Truncate long subjects
+                        'subject': subject,  # Keep full subject for horizontal scrolling
                         'author': author,
                         'time': commit_time,
                         'has_note': sha in self.commits_with_notes
@@ -88,7 +90,7 @@ class CommitView(VisualSelectionMixin, ScrollableMixin):
             # No commits or git error
             self.commits = []
     
-    def get_display_lines(self, height: int) -> List[str]:
+    def get_display_lines(self, height: int, width: int = 32) -> List[str]:
         """Get display lines for commits pane.
         
         Args:
@@ -124,14 +126,26 @@ class CommitView(VisualSelectionMixin, ScrollableMixin):
             # Format relative time
             rel_time = self._format_relative_time(commit['time'])
             
-            # Format: >[x]* SHA subject
-            # Must fit in ~28 chars (32 width - 4 for borders)
+            # Calculate available width for subject
             prefix = f"{cursor_indicator}{selection_indicator}{note_indicator} {commit['sha']} "
-            # prefix is ">[x]* 1234567 " = 14 chars, leaving 14 for subject
-            max_subject_len = 28 - len(prefix)
-            truncated_subject = commit['subject'][:max_subject_len]
+            available_width = max(10, width - len(prefix) - 4)  # Account for borders
             
-            line = f"{prefix}{truncated_subject}"
+            # Handle horizontal scrolling for focused commit
+            if i == self.commit_cursor_idx and self.layout_manager:
+                subject, can_left, can_right = self.layout_manager.format_scrollable_text(
+                    commit['subject'],
+                    available_width,
+                    self.title_scroll_offset,
+                    show_indicators=True
+                )
+            else:
+                # Simple truncation for non-focused commits
+                if len(commit['subject']) > available_width:
+                    subject = commit['subject'][:available_width-3] + "..."
+                else:
+                    subject = commit['subject']
+            
+            line = f"{prefix}{subject}"
             lines.append(line)
         
         # Add visual mode indicator if active
@@ -162,11 +176,29 @@ class CommitView(VisualSelectionMixin, ScrollableMixin):
             if self.commit_cursor_idx > 0:
                 self.commit_cursor_idx -= 1
                 self.cursor_idx = self.commit_cursor_idx  # Keep mixin alias in sync
+                self.title_scroll_offset = 0  # Reset horizontal scroll
+                selection_changed = True
                 
         elif key == curses.KEY_DOWN:
             if self.commit_cursor_idx < len(self.commits) - 1:
                 self.commit_cursor_idx += 1
                 self.cursor_idx = self.commit_cursor_idx  # Keep mixin alias in sync
+                self.title_scroll_offset = 0  # Reset horizontal scroll
+                selection_changed = True
+        
+        # NEW: Horizontal scrolling for current commit
+        elif key == curses.KEY_LEFT:
+            if self.title_scroll_offset > 0:
+                self.title_scroll_offset = max(0, self.title_scroll_offset - 5)
+                selection_changed = True  # Redraw needed
+        
+        elif key == curses.KEY_RIGHT:
+            if self.commit_cursor_idx < len(self.commits):
+                commit = self.commits[self.commit_cursor_idx]
+                max_scroll = max(0, len(commit['subject']) - 20)  # Estimate visible width
+                if self.title_scroll_offset < max_scroll:
+                    self.title_scroll_offset = min(max_scroll, self.title_scroll_offset + 5)
+                    selection_changed = True  # Redraw needed
         
         # Delegate selection operations to mixin
         else:

@@ -3,13 +3,15 @@
 import subprocess
 import threading
 import time
-from unittest.mock import Mock, patch
+import curses
+from unittest.mock import Mock, patch, MagicMock
 from pathlib import Path
 
 import pytest
 import yaml
 
 from src.tui.app import TigsStoreApp
+from src.tui.commits import CommitView
 from src.store import TigsStore
 
 
@@ -250,4 +252,227 @@ class TestTUIStoreEndToEnd:
         
         app._handle_store_operation(None)
         assert "No commits selected" in app.status_message
+
+
+class TestTUIDynamicLayout:
+    """Test dynamic layout and resize functionality."""
     
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.git_repo = None
+        self.store = None
+    
+    def test_resize_behavior(self):
+        """Test TUI handles resize correctly."""
+        # Create a mock git repo
+        from unittest.mock import Mock
+        mock_store = Mock()
+        mock_store.repo_path = '/test/repo'
+        mock_store.list_chats.return_value = []
+        
+        with patch('subprocess.run') as mock_run:
+            mock_run.return_value.returncode = 0
+            mock_run.return_value.stdout = "abc123|Test commit|Author|1234567890"
+            
+            app = TigsStoreApp(mock_store)
+            
+            # Mock stdscr for testing
+            mock_stdscr = Mock()
+            
+            # Test resize to different sizes
+            for height, width in [(24, 80), (40, 120), (20, 60)]:
+                mock_stdscr.getmaxyx.return_value = (height, width)
+                
+                # Handle resize
+                app._handle_resize(mock_stdscr)
+                
+                # After resize, cached_widths should be None (forcing recalculation)
+                assert app.layout_manager.cached_widths is None
+                
+                # Should reset message view init
+                assert app.message_view._needs_message_view_init == True
+    
+    def test_horizontal_scroll_commit(self):
+        """Test horizontal scrolling in commit view."""
+        mock_store = Mock()
+        mock_store.repo_path = '/test/repo'
+        mock_store.list_chats.return_value = []
+        
+        with patch('subprocess.run') as mock_run:
+            mock_run.return_value.returncode = 0
+            mock_run.return_value.stdout = "abc123|" + ("A" * 100) + "|Author|1234567890"
+            
+            view = CommitView(mock_store)
+            
+            # Should have a very long commit subject
+            assert len(view.commits[0]['subject']) == 100
+            
+            # Initial state
+            assert view.title_scroll_offset == 0
+            
+            # Scroll right
+            result = view.handle_input(curses.KEY_RIGHT)
+            assert view.title_scroll_offset > 0
+            assert result == True  # Should indicate redraw needed
+            
+            # Scroll left
+            view.handle_input(curses.KEY_LEFT)
+            assert view.title_scroll_offset == 0
+    
+    def test_dynamic_width_calculation(self):
+        """Test dynamic width calculation with various scenarios."""
+        mock_store = Mock()
+        mock_store.repo_path = '/test/repo'
+        mock_store.list_chats.return_value = []
+        
+        with patch('subprocess.run') as mock_run:
+            mock_run.return_value.returncode = 0
+            mock_run.return_value.stdout = "abc123|Short subject|Author|1234567890\ndef456|Very long subject that should affect width calculation|Author|1234567890"
+            
+            app = TigsStoreApp(mock_store)
+            
+            # Test normal terminal width
+            commit_w, msg_w, log_w = app.layout_manager.calculate_column_widths(
+                120, 
+                [c['subject'] for c in app.commit_view.commits],
+                5
+            )
+            
+            assert commit_w >= app.layout_manager.MIN_COMMIT_WIDTH
+            assert msg_w >= app.layout_manager.MIN_MESSAGE_WIDTH
+            assert log_w == app.layout_manager.MIN_LOG_WIDTH
+            assert commit_w + msg_w + log_w == 120
+            
+            # Test narrow terminal
+            commit_w2, msg_w2, log_w2 = app.layout_manager.calculate_column_widths(
+                80, 
+                [c['subject'] for c in app.commit_view.commits],
+                5
+            )
+            
+            # Should still meet minimums
+            assert commit_w2 >= app.layout_manager.MIN_COMMIT_WIDTH or msg_w2 >= app.layout_manager.MIN_MESSAGE_WIDTH
+            assert commit_w2 + msg_w2 + log_w2 == 80
+            
+            # Commit width should be smaller on narrow terminal
+            assert commit_w2 <= commit_w
+    
+    def test_variable_message_heights(self):
+        """Test message display with variable heights."""
+        mock_store = Mock()
+        mock_store.repo_path = '/test/repo'
+        mock_store.list_chats.return_value = []
+        
+        with patch('subprocess.run') as mock_run:
+            mock_run.return_value.returncode = 0
+            mock_run.return_value.stdout = "abc123|Test commit|Author|1234567890"
+            
+            app = TigsStoreApp(mock_store)
+        
+        # Set up messages with different content lengths
+        app.message_view.messages = [
+            ('user', 'Short message'),
+            ('assistant', 'This is a very long response that should wrap to multiple lines when displayed in a narrow terminal window and take up more vertical space'),
+            ('user', 'Multi\nline\nmessage\nwith\nbreaks'),
+        ]
+        
+        # Test with narrow width
+        heights = app.message_view._calculate_message_heights(app.message_view.messages, 30)
+        
+        assert heights[0] == 3  # Short message: header + content + separator
+        assert heights[1] > 3   # Long message should wrap
+        assert heights[2] == 7  # Multi-line: header + 5 lines + separator
+        
+        # Test visible calculation
+        app.message_view.message_cursor_idx = 1
+        app.message_view.message_scroll_offset = 0
+        
+        visible_count, start_idx, end_idx = app.message_view._get_visible_messages_variable(15, heights)
+        
+        # Should handle variable heights appropriately
+        assert visible_count > 0
+        assert start_idx <= 1 < end_idx  # Cursor should be visible
+    
+    def test_extremely_large_message(self):
+        """Test handling of message that fills entire window."""
+        mock_store = Mock()
+        mock_store.repo_path = '/test/repo'
+        mock_store.list_chats.return_value = []
+        
+        with patch('subprocess.run') as mock_run:
+            mock_run.return_value.returncode = 0
+            mock_run.return_value.stdout = "abc123|Test commit|Author|1234567890"
+            
+            app = TigsStoreApp(mock_store)
+        
+        # Create a message with lots of content
+        huge_content = "\n".join([f"This is line {i} of a very long message" for i in range(50)])
+        app.message_view.messages = [
+            ('user', 'Normal message'),
+            ('assistant', huge_content),
+            ('user', 'Another normal message'),
+        ]
+        
+        # Focus on huge message
+        app.message_view.message_cursor_idx = 1
+        app.message_view.message_scroll_offset = 0
+        
+        heights = app.message_view._calculate_message_heights(app.message_view.messages, 40)
+        
+        # Huge message should have large height
+        assert heights[1] > 20
+        
+        # With small window, should show only the huge message
+        visible_count, start_idx, end_idx = app.message_view._get_visible_messages_variable(15, heights)
+        
+        assert visible_count == 1
+        assert start_idx == 1
+        assert end_idx == 2
+    
+    def test_no_logs_layout(self):
+        """Test layout when no logs are available."""
+        mock_store = Mock()
+        mock_store.repo_path = '/test/repo'
+        mock_store.list_chats.return_value = []
+        
+        with patch('subprocess.run') as mock_run:
+            mock_run.return_value.returncode = 0
+            mock_run.return_value.stdout = "abc123|Test commit|Author|1234567890"
+            
+            app = TigsStoreApp(mock_store)
+            app.chat_parser = None
+            
+            # Should handle no logs gracefully
+            commit_titles = ["Test commit"]
+            commit_w, msg_w, log_w = app.layout_manager.calculate_column_widths(120, commit_titles, 0)
+            
+            assert log_w == 0
+            assert commit_w + msg_w == 120
+            assert msg_w >= app.layout_manager.MIN_MESSAGE_WIDTH
+    
+    def test_commit_display_with_width_parameter(self):
+        """Test commit display respects width parameter."""
+        mock_store = Mock()
+        mock_store.repo_path = '/test/repo'
+        mock_store.list_chats.return_value = []
+        
+        with patch('subprocess.run') as mock_run:
+            mock_run.return_value.returncode = 0
+            mock_run.return_value.stdout = "abc123|This is a very long commit subject that should be handled properly|Author|1234567890"
+            
+            view = CommitView(mock_store)
+            
+            # Test with narrow width
+            lines = view.get_display_lines(20, 40)
+            assert len(lines) > 0
+            
+            # All lines should fit in the specified width (accounting for borders)
+            for line in lines:
+                if line and not line.startswith("--"):  # Skip visual mode indicators
+                    assert len(line) <= 36  # 40 - 4 for borders
+            
+            # Test with wider width
+            lines_wide = view.get_display_lines(20, 80)
+            
+            # With more width, should show more of the commit subject
+            assert len(lines_wide) > 0
