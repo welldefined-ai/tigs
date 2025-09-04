@@ -292,8 +292,8 @@ class TestTUIDynamicLayout:
                 # Should reset message view init
                 assert app.message_view._needs_message_view_init == True
     
-    def test_horizontal_scroll_commit(self):
-        """Test horizontal scrolling in commit view."""
+    def test_commit_title_soft_wrap(self):
+        """Test soft wrapping of long commit titles."""
         mock_store = Mock()
         mock_store.repo_path = '/test/repo'
         mock_store.list_chats.return_value = []
@@ -307,18 +307,60 @@ class TestTUIDynamicLayout:
             # Should have a very long commit subject
             assert len(view.commits[0]['subject']) == 100
             
-            # Initial state
-            assert view.title_scroll_offset == 0
+            # Test that long titles wrap instead of scroll
+            display_lines = view.get_display_lines(height=10, width=60)
             
-            # Scroll right
-            result = view.handle_input(curses.KEY_RIGHT)
-            assert view.title_scroll_offset > 0
-            assert result == True  # Should indicate redraw needed
+            # Should have multiple lines for the long commit title
+            assert len(display_lines) > 1
             
-            # Scroll left
-            view.handle_input(curses.KEY_LEFT)
-            assert view.title_scroll_offset == 0
+            # First line should contain cursor, selection, and datetime
+            first_line = display_lines[0]
+            assert "2009" in first_line  # Timestamp 1234567890 = 2009-02-14
+            
+            # Navigation should still work (up/down, not left/right for scrolling)
+            result = view.handle_input(curses.KEY_DOWN)
+            # Result depends on if there are more commits, but shouldn't crash
     
+    def test_commit_title_format_spacing(self):
+        """Test that commit title format has exactly one space between [] and datetime."""
+        mock_store = Mock()
+        mock_store.repo_path = '/test/repo'
+        mock_store.list_chats.return_value = []
+        
+        with patch('subprocess.run') as mock_run:
+            mock_run.return_value.returncode = 0
+            mock_run.return_value.stdout = "abc123|Short title|TestAuthor|1734567890"
+            
+            view = CommitView(mock_store)
+            
+            # Test normal commit (no note, not selected)
+            display_lines = view.get_display_lines(height=10, width=80)
+            first_line = display_lines[0]
+            
+            # Should have format: ">[ ] 2024-12-18 21:18 TestAuthor Short title"
+            # Check that there's exactly one space between ] and the datetime
+            assert "] 20" in first_line  # One space between ] and year
+            assert "]  20" not in first_line  # Not two spaces
+            
+            # Test with note indicator
+            view.commits_with_notes = {"abc123"}  # Add note
+            view.commits[0]['has_note'] = True
+            display_lines = view.get_display_lines(height=10, width=80)
+            first_line = display_lines[0]
+            
+            # Should have format: ">*[ ]2024-12-18 21:18 TestAuthor Short title"
+            # With note indicator (*), there should be no space before datetime
+            assert "]*20" in first_line or "]2024" in first_line  # No space with note
+            
+            # Test selected item
+            view.selected_commits.add(0)
+            display_lines = view.get_display_lines(height=10, width=80)
+            first_line = display_lines[0]
+            
+            # Should have format: ">[x]*2024-12-18 21:18 TestAuthor Short title"
+            # Selected with note should have both indicators (x and *) with no extra space
+            assert "x]*20" in first_line or "[x]*20" in first_line  # No space with selected+note
+
     def test_dynamic_width_calculation(self):
         """Test dynamic width calculation with various scenarios."""
         mock_store = Mock()
@@ -462,17 +504,21 @@ class TestTUIDynamicLayout:
             
             view = CommitView(mock_store)
             
-            # Test with narrow width
-            lines = view.get_display_lines(20, 40)
+            # Test with realistic width (new min is 60)
+            lines = view.get_display_lines(20, 70)
             assert len(lines) > 0
             
             # All lines should fit in the specified width (accounting for borders)
             for line in lines:
                 if line and not line.startswith("--"):  # Skip visual mode indicators
-                    assert len(line) <= 36  # 40 - 4 for borders
+                    assert len(line) <= 66  # 70 - 4 for borders
             
             # Test with wider width
-            lines_wide = view.get_display_lines(20, 80)
+            lines_wide = view.get_display_lines(20, 100)
             
             # With more width, should show more of the commit subject
             assert len(lines_wide) > 0
+            # The wider display should have lines that fit within the wider boundary
+            for line in lines_wide:
+                if line and not line.startswith("--"):
+                    assert len(line) <= 96  # 100 - 4 for borders

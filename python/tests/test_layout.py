@@ -22,14 +22,14 @@ class TestLayoutManager:
         assert commit_w + msg_w + log_w == 120
     
     def test_calculate_widths_small_terminal(self):
-        """Test width calculation with minimum terminal size."""
+        """Test width calculation with smaller terminal size."""
         titles = ["Test"]
-        commit_w, msg_w, log_w = self.layout.calculate_column_widths(80, titles, 3)
+        commit_w, msg_w, log_w = self.layout.calculate_column_widths(100, titles, 3)
         
-        # Should still meet minimums
+        # Should meet minimums with new compact layout
         assert commit_w >= self.layout.MIN_COMMIT_WIDTH
         assert msg_w >= self.layout.MIN_MESSAGE_WIDTH
-        assert commit_w + msg_w + log_w == 80
+        assert commit_w + msg_w + log_w == 100
     
     def test_calculate_widths_no_logs(self):
         """Test width calculation with no logs."""
@@ -43,18 +43,17 @@ class TestLayoutManager:
     def test_calculate_widths_very_long_titles(self):
         """Test with extremely long commit titles."""
         titles = ["A" * 200]  # Very long title
-        commit_w, msg_w, log_w = self.layout.calculate_column_widths(120, titles, 5)
+        commit_w, msg_w, log_w = self.layout.calculate_column_widths(150, titles, 5)
         
-        # Should be capped at max ratio
-        expected_max = int(120 * self.layout.MAX_COMMIT_WIDTH_RATIO)
-        assert commit_w <= expected_max
+        # Should be capped at MAX_COMMIT_WIDTH (now 80)
+        assert commit_w <= self.layout.MAX_COMMIT_WIDTH
         assert msg_w >= self.layout.MIN_MESSAGE_WIDTH
     
     def test_calculate_widths_empty_titles(self):
         """Test with empty titles list."""
         commit_w, msg_w, log_w = self.layout.calculate_column_widths(100, [], 5)
         
-        assert commit_w == self.layout.MIN_COMMIT_WIDTH
+        assert commit_w >= self.layout.MIN_COMMIT_WIDTH  # Uses proportion, not just minimum
         assert msg_w >= self.layout.MIN_MESSAGE_WIDTH
         assert log_w == self.layout.MIN_LOG_WIDTH
     
@@ -146,13 +145,24 @@ class TestLayoutManager:
         assert self.layout.last_screen_width == 100
     
     def test_extreme_narrow_terminal(self):
-        """Test behavior with extremely narrow terminal."""
+        """Test behavior with narrow terminal."""
         titles = ["Test"]
-        commit_w, msg_w, log_w = self.layout.calculate_column_widths(50, titles, 3)
+        commit_w, msg_w, log_w = self.layout.calculate_column_widths(100, titles, 3)
         
-        # Should still provide minimums even if tight
-        assert commit_w >= self.layout.MIN_COMMIT_WIDTH or msg_w >= self.layout.MIN_MESSAGE_WIDTH
-        assert commit_w + msg_w + log_w == 50
+        # At 100 width, should fit both minimums (51 + 30 + 15 = 96)
+        assert commit_w >= self.layout.MIN_COMMIT_WIDTH
+        assert msg_w >= self.layout.MIN_MESSAGE_WIDTH  
+        assert commit_w + msg_w + log_w == 100
+    
+    def test_very_narrow_terminal_graceful_degradation(self):
+        """Test graceful degradation when terminal is too narrow for both minimums."""
+        titles = ["Test"]
+        commit_w, msg_w, log_w = self.layout.calculate_column_widths(80, titles, 3)
+        
+        # Should still fit in available space, even if one minimum isn't met
+        assert commit_w + msg_w + log_w == 80
+        # At least one should approach its minimum 
+        assert commit_w >= 30 or msg_w >= 15  # Some reasonable minimum
     
     def test_scroll_indicators_constants(self):
         """Test that scroll indicator constants are properly defined."""
