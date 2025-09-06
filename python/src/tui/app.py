@@ -10,6 +10,7 @@ from cligent import ChatParser
 from .commits import CommitView
 from .messages import MessageView
 from .logs import LogView
+from .layout import LayoutManager
 
 
 class TigsStoreApp:
@@ -37,10 +38,16 @@ class TigsStoreApp:
             # Handle cligent initialization errors gracefully
             self.chat_parser = None
         
+        # Initialize layout manager
+        self.layout_manager = LayoutManager()
+        
         # Initialize view components
         self.commit_view = CommitView(self.store)
         self.message_view = MessageView(self.chat_parser)
         self.log_view = LogView(self.chat_parser)
+        
+        # Give layout manager to commit view for horizontal scrolling
+        self.commit_view.layout_manager = self.layout_manager
         
         # Load initial data
         if self.chat_parser:
@@ -124,12 +131,28 @@ class TigsStoreApp:
             
             # Calculate pane dimensions
             pane_height = height - 1  # Reserve bottom for status bar
-            commit_width = int(width * 0.4)
-            message_width = int(width * 0.4)
-            session_width = width - commit_width - message_width
             
-            # Get commit display lines
-            commit_lines = self.commit_view.get_display_lines(pane_height)
+            # Get commit titles for width calculation
+            commit_titles = [c['subject'] for c in self.commit_view.commits]
+            log_count = len(self.log_view.logs) if self.log_view.logs else 0
+            
+            # Calculate dynamic widths
+            if self.layout_manager.needs_recalculation(width):
+                commit_width, message_width, log_width = self.layout_manager.calculate_column_widths(
+                    width, commit_titles, log_count
+                )
+            else:
+                commit_width, message_width, log_width = self.layout_manager.cached_widths
+            
+            # Handle no logs case - give extra space to messages
+            if log_count == 0:
+                message_width = width - commit_width
+                session_width = 0
+            else:
+                session_width = log_width
+            
+            # Get commit display lines (now with width parameter)
+            commit_lines = self.commit_view.get_display_lines(pane_height, commit_width)
             
             # DEBUG: Add status to see if commits are loading
             if not commit_lines:
@@ -140,8 +163,8 @@ class TigsStoreApp:
                            "Commits", self.focused_pane == 0,
                            commit_lines)
             
-            # Get message display lines
-            message_lines = self.message_view.get_display_lines(pane_height)
+            # Get message display lines (now with width parameter)
+            message_lines = self.message_view.get_display_lines(pane_height, message_width)
             
             self._draw_pane(stdscr, 0, commit_width, pane_height, message_width,
                            "Messages", self.focused_pane == 1,
@@ -171,7 +194,8 @@ class TigsStoreApp:
             elif key == curses.KEY_BTAB or key == 353:  # Shift-Tab
                 self.focused_pane = (self.focused_pane - 1) % 3
             elif key == curses.KEY_RESIZE:
-                pass  # Will redraw on next iteration
+                self._handle_resize(stdscr)
+                continue  # Redraw with new dimensions
             elif self.focused_pane == 0:  # Commits pane focused
                 self.commit_view.handle_input(key)
             elif self.focused_pane == 1:  # Messages pane focused
@@ -385,3 +409,24 @@ class TigsStoreApp:
         # Simple implementation - always overwrite for now
         # Could be enhanced with actual prompt dialog
         return True
+    
+    def _handle_resize(self, stdscr) -> None:
+        """Handle terminal resize event.
+        
+        Args:
+            stdscr: The curses screen
+        """
+        # Clear and refresh to get new dimensions
+        stdscr.clear()
+        height, width = stdscr.getmaxyx()
+        
+        # Force recalculation of column widths
+        self.layout_manager.cached_widths = None
+        
+        # Reset message view to recalculate heights
+        self.message_view._needs_message_view_init = True
+        
+        # Ensure cursors are visible
+        pane_height = height - 1
+        self.commit_view.scroll_to_cursor(pane_height)
+        self.message_view.scroll_to_cursor(pane_height)

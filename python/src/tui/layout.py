@@ -7,10 +7,12 @@ import curses
 class LayoutManager:
     """Manages dynamic column width calculations."""
     
-    # Constants for width boundaries
-    MIN_COMMIT_WIDTH = 32
-    MAX_COMMIT_WIDTH_RATIO = 0.35  # Max 35% of screen
-    MIN_MESSAGE_WIDTH = 30
+    # Constants for full datetime format approach
+    # Format: "YYYY-MM-DD HH:MM author_name title..."
+    # Full datetime (16 chars) + space + author + space + title
+    MIN_COMMIT_WIDTH = 32   # Minimum for datetime + reasonable author name
+    MAX_COMMIT_WIDTH = 60   # Cap to leave more space for messages
+    MIN_MESSAGE_WIDTH = 25
     MIN_LOG_WIDTH = 15
     MAX_LOG_WIDTH = 20
     
@@ -47,26 +49,25 @@ class LayoutManager:
         else:
             log_width = min(self.MIN_LOG_WIDTH, self.MAX_LOG_WIDTH)
         
-        # Calculate maximum needed commit width
-        if commit_titles:
-            # Account for: SHA(7) + space + indicators(4) = 12 extra chars
-            max_title_len = max(len(title) for title in commit_titles)
-            ideal_commit_width = min(
-                max_title_len + 12,
-                int(screen_width * self.MAX_COMMIT_WIDTH_RATIO)
-            )
-        else:
-            ideal_commit_width = self.MIN_COMMIT_WIDTH
+        # Simplified width calculation for soft-wrap approach
+        # Use a reasonable fixed width that allows for author names and dates
+        # Titles will wrap naturally, so we don't need to calculate based on title length
+        available_for_commits = screen_width - log_width
         
-        # Ensure minimum commit width
+        # Use a proportion that balances commits and messages  
+        ideal_commit_width = min(
+            int(available_for_commits * 0.5),  # 50% for more balanced layout
+            self.MAX_COMMIT_WIDTH
+        )
+        
         commit_width = max(self.MIN_COMMIT_WIDTH, ideal_commit_width)
         
         # Calculate message width with remaining space
         message_width = screen_width - commit_width - log_width
         
-        # Validate minimum message width
+        # Ensure message width is reasonable (no max limit, just ensure it's positive)
         if message_width < self.MIN_MESSAGE_WIDTH:
-            # Shrink commit column if needed
+            # Shrink commit column if needed to give messages minimum space
             available = screen_width - log_width - self.MIN_MESSAGE_WIDTH
             commit_width = max(self.MIN_COMMIT_WIDTH, available)
             message_width = screen_width - commit_width - log_width
