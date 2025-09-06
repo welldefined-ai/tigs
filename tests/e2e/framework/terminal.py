@@ -4,10 +4,12 @@ This module provides the core TerminalApp class that manages the lifecycle
 of a terminal application under test, similar to how Tig's test harness works.
 """
 
+import fcntl
 import os
 import pty
 import select
 import signal
+import struct
 import subprocess
 import sys
 import termios
@@ -101,8 +103,15 @@ class TerminalApp:
         
         # Set terminal attributes (like Tig tests expect)
         attrs = termios.tcgetattr(self.slave_fd)
-        attrs[tty.LFLAG] &= ~termios.TOSTOP  # Equivalent to `stty -tostop`
+        lflag = attrs[3]  # LFLAG is at index 3 in the termios tuple
+        lflag &= ~termios.TOSTOP  # clear TOSTOP like `stty -tostop`
+        attrs = list(attrs)
+        attrs[3] = lflag
         termios.tcsetattr(self.slave_fd, termios.TCSANOW, attrs)
+        
+        # Set window size via ioctl (environment variables are not sufficient)
+        fcntl.ioctl(self.slave_fd, termios.TIOCSWINSZ, 
+                   struct.pack('HHHH', self.lines, self.columns, 0, 0))
         
         # Start the process
         try:
@@ -113,7 +122,7 @@ class TerminalApp:
                 stderr=self.slave_fd,
                 cwd=self.cwd,
                 env=self.env,
-                preexec_fn=os.setsid  # Create new session
+                start_new_session=True  # Critical: gives it a new session/ctty
             )
         except Exception as e:
             self._cleanup()
@@ -127,7 +136,7 @@ class TerminalApp:
         
         # Give the application time to initialize
         time.sleep(0.1)
-        self._read_output()
+        self._drain()
         
     def stop(self) -> None:
         """Stop the terminal application."""
@@ -137,7 +146,15 @@ class TerminalApp:
         self._running = False
         
         if self.process:
-            # Try graceful shutdown first
+            # Try graceful shutdown first - send 'q' for applications that support it
+            try:
+                if self.master_fd is not None:
+                    os.write(self.master_fd, b'q')
+                    self._drain(max_wait=1.0)  # Capture final frame
+            except (OSError, ValueError):
+                pass  # FD might be closed already
+                
+            # Then try SIGTERM
             try:
                 self.process.terminate()
                 self.process.wait(timeout=2.0)
@@ -177,8 +194,10 @@ class TerminalApp:
         for key in keys:
             key_bytes = self._convert_key_to_bytes(key)
             os.write(self.master_fd, key_bytes)
-            time.sleep(0.05)  # Small delay between keystrokes
-            self._read_output()
+            time.sleep(0.02)  # Small debounce after key send
+            
+        # Drain all output once after sending all keys
+        self._drain()
             
     def _convert_key_to_bytes(self, key: str) -> bytes:
         """Convert key description to bytes."""
@@ -222,22 +241,47 @@ class TerminalApp:
         else:
             return key.encode('utf-8')
             
-    def _read_output(self) -> None:
-        """Read available output from the application."""
+    def _drain(self, max_wait: Optional[float] = None, idle_gap: Optional[float] = None) -> None:
+        """Drain all available output with idle-aware loop.
+        
+        Reads until no data for idle_gap seconds (max max_wait total).
+        This prevents capturing mid-frame renders.
+        
+        Args:
+            max_wait: Maximum time to wait (default: 0.4s, or E2E_MAX_WAIT env var)
+            idle_gap: Idle time before giving up (default: 0.06s, or E2E_IDLE_GAP env var)
+        """
+        if max_wait is None:
+            max_wait = float(os.environ.get('E2E_MAX_WAIT', '0.4'))
+        if idle_gap is None:
+            idle_gap = float(os.environ.get('E2E_IDLE_GAP', '0.06'))
         if not self._running or self.master_fd is None:
             return
             
-        try:
-            # Use select to check for available data
-            ready, _, _ = select.select([self.master_fd], [], [], 0.1)
-            if ready:
-                data = os.read(self.master_fd, 4096)
-                if data:
+        deadline = time.time() + max_wait
+        while True:
+            got_data = False
+            try:
+                # Read all immediately available data
+                while True:
+                    ready, _, _ = select.select([self.master_fd], [], [], 0.02)
+                    if not ready:
+                        break
+                    data = os.read(self.master_fd, 8192)
+                    if not data:
+                        break
                     self._output_buffer += data
                     self.display_capture.process_output(data)
-        except (OSError, ValueError):
-            # Master fd closed or other error
-            pass
+                    got_data = True
+            except (OSError, ValueError):
+                break
+                
+            # If we got no data, check if we should wait more or we're done
+            if not got_data:
+                if time.time() + idle_gap > deadline:
+                    break
+                time.sleep(idle_gap)
+            # If we did get data, continue immediately (don't sleep)
             
     def wait_for_output(self, pattern: Optional[str] = None, timeout: Optional[float] = None) -> str:
         """Wait for output to appear, optionally matching a pattern.
@@ -260,7 +304,7 @@ class TerminalApp:
         start_time = time.time()
         
         while time.time() - start_time < timeout:
-            self._read_output()
+            self._drain(max_wait=0.1)  # Short drain for polling
             
             if pattern is None:
                 # Just wait for any output
@@ -284,7 +328,7 @@ class TerminalApp:
         Returns:
             The terminal display as a string (similar to Tig's :save-display)
         """
-        self._read_output()  # Make sure we have latest output
+        self._drain()  # Make sure we have latest output
         return self.display_capture.get_display()
         
     def send_command(self, command: str) -> None:

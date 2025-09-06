@@ -62,6 +62,7 @@ class Display:
             if self.cursor_col >= self.columns:
                 self.cursor_col = 0
                 self.cursor_row += 1
+                self._clamp_and_scroll_cursor()
                 
     def write_text(self, text: str) -> None:
         """Write text starting at current cursor position.
@@ -73,6 +74,7 @@ class Display:
             if char == '\n':
                 self.cursor_col = 0
                 self.cursor_row += 1
+                self._clamp_and_scroll_cursor()
             elif char == '\r':
                 self.cursor_col = 0
             elif char == '\b':
@@ -84,8 +86,17 @@ class Display:
                 if self.cursor_col >= self.columns:
                     self.cursor_col = 0
                     self.cursor_row += 1
+                    self._clamp_and_scroll_cursor()
             else:
                 self.write_char(char)
+                
+    def _clamp_and_scroll_cursor(self) -> None:
+        """Clamp cursor row and scroll if needed."""
+        if self.cursor_row >= self.lines:
+            # Scroll up and clamp cursor to bottom line
+            lines_to_scroll = self.cursor_row - self.lines + 1
+            self.scroll_up(lines_to_scroll)
+            self.cursor_row = self.lines - 1
                 
     def scroll_up(self, lines: int = 1) -> None:
         """Scroll the display up by the specified number of lines.
@@ -199,7 +210,7 @@ class DisplayCapture:
             if text_bytes[i:i+1] == b'\x1b':
                 # Try to match various escape sequences
                 
-                # Cursor position: ESC[row;colH
+                # Cursor position: ESC[row;colH or ESC[row;colf
                 match = self._cursor_pos.match(text_bytes, i)
                 if match:
                     row = int(match.group(1)) - 1  # Convert to 0-based
@@ -207,8 +218,43 @@ class DisplayCapture:
                     self.display.set_cursor(row, col)
                     i = match.end()
                     continue
+                
+                # Handle alternate cursor position formats
+                if i + 1 < len(text_bytes) and text_bytes[i+1:i+2] == b'[':
+                    # Look for other cursor positioning sequences
+                    seq_match = re.match(rb'\x1b\[(\d+);(\d+)[Hf]', text_bytes[i:])
+                    if seq_match:
+                        row = int(seq_match.group(1)) - 1
+                        col = int(seq_match.group(2)) - 1
+                        self.display.set_cursor(row, col)
+                        i += seq_match.end()
+                        continue
                     
-                # Cursor up: ESC[nA
+                    # Clear entire screen: ESC[2J
+                    if text_bytes[i:i+4] == b'\x1b[2J':
+                        self.display.clear()
+                        i += 4
+                        continue
+                        
+                    # Clear line: ESC[K or ESC[0K
+                    if text_bytes[i:i+3] == b'\x1b[K' or text_bytes[i:i+4] == b'\x1b[0K':
+                        self._clear_line_from_cursor()
+                        i += 3 if text_bytes[i:i+3] == b'\x1b[K' else 4
+                        continue
+                        
+                    # Clear from cursor to end of screen: ESC[0J or ESC[J
+                    if text_bytes[i:i+4] == b'\x1b[0J' or text_bytes[i:i+3] == b'\x1b[J':
+                        self._clear_from_cursor_to_end()
+                        i += 4 if text_bytes[i:i+4] == b'\x1b[0J' else 3
+                        continue
+                        
+                    # Clear from beginning of screen to cursor: ESC[1J
+                    if text_bytes[i:i+4] == b'\x1b[1J':
+                        self._clear_from_beginning_to_cursor()
+                        i += 4
+                        continue
+                
+                # Cursor movement sequences
                 match = self._cursor_up.match(text_bytes, i)
                 if match:
                     n = int(match.group(1)) if match.group(1) else 1
@@ -216,7 +262,6 @@ class DisplayCapture:
                     i = match.end()
                     continue
                     
-                # Cursor down: ESC[nB
                 match = self._cursor_down.match(text_bytes, i)
                 if match:
                     n = int(match.group(1)) if match.group(1) else 1
@@ -225,7 +270,6 @@ class DisplayCapture:
                     i = match.end()
                     continue
                     
-                # Cursor forward: ESC[nC
                 match = self._cursor_forward.match(text_bytes, i)
                 if match:
                     n = int(match.group(1)) if match.group(1) else 1
@@ -234,36 +278,14 @@ class DisplayCapture:
                     i = match.end()
                     continue
                     
-                # Cursor backward: ESC[nD
                 match = self._cursor_backward.match(text_bytes, i)
                 if match:
                     n = int(match.group(1)) if match.group(1) else 1
                     self.display.cursor_col = max(0, self.display.cursor_col - n)
                     i = match.end()
                     continue
-                    
-                # Clear screen: ESC[2J
-                match = self._clear_screen.match(text_bytes, i)
-                if match:
-                    self.display.clear()
-                    i = match.end()
-                    continue
-                    
-                # Clear line: ESC[K
-                match = self._clear_line.match(text_bytes, i)
-                if match:
-                    # Clear from cursor to end of line
-                    row = self.display.cursor_row
-                    col = self.display.cursor_col
-                    if row < self.display.lines:
-                        line = list(self.display.buffer[row])
-                        for j in range(col, len(line)):
-                            line[j] = ' '
-                        self.display.buffer[row] = ''.join(line)
-                    i = match.end()
-                    continue
-                    
-                # Generic ANSI escape sequence - skip it
+                
+                # Generic ANSI escape sequence - skip it (this catches color codes, etc.)
                 match = self._ansi_escape.match(text_bytes, i)
                 if match:
                     i = match.end()
@@ -274,8 +296,68 @@ class DisplayCapture:
             else:
                 # Regular character - write it
                 char = chr(text_bytes[i])
-                self.display.write_char(char)
+                if char == '\r':
+                    # Carriage return - move to beginning of line
+                    self.display.cursor_col = 0
+                elif char == '\n':
+                    # Line feed - move to next line
+                    self.display.cursor_col = 0
+                    self.display.cursor_row += 1
+                    if self.display.cursor_row >= self.display.lines:
+                        # Scroll up if we've gone past the bottom
+                        self.display.scroll_up(1)
+                        self.display.cursor_row = self.display.lines - 1
+                elif char == '\b':
+                    # Backspace
+                    if self.display.cursor_col > 0:
+                        self.display.cursor_col -= 1
+                elif char == '\t':
+                    # Tab to next 8-character boundary
+                    self.display.cursor_col = ((self.display.cursor_col // 8) + 1) * 8
+                    if self.display.cursor_col >= self.display.columns:
+                        self.display.cursor_col = 0
+                        self.display.cursor_row += 1
+                        if self.display.cursor_row >= self.display.lines:
+                            self.display.scroll_up(1)
+                            self.display.cursor_row = self.display.lines - 1
+                elif ord(char) >= 32:  # Printable character
+                    self.display.write_char(char)
+                # Skip other control characters
                 i += 1
+    
+    def _clear_line_from_cursor(self) -> None:
+        """Clear from cursor to end of current line."""
+        row = self.display.cursor_row
+        col = self.display.cursor_col
+        if row < self.display.lines:
+            line = list(self.display.buffer[row])
+            for j in range(col, len(line)):
+                line[j] = ' '
+            self.display.buffer[row] = ''.join(line)
+    
+    def _clear_from_cursor_to_end(self) -> None:
+        """Clear from cursor to end of screen."""
+        # Clear current line from cursor
+        self._clear_line_from_cursor()
+        
+        # Clear all lines below current line
+        for row in range(self.display.cursor_row + 1, self.display.lines):
+            self.display.buffer[row] = ' ' * self.display.columns
+            
+    def _clear_from_beginning_to_cursor(self) -> None:
+        """Clear from beginning of screen to cursor."""
+        # Clear all lines above current line
+        for row in range(0, self.display.cursor_row):
+            self.display.buffer[row] = ' ' * self.display.columns
+            
+        # Clear current line from beginning to cursor
+        row = self.display.cursor_row
+        col = self.display.cursor_col
+        if row < self.display.lines:
+            line = list(self.display.buffer[row])
+            for j in range(0, min(col + 1, len(line))):
+                line[j] = ' '
+            self.display.buffer[row] = ''.join(line)
                 
     def get_display(self) -> str:
         """Get current display state as string.
