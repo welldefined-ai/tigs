@@ -4,7 +4,9 @@ version = "0.1.0"
 description = "Cross-language E2E testing framework for the Tigs project"
 requires-python = ">=3.8"
 dependencies = [
+    "pexpect>=4.9.0",
     # No language-specific dependencies - framework should work with any implementation
+    "pyte>=0.8.2",
 ]
 
 [build-system]
@@ -23,6 +25,7 @@ dev-dependencies = [
     "pytest-cov>=4.0",
     "pytest-timeout>=2.0",
     "pytest-xdist>=3.0",  # For parallel test execution
+    "pyte>=0.8.2",  # Terminal emulator for clean E2E test display capture
 ]
 
 [tool.pytest.ini_options]
