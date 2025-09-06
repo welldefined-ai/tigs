@@ -1,0 +1,1 @@
+"""E2E testing framework for terminal applications."""

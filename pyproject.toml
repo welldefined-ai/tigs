@@ -1,0 +1,90 @@
+[project]
+name = "tigs-testing"
+version = "0.1.0"
+description = "Cross-language E2E testing framework for the Tigs project"
+requires-python = ">=3.8"
+dependencies = [
+    # No language-specific dependencies - framework should work with any implementation
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+# This is a testing-only project with no installable packages
+include = [
+    "tests/",
+]
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "pytest-timeout>=2.0",
+    "pytest-xdist>=3.0",  # For parallel test execution
+]
+
+[tool.pytest.ini_options]
+# Test discovery
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+
+# Output formatting
+addopts = [
+    "-v",
+    "--tb=short",
+    "--strict-markers",
+    "--strict-config",
+    "--color=yes",
+]
+
+# Test markers
+markers = [
+    "e2e: End-to-end integration tests",
+    "slow: Slow running tests (>5s)",
+    "terminal: Tests that interact with terminal applications",
+    "python: Tests for Python implementation",
+    "rust: Tests for Rust implementation", 
+    "go: Tests for Go implementation",
+    "cross_lang: Cross-language compatibility tests",
+]
+
+# Timeout for tests (useful for terminal tests)
+timeout = 30
+
+# Test collection - exclude implementation-specific test directories
+norecursedirs = [
+    "python",
+    "rust", 
+    "go",
+    ".git",
+    ".idea",
+    "specs",
+]
+
+# Logging
+log_cli = true
+log_cli_level = "INFO"
+log_cli_format = "%(asctime)s [%(levelname)8s] %(name)s: %(message)s"
+log_cli_date_format = "%Y-%m-%d %H:%M:%S"
+
+[tool.coverage.run]
+# Coverage will be implementation-specific
+source = []
+omit = [
+    "*/tests/*",
+    "*/.venv/*",
+    "*/conftest.py",
+]
+
+[tool.ruff]
+line-length = 88
+target-version = "py38"
+select = ["E", "F", "W", "I", "N", "UP"]
+ignore = ["E501"]  # Line too long
+
+[tool.ruff.isort]
+force-single-line = true
