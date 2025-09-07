@@ -58,3 +58,14 @@ dev-dependencies = [
 [tool.ruff]
 line-length = 88
 target-version = "py38"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+addopts = [
+    "-v",
+    "--tb=short",
+    "--color=yes",
+]

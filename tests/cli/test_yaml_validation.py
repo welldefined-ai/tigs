@@ -22,6 +22,8 @@ def run_tigs(repo_path, *args):
 def validate_yaml_schema(content):
     """Validate YAML content matches tigs.chat/v1 schema."""
     try:
+        if not content or not content.strip():
+            return False
         data = yaml.safe_load(content)
         if not isinstance(data, dict):
             return False
@@ -75,9 +77,9 @@ messages:
             if result.returncode == 0:
                 result = run_tigs(repo_path, "show-chat")
                 if result.returncode == 0:
-                    assert validate_yaml_schema(result.output)
-                    assert "schema: tigs.chat/v1" in result.output
-                    assert "Hello" in result.output
+                    assert validate_yaml_schema(result.stdout)
+                    assert "schema: tigs.chat/v1" in result.stdout
+                    assert "Hello" in result.stdout
     
     def test_valid_complex_schema(self):
         """Test complex valid schema with multiple messages."""
@@ -133,9 +135,9 @@ messages:
             if result.returncode == 0:
                 result = run_tigs(repo_path, "show-chat")
                 if result.returncode == 0:
-                    assert validate_yaml_schema(result.output)
-                    assert "process_data" in result.output
-                    assert "```python" in result.output
+                    assert validate_yaml_schema(result.stdout)
+                    assert "process_data" in result.stdout
+                    assert "```python" in result.stdout
 
     def test_invalid_schema_variations(self):
         """Test various invalid schema formats."""
@@ -192,9 +194,9 @@ messages: []
             
             malformed_yaml_samples = [
                 "invalid: yaml: content: [unclosed",
-                "not valid yaml content at all",
-                "schema: tigs.chat/v1\nmessages:\n- role: user\n  content: unclosed quote\"",
+                "not: valid: yaml: content: at: all: [[[",
                 "",  # Empty content
+                "{ this is not valid yaml ]",
             ]
             
             for malformed in malformed_yaml_samples:
@@ -252,10 +254,10 @@ messages:
             if result.returncode == 0:
                 result = run_tigs(repo_path, "show-chat")
                 if result.returncode == 0:
-                    assert validate_yaml_schema(result.output)
+                    assert validate_yaml_schema(result.stdout)
                     # Check that Unicode is preserved
-                    assert "你好世界" in result.output or "你好" in result.output
-                    assert "🌍" in result.output or "🚀" in result.output
+                    assert "你好世界" in result.stdout or "你好" in result.stdout
+                    assert "🌍" in result.stdout or "🚀" in result.stdout
                     print("✓ Unicode YAML validation and storage works")
 
     def test_large_yaml_content(self):
@@ -288,8 +290,8 @@ messages:
             if result.returncode == 0:
                 result = run_tigs(repo_path, "show-chat")
                 if result.returncode == 0:
-                    assert validate_yaml_schema(result.output)
-                    assert len(result.output) > 1000  # Should be large
+                    assert validate_yaml_schema(result.stdout)
+                    assert len(result.stdout) > 1000  # Should be large
                     print("✓ Large YAML validation and storage works")
 
     def test_edge_case_content(self):
@@ -315,11 +317,11 @@ messages:
     Final line
 """,
                 
-                # Special characters
+                # Special characters (properly escaped)
                 """schema: tigs.chat/v1
 messages:
 - role: user
-  content: Special chars: !@#$%^&*()_+-=[]{}|;':\",./<>?
+  content: "Special chars: !@#$%^&*()_+-=[]{}|;',./<>?"
 """,
                 
                 # Code blocks
@@ -353,7 +355,7 @@ messages:
                 if result.returncode == 0:
                     result = run_tigs(repo_path, "show-chat")
                     if result.returncode == 0:
-                        assert validate_yaml_schema(result.output)
+                        assert validate_yaml_schema(result.stdout)
                         print(f"✓ Edge case {i+1} handled correctly")
                     
                     # Clean up

@@ -280,8 +280,8 @@ messages:
             
             if result1.returncode == 0 and result2.returncode == 0:
                 # Extract SHAs
-                sha1 = result1.output.split(":")[-1].strip() if "commit:" in result1.output else None
-                sha2 = result2.output.split(":")[-1].strip() if "commit:" in result2.output else None
+                sha1 = result1.stdout.split(":")[-1].strip() if "commit:" in result1.stdout else None
+                sha2 = result2.stdout.split(":")[-1].strip() if "commit:" in result2.stdout else None
                 
                 # Verify isolation: repo1 should only see its chat
                 result = run_tigs(repo1_path, "list-chats")
