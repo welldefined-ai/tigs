@@ -98,7 +98,7 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
         except Exception:
             self.messages = []
     
-    def get_display_lines(self, height: int) -> List[str]:
+    def get_display_lines(self, height: int, width: int = 40) -> List[str]:
         """Get display lines for messages pane with bottom-anchored display.
         
         Args:
@@ -118,8 +118,11 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
             self._init_message_view(height)
             self._needs_message_view_init = False
         
-        # Get message view parameters (single source of truth)
-        visible_items, start_idx, end_idx = self._message_view(height)
+        # Calculate message heights with current width
+        message_heights = self._calculate_message_heights(self.messages, width)
+        
+        # Get visible messages using variable heights
+        visible_count, start_idx, end_idx = self._get_visible_messages_variable(height, message_heights)
 
         # Build display lines
         for i in range(start_idx, end_idx):
@@ -142,11 +145,18 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
             
             lines.append(header)
             
-            # Add first line of content (truncated if needed)
-            content_lines = content.split('\n')
-            if content_lines:
-                first_line = content_lines[0][:37] + "..." if len(content_lines[0]) > 37 else content_lines[0]
-                lines.append(f"    {first_line}")
+            # Add wrapped content lines
+            content_width = max(10, width - 6)  # Account for borders and indentation
+            for line in content.split('\n'):
+                if len(lines) < height - 2:  # Leave room for borders
+                    wrapped_lines = self._word_wrap(line, content_width)
+                    for wrapped in wrapped_lines:
+                        if len(lines) < height - 2:
+                            lines.append(f"    {wrapped}")
+            
+            # Add separator between messages if not the last
+            if i < end_idx - 1 and len(lines) < height - 2:
+                lines.append("")
         
         # Add status line if in visual mode
         if self.visual_mode:
@@ -215,6 +225,144 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
         LINES_PER_MESSAGE = 2  # Header + first content line
         return max(1, rows // LINES_PER_MESSAGE)
     
+    def _calculate_message_heights(self, messages: List[Tuple[str, str]], width: int) -> List[int]:
+        """Calculate height needed for each message with word wrapping.
+        
+        Args:
+            messages: List of (role, content) tuples
+            width: Available width for display
+        
+        Returns:
+            List of heights for each message
+        """
+        heights = []
+        content_width = max(10, width - 6)  # Account for borders and indentation
+        
+        for role, content in messages:
+            # Header line
+            height = 1
+            
+            # Content lines with word wrapping
+            content_lines = content.split('\n')
+            for line in content_lines:
+                if len(line) <= content_width:
+                    height += 1
+                else:
+                    # Word wrap long lines
+                    wrapped = self._word_wrap(line, content_width)
+                    height += len(wrapped)
+            
+            # Add separator line (except for last message)
+            height += 1
+            
+            heights.append(height)
+        
+        return heights
+    
+    def _word_wrap(self, text: str, width: int) -> List[str]:
+        """Word wrap text to specified width.
+        
+        Args:
+            text: Text to wrap
+            width: Maximum width per line
+            
+        Returns:
+            List of wrapped lines
+        """
+        if not text or width <= 0:
+            return [text]
+        
+        words = text.split()
+        if not words:
+            return [text]
+        
+        lines = []
+        current_line = []
+        current_length = 0
+        
+        for word in words:
+            word_length = len(word)
+            
+            # Check if adding this word would exceed width
+            if current_line and current_length + word_length + len(current_line) > width:
+                lines.append(' '.join(current_line))
+                current_line = [word]
+                current_length = word_length
+            else:
+                current_line.append(word)
+                current_length += word_length
+        
+        if current_line:
+            lines.append(' '.join(current_line))
+        
+        return lines if lines else [text[:width]]
+    
+    def _get_visible_messages_variable(
+        self, 
+        height: int, 
+        message_heights: List[int]
+    ) -> Tuple[int, int, int]:
+        """Calculate visible messages with variable heights.
+        
+        Args:
+            height: Available screen height
+            message_heights: Heights for each message
+        
+        Returns:
+            Tuple of (visible_count, start_idx, end_idx)
+        """
+        if not self.messages:
+            return 0, 0, 0
+        
+        available_height = height - 2  # Borders
+        if self.visual_mode:
+            available_height -= 2  # Visual mode indicator
+        
+        # Handle extremely large single message
+        if self.message_cursor_idx < len(message_heights):
+            cursor_height = message_heights[self.message_cursor_idx]
+            if cursor_height >= available_height:
+                # Show only the cursor message with scrolling
+                return 1, self.message_cursor_idx, self.message_cursor_idx + 1
+        
+        # Calculate visible range based on scroll offset and heights
+        current_height = 0
+        start_idx = self.message_scroll_offset
+        end_idx = start_idx
+        
+        for i in range(start_idx, len(self.messages)):
+            if i < len(message_heights):
+                msg_height = message_heights[i]
+                if current_height + msg_height <= available_height:
+                    current_height += msg_height
+                    end_idx = i + 1
+                else:
+                    break
+        
+        # Ensure cursor is visible
+        if self.message_cursor_idx < start_idx:
+            # Scroll up to show cursor
+            self.message_scroll_offset = self.message_cursor_idx
+            return self._get_visible_messages_variable(height, message_heights)
+        elif self.message_cursor_idx >= end_idx:
+            # Scroll down to show cursor
+            # Calculate new start to fit cursor
+            new_start = self.message_cursor_idx
+            test_height = message_heights[self.message_cursor_idx] if self.message_cursor_idx < len(message_heights) else 3
+            
+            while new_start > 0 and test_height < available_height:
+                new_start -= 1
+                if new_start < len(message_heights):
+                    test_height += message_heights[new_start]
+                    if test_height > available_height:
+                        new_start += 1
+                        break
+            
+            self.message_scroll_offset = new_start
+            return self._get_visible_messages_variable(height, message_heights)
+        
+        return end_idx - start_idx, start_idx, end_idx
+    
     def _message_view(self, height: int) -> Tuple[int, int, int]:
         """Get message view parameters - single source of truth.
         
@@ -250,3 +398,17 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
             self.message_scroll_offset + visible_items - 1
         )
         self.cursor_idx = self.message_cursor_idx  # Keep mixin alias in sync
+    
+    def scroll_to_cursor(self, viewport_height: int, border_size: int = 2) -> None:
+        """Ensure cursor is visible in viewport with variable message heights.
+        
+        Args:
+            viewport_height: Total height available for display
+            border_size: Size of borders to subtract from height
+        """
+        if not self.messages or not hasattr(self, 'cursor_idx'):
+            return
+        
+        # For variable heights, we need to trigger a recalculation
+        # The _get_visible_messages_variable method will handle cursor visibility
+        self._needs_message_view_init = True

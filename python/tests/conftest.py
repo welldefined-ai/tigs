@@ -7,7 +7,21 @@ import yaml
 
 import pytest
 from click.testing import CliRunner
-from cligent import ChatParser
+
+
+@pytest.fixture
+def claude_logs():
+    """Get available Claude Code logs for testing."""
+    try:
+        from cligent import ChatParser
+        parser = ChatParser()
+        logs = parser.list_logs()
+        # Return first 3 accessible logs for testing
+        accessible_logs = [(log_id, info) for log_id, info in logs if info.get('accessible', False)][:3]
+        return accessible_logs
+    except Exception:
+        # If cligent is not available or has issues, return empty list
+        return []
 
 
 @pytest.fixture
@@ -33,16 +47,6 @@ def git_repo(tmp_path):
 def runner():
     """Create a Click test runner."""
     return CliRunner()
-
-
-@pytest.fixture
-def claude_logs():
-    """Get available Claude Code logs for testing."""
-    parser = ChatParser()
-    logs = parser.list_logs()
-    # Return first 3 accessible logs for testing
-    accessible_logs = [(log_id, info) for log_id, info in logs if info.get('accessible', False)][:3]
-    return accessible_logs
 
 
 @pytest.fixture
