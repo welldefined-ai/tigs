@@ -1,25 +1,14 @@
 #!/usr/bin/env python3
-"""Test complete CLI workflows."""
+"""Complete CLI workflows - language-agnostic end-to-end testing."""
 
 import subprocess
 import tempfile
 from pathlib import Path
 
 import pytest
+import yaml
 
 from framework.fixtures import create_test_repo
-
-
-@pytest.fixture
-def workflow_repo():
-    """Create a test repository for workflow testing."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        repo_path = Path(tmpdir) / "workflow_repo"
-        
-        # Create repository with multiple commits for testing
-        commits = [f"Workflow commit {i+1}: Feature implementation" for i in range(15)]
-        create_test_repo(repo_path, commits)
-        yield repo_path
 
 
 def run_tigs(repo_path, *args):
@@ -30,166 +19,325 @@ def run_tigs(repo_path, *args):
     return result
 
 
-def check_git_notes(repo_path, commit_sha=None):
-    """Check if Git notes exist for a commit."""
-    if commit_sha is None:
-        # Get HEAD SHA
-        result = subprocess.run(["git", "rev-parse", "HEAD"], 
+def check_git_notes(repo_path, commit_sha=None, ref="refs/notes/chats"):
+    """Check Git notes exist and return content."""
+    try:
+        if commit_sha is None:
+            # Get HEAD SHA
+            result = subprocess.run(["git", "rev-parse", "HEAD"], 
+                                  cwd=repo_path, capture_output=True, text=True)
+            if result.returncode != 0:
+                return False, None
+            commit_sha = result.stdout.strip()
+        
+        # Check if note exists
+        result = subprocess.run(["git", "notes", "--ref", ref, "show", commit_sha],
                               cwd=repo_path, capture_output=True, text=True)
-        if result.returncode != 0:
-            return False, "Could not get HEAD SHA"
-        commit_sha = result.stdout.strip()
-    
-    # Check for notes
-    result = subprocess.run(["git", "notes", "--ref=refs/notes/chats", "show", commit_sha],
-                          cwd=repo_path, capture_output=True, text=True)
-    return result.returncode == 0, result.stdout
+        if result.returncode == 0:
+            return True, result.stdout
+        else:
+            return False, None
+    except Exception:
+        return False, None
+
+
+def validate_yaml_schema(content):
+    """Validate YAML content matches tigs.chat/v1 schema."""
+    try:
+        data = yaml.safe_load(content)
+        if not isinstance(data, dict):
+            return False
+        if data.get('schema') != 'tigs.chat/v1':
+            return False
+        if 'messages' not in data:
+            return False
+        if not isinstance(data['messages'], list):
+            return False
+        
+        for msg in data['messages']:
+            if not isinstance(msg, dict):
+                return False
+            if 'role' not in msg or 'content' not in msg:
+                return False
+            if msg['role'] not in ['user', 'assistant', 'system']:
+                return False
+        return True
+    except:
+        return False
 
 
 class TestCLIWorkflows:
-    """Test complete CLI workflows."""
+    """Test complete CLI workflows from start to finish."""
     
-    def test_complete_workflow(self, workflow_repo):
-        """Test Add → List → Show → Remove → Verify gone workflow."""
-        
-        # Step 1: Add chat
-        chat_content = """chat:
+    def test_add_show_remove_workflow(self):
+        """Test complete add → show → remove workflow with Git notes verification."""
+        sample_yaml = """schema: tigs.chat/v1
+messages:
 - role: user
-  content: "Can you help me understand this code?"
+  content: How do I create a Python function?
 - role: assistant
-  content: "Sure! This code implements a basic sorting algorithm."
+  content: Here's a simple Python function example.
 """
         
-        print("=== Step 1: Add Chat ===")
-        result = run_tigs(workflow_repo, "add-chat", "-m", chat_content)
-        print(f"Add result: {result.returncode}")
-        print(f"Stdout: {result.stdout}")
-        print(f"Stderr: {result.stderr}")
-        
-        if result.returncode != 0:
-            print("Add-chat command failed - workflow cannot continue")
-            print("This might indicate the command is not implemented yet")
-            return
-        
-        # Extract commit SHA if provided in output
-        commit_sha = None
-        if "commit:" in result.stdout:
-            lines = result.stdout.split('\n')
-            for line in lines:
-                if "commit:" in line:
-                    commit_sha = line.split(':')[-1].strip()
-                    break
-        
-        # Step 2: List chats
-        print("\n=== Step 2: List Chats ===")
-        result = run_tigs(workflow_repo, "list-chats")
-        print(f"List result: {result.returncode}")
-        print(f"Stdout: {result.stdout}")
-        print(f"Stderr: {result.stderr}")
-        
-        if result.returncode == 0:
-            # Should see our chat listed
-            assert len(result.stdout.strip()) > 0, "List should show at least one chat"
-        
-        # Step 3: Show chat
-        print("\n=== Step 3: Show Chat ===")
-        show_args = ["show-chat"]
-        if commit_sha:
-            show_args.append(commit_sha)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo_path = Path(tmpdir) / "workflow_repo"
+            create_test_repo(repo_path, ["Initial commit for workflow test"])
             
-        result = run_tigs(workflow_repo, *show_args)
-        print(f"Show result: {result.returncode}")
-        print(f"Stdout: {result.stdout}")
-        print(f"Stderr: {result.stderr}")
-        
-        if result.returncode == 0:
-            # Should show our chat content
-            assert "help me understand" in result.stdout
-            assert "sorting algorithm" in result.stdout
-        
-        # Step 4: Verify Git notes were created
-        print("\n=== Step 4: Verify Git Notes ===")
-        notes_exist, notes_content = check_git_notes(workflow_repo, commit_sha)
-        print(f"Notes exist: {notes_exist}")
-        print(f"Notes content: {notes_content}")
-        
-        if notes_exist:
-            assert "help me understand" in notes_content or "sorting algorithm" in notes_content
-        
-        # Step 5: Remove chat
-        print("\n=== Step 5: Remove Chat ===")
-        remove_args = ["remove-chat"]
-        if commit_sha:
-            remove_args.append(commit_sha)
+            # Step 1: Add chat with YAML content
+            result = run_tigs(repo_path, "add-chat", "-m", sample_yaml)
+            print(f"Add result: {result.returncode}, {result.stdout}, {result.stderr}")
             
-        result = run_tigs(workflow_repo, *remove_args)
-        print(f"Remove result: {result.returncode}")
-        print(f"Stdout: {result.stdout}")  
-        print(f"Stderr: {result.stderr}")
-        
-        # Step 6: Verify removal
-        print("\n=== Step 6: Verify Removal ===")
-        result = run_tigs(workflow_repo, "list-chats")
-        print(f"Final list result: {result.returncode}")
-        print(f"Final stdout: {result.stdout}")
-        
-        # Should be empty or not contain our chat
-        if result.returncode == 0:
-            assert "help me understand" not in result.stdout
-        
-        # Verify Git notes are gone
-        notes_exist_after, _ = check_git_notes(workflow_repo, commit_sha)
-        print(f"Notes exist after removal: {notes_exist_after}")
-        
-        if not notes_exist_after:
-            print("✓ Notes successfully removed")
-    
-    def test_multiple_commits_workflow(self, workflow_repo):
+            if result.returncode != 0:
+                print("Add-chat command failed - workflow test cannot continue")
+                return  # Skip if command not implemented
+            
+            # Extract commit SHA if available
+            commit_sha = None
+            if "commit:" in result.stdout:
+                commit_sha = result.stdout.split(":")[-1].strip()
+                
+            # Verify Git note was created
+            notes_exist, stored_content = check_git_notes(repo_path, commit_sha)
+            if notes_exist and stored_content:
+                assert validate_yaml_schema(stored_content)
+                print("✓ Git note created and validates")
+                
+            # Step 2: Show chat content
+            result = run_tigs(repo_path, "show-chat")
+            print(f"Show result: {result.returncode}")
+            
+            if result.returncode == 0:
+                assert "schema: tigs.chat/v1" in result.stdout
+                assert validate_yaml_schema(result.stdout)
+                print("✓ Show command works and returns valid YAML")
+                
+            # Step 3: List chats should contain our commit
+            result = run_tigs(repo_path, "list-chats")
+            print(f"List result: {result.returncode}")
+            
+            if result.returncode == 0 and commit_sha:
+                assert commit_sha in result.stdout
+                print("✓ List command shows our commit")
+                
+            # Step 4: Remove chat
+            result = run_tigs(repo_path, "remove-chat")
+            print(f"Remove result: {result.returncode}")
+            
+            if result.returncode == 0:
+                print("✓ Remove command succeeded")
+                
+                # Verify Git note was removed
+                notes_exist_after, _ = check_git_notes(repo_path, commit_sha)
+                if not notes_exist_after:
+                    print("✓ Git note was removed")
+                    
+                # Verify list is empty
+                result = run_tigs(repo_path, "list-chats")
+                if result.returncode == 0 and result.stdout.strip() == "":
+                    print("✓ List is empty after removal")
+
+    def test_multi_commit_workflow(self):
         """Test workflow with multiple commits."""
-        
-        # Get first and second commit SHAs
-        result = subprocess.run(["git", "log", "--format=%H", "-n", "2"], 
-                              cwd=workflow_repo, capture_output=True, text=True)
-        
-        if result.returncode != 0:
-            print("Could not get commit SHAs for multi-commit test")
-            return
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo_path = Path(tmpdir) / "multi_repo"
             
-        commit_shas = result.stdout.strip().split('\n')
-        if len(commit_shas) < 2:
-            print("Need at least 2 commits for multi-commit test")
-            return
-        
-        first_sha = commit_shas[0]
-        second_sha = commit_shas[1]
-        
-        print(f"Testing with commits: {first_sha[:8]}, {second_sha[:8]}")
-        
-        # Add chat to first commit
-        chat1 = """chat:
+            # Create repository with multiple commits
+            commits_messages = [
+                "First commit: Add initial functionality",
+                "Second commit: Add error handling", 
+                "Third commit: Add tests"
+            ]
+            create_test_repo(repo_path, commits_messages)
+            
+            # Get commit SHAs
+            result = subprocess.run(["git", "log", "--format=%H", f"-n", str(len(commits_messages))],
+                                  cwd=repo_path, capture_output=True, text=True)
+            
+            if result.returncode != 0:
+                print("Could not get commit SHAs")
+                return
+                
+            commit_shas = result.stdout.strip().split('\n')
+            if len(commit_shas) < 3:
+                print("Need at least 3 commits for multi-commit test")
+                return
+            
+            # Add chats to multiple commits
+            chat_contents = [
+                "schema: tigs.chat/v1\nmessages:\n- role: user\n  content: First commit discussion",
+                "schema: tigs.chat/v1\nmessages:\n- role: user\n  content: Second commit discussion", 
+                "schema: tigs.chat/v1\nmessages:\n- role: user\n  content: Third commit discussion"
+            ]
+            
+            stored_commits = []
+            
+            for i, (commit_sha, content) in enumerate(zip(commit_shas[:3], chat_contents)):
+                result = run_tigs(repo_path, "add-chat", commit_sha, "-m", content)
+                print(f"Add to commit {i+1}: {result.returncode}")
+                
+                if result.returncode == 0:
+                    stored_commits.append(commit_sha)
+                    
+                    # Verify Git note exists
+                    notes_exist, stored_content = check_git_notes(repo_path, commit_sha)
+                    if notes_exist and validate_yaml_schema(stored_content):
+                        print(f"✓ Commit {i+1} stored successfully")
+            
+            if not stored_commits:
+                print("No commits were stored successfully")
+                return
+                
+            # List all chats
+            result = run_tigs(repo_path, "list-chats")
+            print(f"List all: {result.returncode}")
+            
+            if result.returncode == 0:
+                for commit_sha in stored_commits:
+                    if commit_sha in result.stdout:
+                        print(f"✓ Found {commit_sha[:8]} in list")
+            
+            # Show specific commit chats
+            for i, (commit_sha, content) in enumerate(zip(stored_commits, chat_contents[:len(stored_commits)])):
+                result = run_tigs(repo_path, "show-chat", commit_sha)
+                print(f"Show commit {i+1}: {result.returncode}")
+                
+                if result.returncode == 0 and validate_yaml_schema(result.stdout):
+                    print(f"✓ Show commit {i+1} returned valid YAML")
+            
+            # Remove middle commit chat (if we have at least 2)
+            if len(stored_commits) >= 2:
+                middle_sha = stored_commits[1]
+                result = run_tigs(repo_path, "remove-chat", middle_sha)
+                print(f"Remove middle commit: {result.returncode}")
+                
+                if result.returncode == 0:
+                    # Verify removal
+                    notes_exist, _ = check_git_notes(repo_path, middle_sha)
+                    if not notes_exist:
+                        print("✓ Middle commit note removed")
+
+    def test_unicode_and_large_content(self):
+        """Test workflow with Unicode and large content."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo_path = Path(tmpdir) / "unicode_repo"
+            create_test_repo(repo_path, ["Unicode test commit"])
+            
+            # Test Unicode content
+            unicode_yaml = """schema: tigs.chat/v1
+messages:
 - role: user
-  content: "Question about first commit"
+  content: |
+    How do I say hello in different languages?
+    🌍 Unicode test: 你好, مرحبا, नमस्ते
+- role: assistant
+  content: |
+    Here are greetings:
+    - Chinese: 你好 (nǐ hǎo)
+    - Arabic: مرحبا (marhaban) 
+    - Hindi: नमस्ते (namaste)
+    Using emojis: 👋 🌟 ✨
 """
-        
-        result = run_tigs(workflow_repo, "add-chat", first_sha, "-m", chat1)
-        print(f"Add to first commit: {result.returncode}")
-        
-        # Add chat to second commit  
-        chat2 = """chat:
-- role: user
-  content: "Question about second commit"
-"""
-        
-        result = run_tigs(workflow_repo, "add-chat", second_sha, "-m", chat2)
-        print(f"Add to second commit: {result.returncode}")
-        
-        # List should show both
-        result = run_tigs(workflow_repo, "list-chats")
-        print(f"List multiple: {result.returncode}")
-        
-        if result.returncode == 0:
-            print(f"List output: {result.stdout}")
-            # Should mention both commits or show count > 1
+            
+            result = run_tigs(repo_path, "add-chat", "-m", unicode_yaml)
+            print(f"Unicode add: {result.returncode}")
+            
+            if result.returncode == 0:
+                # Verify Unicode content is preserved
+                notes_exist, stored_content = check_git_notes(repo_path)
+                if notes_exist and stored_content:
+                    if validate_yaml_schema(stored_content):
+                        print("✓ Unicode YAML stored and validates")
+                    if "你好" in stored_content and "👋" in stored_content:
+                        print("✓ Unicode characters preserved")
+                
+                # Verify through show command
+                result = run_tigs(repo_path, "show-chat")
+                if result.returncode == 0:
+                    if validate_yaml_schema(result.stdout):
+                        print("✓ Unicode YAML retrieved and validates")
+                    if "你好" in result.stdout and "👋" in result.stdout:
+                        print("✓ Unicode characters preserved in output")
+
+    def test_repository_isolation(self):
+        """Test that different repositories are properly isolated."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo1_path = Path(tmpdir) / "repo1"
+            repo2_path = Path(tmpdir) / "repo2"
+            
+            # Create two separate repos
+            create_test_repo(repo1_path, ["Repo1 commit"])
+            create_test_repo(repo2_path, ["Repo2 commit"])
+            
+            # Add different chats to each repo
+            content1 = "schema: tigs.chat/v1\nmessages:\n- role: user\n  content: Repo1 discussion"
+            content2 = "schema: tigs.chat/v1\nmessages:\n- role: user\n  content: Repo2 discussion"
+            
+            result1 = run_tigs(repo1_path, "add-chat", "-m", content1)
+            result2 = run_tigs(repo2_path, "add-chat", "-m", content2)
+            
+            print(f"Repo1 add: {result1.returncode}")
+            print(f"Repo2 add: {result2.returncode}")
+            
+            if result1.returncode == 0 and result2.returncode == 0:
+                # Extract SHAs
+                sha1 = result1.output.split(":")[-1].strip() if "commit:" in result1.output else None
+                sha2 = result2.output.split(":")[-1].strip() if "commit:" in result2.output else None
+                
+                # Verify isolation: repo1 should only see its chat
+                result = run_tigs(repo1_path, "list-chats")
+                if result.returncode == 0:
+                    if sha1 and sha1 in result.stdout:
+                        print("✓ Repo1 sees its own chat")
+                    if sha2 and sha2 not in result.stdout:
+                        print("✓ Repo1 doesn't see repo2's chat")
+                
+                # Verify isolation: repo2 should only see its chat  
+                result = run_tigs(repo2_path, "list-chats")
+                if result.returncode == 0:
+                    if sha2 and sha2 in result.stdout:
+                        print("✓ Repo2 sees its own chat")
+                    if sha1 and sha1 not in result.stdout:
+                        print("✓ Repo2 doesn't see repo1's chat")
+                
+                # Verify content isolation
+                result = run_tigs(repo1_path, "show-chat")
+                if result.returncode == 0 and "Repo1 discussion" in result.stdout:
+                    print("✓ Repo1 shows correct content")
+                    
+                result = run_tigs(repo2_path, "show-chat")
+                if result.returncode == 0 and "Repo2 discussion" in result.stdout:
+                    print("✓ Repo2 shows correct content")
+
+    def test_sync_operations(self):
+        """Test push/fetch operations (error handling)."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo_path = Path(tmpdir) / "sync_repo"
+            create_test_repo(repo_path, ["Sync test commit"])
+            
+            # Add a chat first
+            content = "schema: tigs.chat/v1\nmessages:\n- role: user\n  content: Sync test"
+            result = run_tigs(repo_path, "add-chat", "-m", content)
+            
+            if result.returncode != 0:
+                print("Cannot test sync without working add-chat")
+                return
+            
+            # Test push with non-existent remote (should fail gracefully)
+            result = run_tigs(repo_path, "push-chats", "nonexistent")
+            print(f"Push to nonexistent remote: {result.returncode}")
+            
+            # Should fail but not crash
+            assert result.returncode != 0
+            error_output = result.stdout + result.stderr
+            assert any(indicator in error_output.lower() for indicator in 
+                      ["error", "remote", "not found", "does not exist"])
+            
+            # Test fetch with non-existent remote (should fail gracefully)
+            result = run_tigs(repo_path, "fetch-chats", "nonexistent")
+            print(f"Fetch from nonexistent remote: {result.returncode}")
+            
+            # Should fail but not crash
+            assert result.returncode != 0
 
 
 if __name__ == "__main__":

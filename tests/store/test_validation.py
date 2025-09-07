@@ -94,7 +94,8 @@ class TestValidation:
                 notes_result = subprocess.run(
                     ["git", "notes", "--ref", "refs/notes/chats", "list"],
                     cwd=repo_path,
-                    capture_output=True
+                    capture_output=True,
+                    text=True
                 )
                 
                 if notes_result.returncode != 0 or not notes_result.stdout.strip():
