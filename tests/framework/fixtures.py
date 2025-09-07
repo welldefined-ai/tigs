@@ -1,11 +1,19 @@
 """Shared fixtures for tigs testing."""
 
+import os
 import subprocess
 import tempfile
+import time
 from pathlib import Path
 from typing import Generator, List, Optional
 
 import pytest
+
+
+def set_file_time(file_path: Path, timestamp: float):
+    """Set file modification time (cross-platform)."""
+    file_path.touch()
+    os.utime(file_path, times=(timestamp, timestamp))
 
 
 def create_test_repo(repo_path: Path, commits: Optional[List[str]] = None) -> None:
