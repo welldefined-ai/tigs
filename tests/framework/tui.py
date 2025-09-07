@@ -193,8 +193,6 @@ class TUI:
             
             if pattern in display_text:
                 return
-                
-            time.sleep(0.1)
         
         # Timeout - show current display
         lines = self.capture()
@@ -253,9 +251,17 @@ def get_first_commit(lines: List[str]) -> Optional[str]:
     import re
     for line in lines[1:]:  # Skip header line
         pane_content = get_first_pane(line)
+        # Look for commit patterns - handles both short SHA and Change X format
         match = re.search(r'Change (\d+)', pane_content)
         if match:
             return match.group(1)
+        # Also try to match SHA patterns as fallback
+        sha_match = re.search(r'([a-f0-9]{7,40})', pane_content)
+        if sha_match and len(pane_content.strip()) > 10:  # Likely has commit info
+            # Extract commit number from the content after SHA
+            change_match = re.search(r'Change (\d+)', pane_content)
+            if change_match:
+                return change_match.group(1)
     return None
 
 
@@ -268,6 +274,45 @@ def get_last_commit(lines: List[str]) -> Optional[str]:
         if match:
             return match.group(1)
     return None
+
+
+def get_commit_at_cursor(lines: List[str]) -> Optional[str]:
+    """Get the commit number at the current cursor position, handling multi-line commits."""
+    import re
+    try:
+        cursor_row = find_cursor_row(lines)
+        
+        # Check the cursor line first
+        cursor_pane_content = get_first_pane(lines[cursor_row])
+        match = re.search(r'Change (\d+)', cursor_pane_content)
+        if match:
+            return match.group(1)
+        
+        # If not found on cursor line, search backwards from cursor to find the commit header
+        for i in range(cursor_row, max(0, cursor_row - 5), -1):  # Look back up to 5 lines
+            if i < len(lines):
+                pane_content = get_first_pane(lines[i])
+                # Look for a line that starts with a SHA (commit header)
+                if re.search(r'^\s*[>*\s]*[a-f0-9]{7,40}\s+Change (\d+)', pane_content):
+                    match = re.search(r'Change (\d+)', pane_content)
+                    if match:
+                        return match.group(1)
+        
+        return None
+    except (AssertionError, IndexError):
+        return None
+
+
+def get_all_visible_commits(lines: List[str]) -> List[str]:
+    """Get all commit numbers visible in the viewport."""
+    import re
+    commits = []
+    for line in lines[1:]:  # Skip header line
+        pane_content = get_first_pane(line)
+        match = re.search(r'Change (\d+)', pane_content)
+        if match and match.group(1) not in commits:  # Avoid duplicates
+            commits.append(match.group(1))
+    return commits
 
 
 def get_visible_commit_range(lines: List[str]) -> tuple:
