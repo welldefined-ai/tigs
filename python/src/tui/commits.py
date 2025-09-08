@@ -105,9 +105,18 @@ class CommitView(VisualSelectionMixin, ScrollableMixin):
             lines.append("(No commits to display)")
             return lines
         
-        # Use scrollable mixin to get visible range
-        visible_count, start_idx, end_idx = self.get_visible_range(height)
-        self.commit_scroll_offset = self.scroll_offset  # Keep legacy alias in sync
+        # Calculate commit heights with current width
+        commit_heights = self._calculate_commit_heights(self.commits, width)
+        
+        # Ensure cursor indices are in sync before scrolling calculation
+        self.cursor_idx = self.commit_cursor_idx
+        
+        # Use scrollable mixin to get visible range with variable heights
+        visible_count, start_idx, end_idx = self.get_visible_range_variable(height, commit_heights)
+        
+        # Keep legacy aliases in sync after scrolling calculation
+        self.commit_scroll_offset = self.scroll_offset
+        self.commit_cursor_idx = self.cursor_idx
         
         # Build display lines
         for i in range(start_idx, end_idx):
@@ -335,3 +344,75 @@ class CommitView(VisualSelectionMixin, ScrollableMixin):
             lines.append(' '.join(current_line))
         
         return lines if lines else [text[:width]]
+    
+    def _calculate_commit_heights(self, commits: List[Dict], width: int) -> List[int]:
+        """Calculate height needed for each commit with word wrapping.
+        
+        Args:
+            commits: List of commit info dicts
+            width: Available width for display
+        
+        Returns:
+            List of heights for each commit
+        """
+        heights = []
+        
+        for commit in commits:
+            # Start with basic indicators and datetime line
+            height = 1
+            
+            # Calculate indentation for wrapped lines  
+            datetime_str = self._format_local_datetime(commit['time'])
+            prefix_len = len(f"> * {datetime_str} {commit['author']} ")  # Typical prefix
+            datetime_indent = 3  # Space to align with datetime ("   ")
+            
+            # Calculate available width for title on same line and continuation lines
+            first_line_width = max(10, width - prefix_len - 4)  # Account for borders
+            content_width = max(10, width - datetime_indent - 4)  # Width for continuation lines
+            
+            # Wrap the commit title
+            wrapped_title = self._word_wrap_commit_title(commit['subject'], max(first_line_width, content_width))
+            
+            if wrapped_title:
+                # Check if first part fits on same line as author
+                first_title_line = wrapped_title[0]
+                
+                if first_line_width >= 10:  # Reasonable minimum space for title
+                    if len(first_title_line) <= first_line_width:
+                        # Full first line fits on same line as prefix
+                        pass  # height stays 1
+                    else:
+                        # Need to split or move to next line - add extra lines
+                        words = first_title_line.split()
+                        line_words = []
+                        line_length = 0
+                        
+                        for word in words:
+                            if line_length + len(word) + len(line_words) <= first_line_width:
+                                line_words.append(word)
+                                line_length += len(word)
+                            else:
+                                break
+                        
+                        if not line_words:
+                            # Can't fit any title words, put on next line
+                            height += 1
+                        # else: partial title fits on first line
+                        
+                        # Add remaining wrapped lines
+                        remaining_words = words[len(line_words):] if line_words else words
+                        if remaining_words:
+                            remaining_text = ' '.join(remaining_words)
+                            wrapped_remaining = self._word_wrap_commit_title(remaining_text, content_width)
+                            height += len(wrapped_remaining)
+                else:
+                    # Not enough space, put title on next line
+                    height += 1
+                
+                # Add remaining wrapped lines (skip first line which we already processed)
+                if len(wrapped_title) > 1:
+                    height += len(wrapped_title) - 1
+            
+            heights.append(height)
+        
+        return heights
