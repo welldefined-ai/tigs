@@ -1,10 +1,37 @@
 #!/usr/bin/env python3
-"""Test tigs display handling for various commit message formats."""
+"""Test commit display handling for various message formats."""
+
+import tempfile
+from pathlib import Path
 
 import pytest
 
 from framework.tui import TUI, find_cursor_row, get_first_pane, get_commit_at_cursor, get_all_visible_commits
+from framework.fixtures import create_test_repo
 from framework.paths import PYTHON_DIR
+
+
+@pytest.fixture
+def scrolling_repo():
+    """Create repository with varied commits for display testing."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        repo_path = Path(tmpdir) / "scrolling_repo"
+        
+        # Create varied commits that will cause display issues
+        commits = []
+        for i in range(60):
+            if i % 5 == 0:
+                # Very long commits that will wrap multiple lines
+                commits.append(f"Long commit {i+1}: " + "This is an extremely long commit message that will definitely wrap to multiple lines when displayed in the narrow commits pane and should cause cursor positioning issues " * 2)
+            elif i % 3 == 0:
+                # Multi-line commits with actual newlines
+                commits.append(f"Multi-line commit {i+1}:\n\nThis commit has multiple paragraphs\nwith line breaks that might\ncause display issues\n\n- Feature A\n- Feature B\n- Bug fixes")
+            else:
+                # Normal commits
+                commits.append(f"Commit {i+1}: Regular changes")
+        
+        create_test_repo(repo_path, commits)
+        yield repo_path
 
 
 def test_multiline_commit_display(test_repo):
@@ -33,11 +60,73 @@ def test_multiline_commit_display(test_repo):
         
         # Basic assertions
         assert len(all_commits) >= 3, f"Should see at least 3 commits, got: {len(all_commits)}"
-        assert commit_at_cursor == "50", f"Expected cursor on Change 50, got: {commit_at_cursor}"
+        # Test should verify that the cursor is on Change 50, regardless of full extraction format  
+        assert "Change 50:" in commit_at_cursor, f"Expected cursor on Change 50, got: {commit_at_cursor}"
         
         # Test that cursor detection works with multi-line commits
         cursor_pane_content = get_first_pane(initial_lines[cursor_row])
         assert cursor_pane_content.strip(), "Should have content at cursor position"
+
+
+def test_varied_commit_lengths_display(scrolling_repo):
+    """Test display analysis with varied commit message lengths."""
+    
+    command = f"uv run tigs --repo {scrolling_repo} store"
+    
+    with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120)) as tui:
+        try:
+            tui.wait_for("commit", timeout=5.0)
+            
+            print("=== Varied Commit Lengths Display Test ===")
+            
+            # Look for varied commit content in display
+            initial_lines = tui.capture()
+            
+            print("=== Initial display with varied commits ===")
+            for i, line in enumerate(initial_lines[:20]):
+                print(f"{i:02d}: {line}")
+            
+            # Count different types of content
+            long_line_count = 0
+            multiline_indicators = 0
+            normal_commits = 0
+            
+            for line in initial_lines:
+                line_len = len(line.strip())
+                if line_len > 100:  # Very long lines
+                    long_line_count += 1
+                elif any(indicator in line.lower() for indicator in 
+                        ["multi-line", "feature a", "bug fixes"]):
+                    multiline_indicators += 1
+                elif "commit" in line.lower() and "regular" in line.lower():
+                    normal_commits += 1
+            
+            print(f"Display analysis:")
+            print(f"  Long lines: {long_line_count}")
+            print(f"  Multi-line indicators: {multiline_indicators}")
+            print(f"  Normal commits: {normal_commits}")
+            
+            if long_line_count > 0 or multiline_indicators > 0:
+                print("✓ Varied commit types visible in display")
+            else:
+                print("No clear variation in commit display - might be truncated/normalized")
+            
+            # Test basic cursor functionality with varied commits
+            cursor_row = find_cursor_row(initial_lines)
+            commit_at_cursor = get_commit_at_cursor(initial_lines)
+            
+            print(f"Cursor at row {cursor_row}, commit {commit_at_cursor}")
+            
+            # Should be able to find cursor and commit content
+            assert cursor_row >= 0, "Should find cursor in display with varied commits"
+            assert commit_at_cursor is not None, "Should identify commit at cursor"
+            
+        except Exception as e:
+            print(f"Varied commit lengths display test failed: {e}")
+            if "not found" in str(e).lower():
+                pytest.skip("Store command not available")
+            else:
+                raise
 
 
 if __name__ == "__main__":

@@ -227,6 +227,7 @@ def find_cursor_row(lines: List[str]) -> int:
         pane_content = get_first_pane(line)
         if '>' in pane_content:
             return i
+    
     raise AssertionError(f"Cursor '>' not found in first pane.\nDisplay:\n" + 
                         "\n".join(f"{i:02d}: {line}" for i, line in enumerate(lines[:15])))
 
@@ -247,83 +248,96 @@ def get_first_pane(line: str, width: int = 50) -> str:
 
 
 def get_first_commit(lines: List[str]) -> Optional[str]:
-    """Get the first visible commit in the viewport."""
+    """Get the first visible commit message in the viewport."""
     import re
     for line in lines[1:]:  # Skip header line
         pane_content = get_first_pane(line)
-        # Look for commit patterns - handles both short SHA and Change X format
-        match = re.search(r'Change (\d+)', pane_content)
+        # Format: "x [>][ ] YYYY-MM-DD HH:MM AuthorName commit message"
+        # Extract everything after "Test User " (or any author)
+        match = re.search(r'\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}\s+\S+\s+(.+)', pane_content)
         if match:
-            return match.group(1)
-        # Also try to match SHA patterns as fallback
-        sha_match = re.search(r'([a-f0-9]{7,40})', pane_content)
-        if sha_match and len(pane_content.strip()) > 10:  # Likely has commit info
-            # Extract commit number from the content after SHA
-            change_match = re.search(r'Change (\d+)', pane_content)
-            if change_match:
-                return change_match.group(1)
+            return match.group(1).strip()
     return None
 
 
 def get_last_commit(lines: List[str]) -> Optional[str]:
-    """Get the last visible commit in the viewport."""
+    """Get the last visible commit message in the viewport."""
     import re
     for line in reversed(lines[1:]):  # Skip header line, search backwards
         pane_content = get_first_pane(line)
-        match = re.search(r'Change (\d+)', pane_content)
+        # Format: "x [ ][ ] YYYY-MM-DD HH:MM AuthorName commit message"
+        match = re.search(r'\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}\s+\S+\s+(.+)', pane_content)
         if match:
-            return match.group(1)
+            return match.group(1).strip()
     return None
 
 
 def get_commit_at_cursor(lines: List[str]) -> Optional[str]:
-    """Get the commit number at the current cursor position, handling multi-line commits."""
+    """Get the commit message at the current cursor position, handling multi-line commits."""
     import re
     try:
         cursor_row = find_cursor_row(lines)
         
-        # Check the cursor line first
-        cursor_pane_content = get_first_pane(lines[cursor_row])
-        match = re.search(r'Change (\d+)', cursor_pane_content)
-        if match:
-            return match.group(1)
+        # Find the commit header line (could be current line or a line above if multi-line)
+        header_row = cursor_row
+        header_pane_content = get_first_pane(lines[header_row])
         
-        # If not found on cursor line, search backwards from cursor to find the commit header
-        for i in range(cursor_row, max(0, cursor_row - 5), -1):  # Look back up to 5 lines
-            if i < len(lines):
-                pane_content = get_first_pane(lines[i])
-                # Look for a line that starts with a SHA (commit header)
-                if re.search(r'^\s*[>*\s]*[a-f0-9]{7,40}\s+Change (\d+)', pane_content):
-                    match = re.search(r'Change (\d+)', pane_content)
-                    if match:
-                        return match.group(1)
+        # If current line doesn't have timestamp, search backwards for header
+        if not re.search(r'\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}', header_pane_content):
+            for i in range(cursor_row, max(0, cursor_row - 5), -1):
+                if i < len(lines):
+                    pane_content = get_first_pane(lines[i])
+                    if re.search(r'\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}', pane_content):
+                        header_row = i
+                        header_pane_content = pane_content
+                        break
         
-        return None
+        # Extract first line of commit message from header
+        match = re.search(r'\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}\s+\S+\s+(.+)', header_pane_content)
+        if not match:
+            return None
+            
+        commit_parts = [match.group(1).strip()]
+        
+        # Collect continuation lines
+        for i in range(header_row + 1, len(lines)):
+            pane_content = get_first_pane(lines[i])
+            
+            # Stop if we hit another commit (has timestamp) or empty content
+            if re.search(r'\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}', pane_content) or not pane_content.strip():
+                break
+                
+            # Add continuation line (strip leading spaces and filter out separators)
+            continuation = pane_content.strip()
+            # Remove common UI separators that might appear in wrapped content
+            continuation = continuation.replace('x', '').replace('│', '').replace('|', '').strip()
+            if continuation:
+                commit_parts.append(continuation)
+        
+        return " ".join(commit_parts)
+        
     except (AssertionError, IndexError):
         return None
 
 
 def get_all_visible_commits(lines: List[str]) -> List[str]:
-    """Get all commit numbers visible in the viewport."""
+    """Get all commit messages visible in the viewport."""
     import re
     commits = []
     for line in lines[1:]:  # Skip header line
         pane_content = get_first_pane(line)
-        match = re.search(r'Change (\d+)', pane_content)
-        if match and match.group(1) not in commits:  # Avoid duplicates
-            commits.append(match.group(1))
+        # Format: "x [>][ ] YYYY-MM-DD HH:MM AuthorName commit message"
+        match = re.search(r'\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}\s+\S+\s+(.+)', pane_content)
+        if match and match.group(1).strip() not in commits:  # Avoid duplicates
+            commits.append(match.group(1).strip())
     return commits
 
 
 def get_visible_commit_range(lines: List[str]) -> tuple:
-    """Return tuple of (first_commit_num, last_commit_num) or (None, None)."""
+    """Return tuple of (first_commit_msg, last_commit_msg) or (None, None)."""
     first = get_first_commit(lines)
     last = get_last_commit(lines)
-    
-    try:
-        return (int(first) if first else None, int(last) if last else None)
-    except (ValueError, TypeError):
-        return (None, None)
+    return (first, last)
 
 
 def save_screenshot(tui: TUI, test_name: str) -> str:
