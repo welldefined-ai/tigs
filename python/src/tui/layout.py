@@ -13,8 +13,8 @@ class LayoutManager:
     MIN_COMMIT_WIDTH = 32   # Minimum for datetime + reasonable author name
     MAX_COMMIT_WIDTH = 60   # Cap to leave more space for messages
     MIN_MESSAGE_WIDTH = 25
-    MIN_LOG_WIDTH = 15
-    MAX_LOG_WIDTH = 20
+    MIN_LOG_WIDTH = 17  # Space for "• MM-DD HH:MM" (13 chars) + borders + padding (width-4 logic)
+    MAX_LOG_WIDTH = 17  # Keep minimal to avoid padding
     
     # Indicators for scrollable content
     SCROLL_LEFT = "◀"
@@ -47,7 +47,7 @@ class LayoutManager:
         if log_count == 0:
             log_width = 0
         else:
-            log_width = min(self.MIN_LOG_WIDTH, self.MAX_LOG_WIDTH)
+            log_width = self.MAX_LOG_WIDTH  # Use max width for logs to fit timestamp format
         
         # Simplified width calculation for soft-wrap approach
         # Use a reasonable fixed width that allows for author names and dates

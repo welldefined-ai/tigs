@@ -111,38 +111,19 @@ class LogView:
         return None
     
     def _format_timestamp(self, timestamp_str: str) -> str:
-        """Format timestamp to relative time.
+        """Format timestamp to short datetime format.
         
         Args:
             timestamp_str: ISO format timestamp string
             
         Returns:
-            Formatted relative time string
+            Formatted datetime string in MM-DD HH:MM format
         """
         try:
             # Parse the timestamp
             ts = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
-            now = datetime.now(ts.tzinfo) if ts.tzinfo else datetime.now()
-            
-            # Calculate difference
-            diff = now - ts
-            
-            # Format based on time difference
-            if diff < timedelta(minutes=1):
-                return "just now"
-            elif diff < timedelta(hours=1):
-                mins = int(diff.total_seconds() / 60)
-                return f"{mins}m ago"
-            elif diff < timedelta(hours=24):
-                hours = int(diff.total_seconds() / 3600)
-                return f"{hours}h ago"
-            elif diff < timedelta(days=2):
-                return "yesterday"
-            elif diff < timedelta(days=7):
-                return f"{diff.days}d ago"
-            else:
-                # Show time for older logs
-                return ts.strftime("%m/%d %H:%M")
+            # Use consistent MM-DD HH:MM format
+            return ts.strftime("%m-%d %H:%M")
         except:
             # Fallback to showing part of the timestamp
-            return timestamp_str[:10] if len(timestamp_str) > 10 else timestamp_str
+            return timestamp_str[:11] if len(timestamp_str) > 11 else timestamp_str
