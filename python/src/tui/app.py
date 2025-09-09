@@ -1,6 +1,7 @@
 """Main TUI application for tigs store command."""
 
 import curses
+import os
 import sys
 from datetime import datetime, timedelta
 from typing import List
@@ -30,6 +31,7 @@ class TigsStoreApp:
         self.running = True
         self.status_message = ""  # Status message to display
         self.status_message_time = None  # When status was set
+        self._colors_enabled = False  # Track if colors were successfully initialized
         
         # Initialize chat parser
         try:
@@ -74,17 +76,39 @@ class TigsStoreApp:
             stdscr: The curses standard screen
         """
         # Set up curses
-        curses.curs_set(0)  # Hide cursor
+        try:
+            curses.curs_set(0)  # Hide cursor
+        except curses.error:
+            pass  # Some terminals don't support hiding cursor
         stdscr.keypad(True)  # Enable special keys
         curses.noecho()
         
         # Initialize colors if available
-        if curses.has_colors():
-            curses.start_color()
-            curses.use_default_colors()
-            # Define color pairs
-            curses.init_pair(1, curses.COLOR_WHITE, curses.COLOR_BLACK)  # Normal
-            curses.init_pair(2, curses.COLOR_YELLOW, curses.COLOR_BLACK)  # Focused
+        self._colors_enabled = False
+        if curses.has_colors() and not self._no_color():
+            try:
+                curses.start_color()
+                try:
+                    curses.use_default_colors()
+                    use_default_ok = True
+                except curses.error:
+                    use_default_ok = False
+
+                # pair 1: "normal" – only safe to set to (-1,-1) if use_default_colors worked
+                if use_default_ok:
+                    curses.init_pair(1, -1, -1)
+                else:
+                    # fallback: conservative bg, still keep pair id consistent
+                    curses.init_pair(1, curses.COLOR_WHITE, curses.COLOR_BLACK)
+
+                # pair 2: focused - use green like tig for better visibility on light backgrounds
+                bg = -1 if use_default_ok else curses.COLOR_BLACK
+                curses.init_pair(2, curses.COLOR_GREEN, bg)
+
+                self._colors_enabled = True
+            except curses.error:
+                # leave colors off gracefully
+                self._colors_enabled = False
         
         # Main loop
         while self.running:
@@ -170,12 +194,12 @@ class TigsStoreApp:
                            "Messages", self.focused_pane == 1,
                            message_lines)
             
-            # Get log display lines
-            log_lines = self.log_view.get_display_lines(pane_height)
-            
-            self._draw_pane(stdscr, 0, commit_width + message_width, pane_height, session_width,
-                           "Logs", self.focused_pane == 2,
-                           log_lines)
+            # Get log display lines and draw logs pane only if wide enough
+            if session_width >= 2:
+                log_lines = self.log_view.get_display_lines(pane_height)
+                self._draw_pane(stdscr, 0, commit_width + message_width, pane_height, session_width,
+                               "Logs", self.focused_pane == 2,
+                               log_lines)
             
             # Draw status bar
             self._draw_status_bar(stdscr, height - 1, width)
@@ -221,12 +245,12 @@ class TigsStoreApp:
             focused: Whether this pane has focus
             content: Lines of content to display
         """
-        if width < 3 or height < 3:
+        if width < 2 or height < 2:
             return
             
         # Use different border styles for focused vs unfocused
         if focused:
-            # Double-line box characters for focused pane
+            # Same box characters but with color/bold for focused pane
             tl = curses.ACS_ULCORNER  # Top-left
             tr = curses.ACS_URCORNER  # Top-right
             bl = curses.ACS_LLCORNER  # Bottom-left
@@ -235,11 +259,11 @@ class TigsStoreApp:
             vt = curses.ACS_VLINE     # Vertical
             
             # Use color if available
-            if curses.has_colors():
+            if self._colors_enabled:
                 stdscr.attron(curses.color_pair(2))
                 stdscr.attron(curses.A_BOLD)
         else:
-            # Single-line for unfocused
+            # Same characters for unfocused, just without color/bold
             tl = curses.ACS_ULCORNER
             tr = curses.ACS_URCORNER
             bl = curses.ACS_LLCORNER
@@ -247,7 +271,7 @@ class TigsStoreApp:
             hz = curses.ACS_HLINE
             vt = curses.ACS_VLINE
             
-            if curses.has_colors():
+            if self._colors_enabled:
                 stdscr.attron(curses.color_pair(1))
         
         # Draw corners
@@ -285,11 +309,11 @@ class TigsStoreApp:
             
         # Reset attributes
         if focused:
-            if curses.has_colors():
+            if self._colors_enabled:
                 stdscr.attroff(curses.A_BOLD)
                 stdscr.attroff(curses.color_pair(2))
         else:
-            if curses.has_colors():
+            if self._colors_enabled:
                 stdscr.attroff(curses.color_pair(1))
                 
     def _draw_status_bar(self, stdscr, y: int, width: int) -> None:
@@ -316,8 +340,9 @@ class TigsStoreApp:
         if width < self.MIN_WIDTH + 10 or height < self.MIN_HEIGHT + 5:
             status_text += f" | Size: {width}x{height} (min: {self.MIN_WIDTH}x{self.MIN_HEIGHT})"
         
-        # Use reverse video for status bar
-        stdscr.attron(curses.A_REVERSE)
+        # Use reverse video for status bar (honor NO_COLOR)
+        if self._colors_enabled:
+            stdscr.attron(curses.A_REVERSE)
         
         # Clear the line and add status text
         status_line = status_text.ljust(width)[:width - 1]
@@ -326,7 +351,8 @@ class TigsStoreApp:
         except curses.error:
             pass
             
-        stdscr.attroff(curses.A_REVERSE)
+        if self._colors_enabled:
+            stdscr.attroff(curses.A_REVERSE)
     
     def _handle_store_operation(self, stdscr) -> None:
         """Handle the store operation when Enter is pressed.
@@ -430,3 +456,11 @@ class TigsStoreApp:
         pane_height = height - 1
         self.commit_view.scroll_to_cursor(pane_height)
         self.message_view.scroll_to_cursor(pane_height)
+    
+    def _no_color(self) -> bool:
+        """Check if colors should be disabled via NO_COLOR environment variable.
+        
+        Returns:
+            True if NO_COLOR is set and non-empty
+        """
+        return bool(os.environ.get('NO_COLOR', '').strip())
