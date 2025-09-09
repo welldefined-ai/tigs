@@ -437,6 +437,7 @@ source = { editable = "." }
 dependencies = [
     { name = "pexpect" },
     { name = "pyte" },
+    { name = "wcwidth" },
 ]
 
 [package.dev-dependencies]
@@ -455,6 +456,7 @@ dev = [
 requires-dist = [
     { name = "pexpect", specifier = ">=4.9.0" },
     { name = "pyte", specifier = ">=0.8.2" },
+    { name = "wcwidth", specifier = ">=0.2.13" },
 ]
 
 [package.metadata.requires-dev]

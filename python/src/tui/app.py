@@ -221,7 +221,7 @@ class TigsStoreApp:
                 self._handle_resize(stdscr)
                 continue  # Redraw with new dimensions
             elif self.focused_pane == 0:  # Commits pane focused
-                self.commit_view.handle_input(key)
+                self.commit_view.handle_input(key, pane_height)
             elif self.focused_pane == 1:  # Messages pane focused
                 self.message_view.handle_input(stdscr, key, pane_height)
             elif self.focused_pane == 2:  # Logs pane focused

@@ -8,6 +8,7 @@ from cligent import Role
 from .selection import VisualSelectionMixin
 from .scrollable import ScrollableMixin
 from .indicators import SelectionIndicators
+from .text_utils import word_wrap
 
 
 class MessageView(VisualSelectionMixin, ScrollableMixin):
@@ -24,9 +25,9 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
         self.chat_parser = chat_parser
         self.messages = []
         self.items = self.messages  # Alias for mixin compatibility
-        self.message_cursor_idx = 0
-        self.cursor_idx = 0  # Alias for mixin compatibility
-        self.message_scroll_offset = 0  # Legacy alias
+        self.cursor_idx = 0  # Primary cursor index
+        self.message_cursor_idx = self.cursor_idx  # Legacy alias for backward compatibility
+        self.message_scroll_offset = 0  # Will be replaced with scroll_offset gradually
         self.selected_messages: Set[int] = set()  # Legacy alias
         self.selected_items = self.selected_messages  # Point to same set for mixin
         self._needs_message_view_init = True
@@ -86,8 +87,8 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
                 self.messages.append((role, content))
             
             # Reset cursor and scroll position for new messages
-            self.message_cursor_idx = 0
-            self.cursor_idx = 0  # Keep mixin alias in sync
+            self.cursor_idx = 0
+            self.message_cursor_idx = self.cursor_idx  # Keep legacy alias in sync
             self.message_scroll_offset = 0
             self.selected_messages.clear()
             # Update items reference for mixin
@@ -181,22 +182,22 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
         
         # Navigation with Up/Down arrows - move cursor and adjust scroll immediately
         if key == curses.KEY_UP:
-            if self.message_cursor_idx > 0:
-                self.message_cursor_idx -= 1
-                self.cursor_idx = self.message_cursor_idx  # Keep mixin alias in sync
+            if self.cursor_idx > 0:
+                self.cursor_idx -= 1
+                self.message_cursor_idx = self.cursor_idx  # Keep legacy alias in sync
                 # If cursor moved above visible area, scroll up
-                if self.message_cursor_idx < self.message_scroll_offset:
-                    self.message_scroll_offset = self.message_cursor_idx
+                if self.cursor_idx < self.message_scroll_offset:
+                    self.message_scroll_offset = self.cursor_idx
                     
         elif key == curses.KEY_DOWN:
-            if self.message_cursor_idx < len(self.messages) - 1:
-                self.message_cursor_idx += 1
-                self.cursor_idx = self.message_cursor_idx  # Keep mixin alias in sync
+            if self.cursor_idx < len(self.messages) - 1:
+                self.cursor_idx += 1
+                self.message_cursor_idx = self.cursor_idx  # Keep legacy alias in sync
                 # If cursor moved below visible area, scroll down to keep cursor visible
-                if self.message_cursor_idx >= self.message_scroll_offset + visible_items:
+                if self.cursor_idx >= self.message_scroll_offset + visible_items:
                     # Calculate new scroll to keep cursor visible
                     # The cursor should remain at its new position, we just adjust scroll
-                    self.message_scroll_offset = self.message_cursor_idx - visible_items + 1
+                    self.message_scroll_offset = self.cursor_idx - visible_items + 1
                     
                     # Ensure scroll doesn't go beyond the last page
                     max_scroll = max(0, len(self.messages) - visible_items)
@@ -269,33 +270,7 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
         Returns:
             List of wrapped lines
         """
-        if not text or width <= 0:
-            return [text]
-        
-        words = text.split()
-        if not words:
-            return [text]
-        
-        lines = []
-        current_line = []
-        current_length = 0
-        
-        for word in words:
-            word_length = len(word)
-            
-            # Check if adding this word would exceed width
-            if current_line and current_length + word_length + len(current_line) > width:
-                lines.append(' '.join(current_line))
-                current_line = [word]
-                current_length = word_length
-            else:
-                current_line.append(word)
-                current_length += word_length
-        
-        if current_line:
-            lines.append(' '.join(current_line))
-        
-        return lines if lines else [text[:width]]
+        return word_wrap(text, width)
     
     def _get_visible_messages_variable(
         self, 

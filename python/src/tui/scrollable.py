@@ -87,6 +87,63 @@ class ScrollableMixin:
                 self.scroll_offset + visible_count - 1
             )
     
+    def calculate_items_that_fit(self, start_idx: int, item_heights: List[int], 
+                                 available_height: int) -> int:
+        """Calculate how many items fit starting from start_idx.
+        
+        Args:
+            start_idx: Starting index
+            item_heights: Heights for each item
+            available_height: Available vertical space
+            
+        Returns:
+            End index (exclusive) of items that fit
+        """
+        current_height = 0
+        end_idx = start_idx
+        n = min(len(item_heights), len(self.items))
+        
+        for i in range(start_idx, n):
+            if i < len(item_heights):
+                item_height = item_heights[i]
+                if current_height + item_height <= available_height:
+                    current_height += item_height
+                    end_idx = i + 1
+                else:
+                    break
+        return end_idx
+    
+    def find_start_to_include_cursor(self, cursor_idx: int, item_heights: List[int],
+                                     available_height: int) -> int:
+        """Find the start index that includes the cursor and fills the viewport.
+        
+        Args:
+            cursor_idx: Index that must be visible
+            item_heights: Heights for each item
+            available_height: Available vertical space
+            
+        Returns:
+            Optimal start index
+        """
+        if cursor_idx >= len(item_heights):
+            return cursor_idx
+            
+        # Start from cursor and work backwards to fit as much as possible
+        new_start = cursor_idx
+        current_height = item_heights[cursor_idx]
+        
+        while new_start > 0 and current_height < available_height:
+            new_start -= 1
+            if new_start < len(item_heights):
+                item_h = item_heights[new_start]
+                if current_height + item_h <= available_height:
+                    current_height += item_h
+                else:
+                    new_start += 1
+                    break
+        
+        return new_start
+    
     def get_visible_range_variable(
         self, 
         viewport_height: int, 
@@ -94,6 +151,8 @@ class ScrollableMixin:
         border_size: int = 2
     ) -> Tuple[int, int, int]:
         """Calculate visible range for scrolling with variable item heights.
+        
+        Uses minimal adjustment: only scrolls when cursor moves outside view.
         
         Args:
             viewport_height: Total height available for display
@@ -105,51 +164,39 @@ class ScrollableMixin:
         """
         if not hasattr(self, 'items') or not self.items:
             return 0, 0, 0
+            
+        n = min(len(item_heights), len(self.items))
+        if n == 0:
+            return 0, 0, 0
         
-        available_height = viewport_height - border_size
+        available_height = max(0, viewport_height - border_size)
         
         # Handle extremely large single item
-        if hasattr(self, 'cursor_idx') and self.cursor_idx < len(item_heights):
-            cursor_height = item_heights[self.cursor_idx]
-            if cursor_height >= available_height:
-                # Show only the cursor item with scrolling
+        if hasattr(self, 'cursor_idx') and self.cursor_idx < n:
+            cursor_height = item_heights[self.cursor_idx] if self.cursor_idx < len(item_heights) else 0
+            if cursor_height >= available_height and available_height > 0:
+                # Show only the cursor item
+                self.scroll_offset = self.cursor_idx
                 return 1, self.cursor_idx, self.cursor_idx + 1
         
-        # Calculate visible range based on scroll offset and heights
-        current_height = 0
-        start_idx = self.scroll_offset
-        end_idx = start_idx
-        
-        for i in range(start_idx, len(self.items)):
-            if i < len(item_heights):
-                item_height = item_heights[i]
-                if current_height + item_height <= available_height:
-                    current_height += item_height
-                    end_idx = i + 1
-                else:
-                    break
-        
-        # Ensure cursor is visible
+        # Minimal adjustment: only change scroll_offset if cursor is not visible
         if hasattr(self, 'cursor_idx'):
-            if self.cursor_idx < start_idx:
-                # Scroll up to show cursor
+            # Calculate what would be visible with current scroll_offset
+            end_idx = self.calculate_items_that_fit(self.scroll_offset, item_heights, available_height)
+            
+            # Only adjust if cursor is outside the visible range
+            if self.cursor_idx < self.scroll_offset:
+                # Cursor moved above viewport - make it first visible item
                 self.scroll_offset = self.cursor_idx
-                return self.get_visible_range_variable(viewport_height, item_heights, border_size)
             elif self.cursor_idx >= end_idx:
-                # Scroll down to show cursor
-                # Calculate new start to fit cursor
-                new_start = self.cursor_idx
-                test_height = item_heights[self.cursor_idx] if self.cursor_idx < len(item_heights) else 3
-                
-                while new_start > 0 and test_height < available_height:
-                    new_start -= 1
-                    if new_start < len(item_heights):
-                        test_height += item_heights[new_start]
-                        if test_height > available_height:
-                            new_start += 1
-                            break
-                
-                self.scroll_offset = new_start
-                return self.get_visible_range_variable(viewport_height, item_heights, border_size)
+                # Cursor moved below viewport - adjust minimally to make it visible
+                # Find the minimal scroll_offset that includes cursor
+                self.scroll_offset = self.find_start_to_include_cursor(
+                    self.cursor_idx, item_heights, available_height
+                )
+            # Otherwise, keep current scroll_offset (cursor is already visible)
         
-        return end_idx - start_idx, start_idx, end_idx
+        # Calculate the actual visible range with the (possibly adjusted) scroll_offset
+        end_idx = self.calculate_items_that_fit(self.scroll_offset, item_heights, available_height)
+        
+        return end_idx - self.scroll_offset, self.scroll_offset, end_idx

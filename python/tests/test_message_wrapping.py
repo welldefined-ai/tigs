@@ -33,9 +33,13 @@ class TestMessageWrapping:
         text = "Supercalifragilisticexpialidocious"
         wrapped = self.view._word_wrap(text, 10)
         
-        # Current implementation doesn't break long words, just returns them
-        assert len(wrapped) == 1
-        assert wrapped[0] == text  # Current behavior - doesn't break long words
+        # New implementation breaks long words to fit width
+        assert len(wrapped) > 1  # Should break into multiple lines
+        # Each line should be at most 10 characters wide
+        for line in wrapped:
+            assert len(line) <= 10
+        # Reassembling should give us the original word
+        assert ''.join(wrapped) == text
     
     def test_word_wrap_empty_text(self):
         """Test wrapping empty text."""

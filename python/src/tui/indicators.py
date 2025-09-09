@@ -54,34 +54,3 @@ class SelectionIndicators:
             "bullet": SelectionIndicators.CURSOR_BULLET,
         }
         return styles.get(style, SelectionIndicators.CURSOR_ARROW)
-    
-    @staticmethod
-    def format_list_item(index: int,
-                        cursor_idx: int,
-                        is_selected: bool,
-                        text: str,
-                        cursor_style: str = "arrow",
-                        show_selection: bool = True) -> str:
-        """Format a complete list item with cursor and selection.
-        
-        Args:
-            index: Index of the current item
-            cursor_idx: Index of the cursor position
-            is_selected: Whether the item is selected
-            text: The item text
-            cursor_style: Style of cursor indicator
-            show_selection: Whether to show selection box
-            
-        Returns:
-            Formatted line string
-        """
-        cursor = SelectionIndicators.format_cursor(
-            index == cursor_idx, 
-            style=cursor_style
-        )
-        
-        if show_selection:
-            selection = SelectionIndicators.format_selection_box(is_selected)
-            return f"{cursor}{selection} {text}"
-        else:
-            return f"{cursor} {text}"
