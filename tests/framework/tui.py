@@ -234,8 +234,8 @@ def find_cursor_row(lines: List[str]) -> int:
 
 def get_first_pane(line: str, width: int = 50) -> str:
     """Extract content from the first pane by finding vertical separators."""
-    # Find pane separators (both Unicode │ and ASCII |)
-    bars = [i for i, ch in enumerate(line) if ch in ("│", "|")]
+    # Find pane separators (both Unicode │, ASCII |, and test representation x)
+    bars = [i for i, ch in enumerate(line) if ch in ("│", "|", "x")]
     
     if len(bars) >= 2:
         # Return content between first two bars
@@ -331,6 +331,67 @@ def get_all_visible_commits(lines: List[str]) -> List[str]:
         if match and match.group(1).strip() not in commits:  # Avoid duplicates
             commits.append(match.group(1).strip())
     return commits
+
+
+def get_middle_pane(line: str, width: int = 60) -> str:
+    """Extract content from the middle pane (commit details in log view)."""
+    # Find pane separators (both Unicode │, ASCII |, and test representation x)
+    seps = [i for i, ch in enumerate(line) if ch in ("│", "|", "x")]
+    
+    if len(seps) >= 2:
+        # Middle pane is between first and second separator
+        start = seps[0] + 1
+        end = min(start + width, seps[1])
+        return line[start:end].strip()
+    
+    return ""
+
+
+def get_third_pane(line: str) -> str:
+    """Extract content from the third pane (chat display in log view)."""
+    # Find pane separators (both Unicode │, ASCII |, and test representation x)
+    seps = [i for i, ch in enumerate(line) if ch in ("│", "|", "x")]
+    
+    if len(seps) >= 2:
+        # Third pane is after second separator
+        start = seps[1] + 1
+        # Find the end (next separator or end of line)
+        if len(seps) > 2:
+            end = seps[2]
+        else:
+            end = len(line)
+        return line[start:end].strip()
+    
+    return ""
+
+
+def find_in_pane(lines: List[str], pattern: str, pane: int = 1) -> bool:
+    """Search for pattern in specified pane.
+    
+    Args:
+        lines: Display lines to search
+        pattern: Pattern to search for (case-insensitive)
+        pane: Which pane to search (1=first/commits, 2=middle/details, 3=third/chat)
+    
+    Returns:
+        True if pattern found in specified pane
+    """
+    pattern_lower = pattern.lower()
+    
+    for line in lines:
+        if pane == 1:
+            content = get_first_pane(line)
+        elif pane == 2:
+            content = get_middle_pane(line)
+        elif pane == 3:
+            content = get_third_pane(line)
+        else:
+            continue
+            
+        if pattern_lower in content.lower():
+            return True
+    
+    return False
 
 
 def get_visible_commit_range(lines: List[str]) -> tuple:

@@ -15,15 +15,17 @@ from .text_utils import word_wrap, display_width
 class CommitView(VisualSelectionMixin, ScrollableMixin):
     """Manages commit display and interaction."""
     
-    def __init__(self, store):
+    def __init__(self, store, read_only=False):
         """Initialize commit view.
         
         Args:
             store: TigsStore instance for Git operations
+            read_only: If True, disable selection functionality (for log view)
         """
         VisualSelectionMixin.__init__(self)  # Initialize selection mixin
         ScrollableMixin.__init__(self)  # Initialize scrollable mixin
         self.store = store
+        self.read_only = read_only
         self.commits: List[Dict] = []  # List of commit info dicts
         self.items = self.commits  # Alias for mixin compatibility
         self.cursor_idx = 0  # Primary cursor index for scrollable mixin
@@ -198,8 +200,8 @@ class CommitView(VisualSelectionMixin, ScrollableMixin):
                 # No title
                 lines.append(prefix.rstrip())
         
-        # Add visual mode indicator if active
-        if self.visual_mode:
+        # Add visual mode indicator if active (not in read-only mode)
+        if self.visual_mode and not self.read_only:
             # Add at bottom if there's room
             if len(lines) < height - 2:
                 lines.append("")
@@ -233,8 +235,8 @@ class CommitView(VisualSelectionMixin, ScrollableMixin):
                 self.cursor_idx += 1
                 selection_changed = True
         
-        # Delegate selection operations to mixin
-        else:
+        # Delegate selection operations to mixin (only if not read-only)
+        elif not self.read_only:
             selection_changed = self.handle_selection_input(key)
         
         return selection_changed
@@ -337,7 +339,8 @@ class CommitView(VisualSelectionMixin, ScrollableMixin):
             has_cursor = (i == self.cursor_idx)
         
         cursor_indicator = SelectionIndicators.format_cursor(has_cursor, style="arrow")
-        selection_indicator = SelectionIndicators.format_selection_box(is_selected)
+        # Hide selection box in read-only mode
+        selection_indicator = "" if self.read_only else SelectionIndicators.format_selection_box(is_selected)
         note_indicator = "*" if commit.get('has_note') else " "
         
         # Build prefix
