@@ -61,8 +61,8 @@ class TestMessageWrapping:
     def test_calculate_message_heights_simple(self):
         """Test message height calculation with simple messages."""
         messages = [
-            ('user', 'Short message'),
-            ('assistant', 'Another short response'),
+            ('user', 'Short message', None),
+            ('assistant', 'Another short response', None),
         ]
         
         heights = self.view._calculate_message_heights(messages, 40)
@@ -74,8 +74,8 @@ class TestMessageWrapping:
     def test_calculate_message_heights_long_content(self):
         """Test height calculation with content that needs wrapping."""
         messages = [
-            ('user', 'This is a very long message that will definitely need to be wrapped when displayed'),
-            ('assistant', 'Short reply'),
+            ('user', 'This is a very long message that will definitely need to be wrapped when displayed', None),
+            ('assistant', 'Short reply', None),
         ]
         
         heights = self.view._calculate_message_heights(messages, 30)
@@ -86,7 +86,7 @@ class TestMessageWrapping:
     def test_calculate_message_heights_multiline(self):
         """Test height calculation with multi-line content."""
         messages = [
-            ('user', 'Multi\nline\nmessage\nwith\nbreaks'),
+            ('user', 'Multi\nline\nmessage\nwith\nbreaks', None),
         ]
         
         heights = self.view._calculate_message_heights(messages, 40)
@@ -97,9 +97,9 @@ class TestMessageWrapping:
     def test_calculate_message_heights_mixed(self):
         """Test height calculation with mixed message types."""
         messages = [
-            ('user', 'Short'),
-            ('assistant', 'This is a very long response that will need multiple lines when displayed in the terminal'),
-            ('user', 'Multi\nline\nmessage'),
+            ('user', 'Short', None),
+            ('assistant', 'This is a very long response that will need multiple lines when displayed in the terminal', None),
+            ('user', 'Multi\nline\nmessage', None),
         ]
         
         heights = self.view._calculate_message_heights(messages, 40)
@@ -111,9 +111,9 @@ class TestMessageWrapping:
     def test_get_visible_messages_variable_simple(self):
         """Test visible message calculation with simple case."""
         self.view.messages = [
-            ('user', 'Message 1'),
-            ('assistant', 'Response 1'),
-            ('user', 'Message 2'),
+            ('user', 'Message 1', None),
+            ('assistant', 'Response 1', None),
+            ('user', 'Message 2', None),
         ]
         self.view.message_scroll_offset = 0
         self.view.message_cursor_idx = 0
@@ -130,9 +130,9 @@ class TestMessageWrapping:
     def test_get_visible_messages_variable_large_message(self):
         """Test handling of extremely large single message."""
         self.view.messages = [
-            ('user', 'Normal message'),
-            ('assistant', 'Huge message content'),  # Pretend this is huge
-            ('user', 'Another normal'),
+            ('user', 'Normal message', None),
+            ('assistant', 'Huge message content', None),  # Pretend this is huge
+            ('user', 'Another normal', None),
         ]
         self.view.message_scroll_offset = 0
         self.view.message_cursor_idx = 1  # Focus on huge message
@@ -148,7 +148,7 @@ class TestMessageWrapping:
     def test_get_visible_messages_variable_cursor_visibility(self):
         """Test that cursor is always visible."""
         self.view.messages = [
-            ('user', f'Message {i}') for i in range(10)
+            ('user', f'Message {i}', None) for i in range(10)
         ]
         self.view.message_scroll_offset = 0
         self.view.message_cursor_idx = 5  # Focus on message in middle
@@ -172,8 +172,8 @@ class TestMessageWrapping:
     def test_get_display_lines_with_width(self):
         """Test display lines generation with width parameter."""
         self.view.messages = [
-            ('user', 'This is a message that should be wrapped'),
-            ('assistant', 'Short reply'),
+            ('user', 'This is a message that should be wrapped', None),
+            ('assistant', 'Short reply', None),
         ]
         self.view.message_cursor_idx = 0
         self.view.message_scroll_offset = 0
@@ -190,7 +190,7 @@ class TestMessageWrapping:
     def test_get_display_lines_narrow_width(self):
         """Test display with very narrow width."""
         self.view.messages = [
-            ('user', 'This is a very long message that will definitely need wrapping'),
+            ('user', 'This is a very long message that will definitely need wrapping', None),
         ]
         self.view.message_cursor_idx = 0
         
@@ -206,7 +206,7 @@ class TestMessageWrapping:
     
     def test_scroll_to_cursor_triggers_recalc(self):
         """Test that scroll_to_cursor triggers height recalculation."""
-        self.view.messages = [('user', 'Test')]
+        self.view.messages = [('user', 'Test', None)]
         self.view._needs_message_view_init = False
         
         self.view.scroll_to_cursor(20)
@@ -224,7 +224,7 @@ class TestMessageWrapping:
     
     def test_visual_mode_indicator_space(self):
         """Test that visual mode indicator reserves space."""
-        self.view.messages = [('user', 'Test')]
+        self.view.messages = [('user', 'Test', None)]
         self.view.visual_mode = True
         self.view.message_cursor_idx = 0
         

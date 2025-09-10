@@ -198,7 +198,7 @@ class TigsStoreApp:
             if session_width >= 2:
                 log_lines = self.log_view.get_display_lines(pane_height)
                 self._draw_pane(stdscr, 0, commit_width + message_width, pane_height, session_width,
-                               "Logs", self.focused_pane == 2,
+                               "Sessions", self.focused_pane == 2,
                                log_lines)
             
             # Draw status bar
@@ -224,9 +224,9 @@ class TigsStoreApp:
                 self.commit_view.handle_input(key, pane_height)
             elif self.focused_pane == 1:  # Messages pane focused
                 self.message_view.handle_input(stdscr, key, pane_height)
-            elif self.focused_pane == 2:  # Logs pane focused
+            elif self.focused_pane == 2:  # Sessions pane focused
                 if self.log_view.handle_input(key):
-                    # Log selection changed, reload messages
+                    # Session selection changed, reload messages
                     log_id = self.log_view.get_selected_log_id()
                     if log_id:
                         self.message_view.load_messages(log_id)

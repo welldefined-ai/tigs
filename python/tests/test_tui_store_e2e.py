@@ -463,9 +463,9 @@ class TestTUIDynamicLayout:
         
         # Set up messages with different content lengths
         app.message_view.messages = [
-            ('user', 'Short message'),
-            ('assistant', 'This is a very long response that should wrap to multiple lines when displayed in a narrow terminal window and take up more vertical space'),
-            ('user', 'Multi\nline\nmessage\nwith\nbreaks'),
+            ('user', 'Short message', None),
+            ('assistant', 'This is a very long response that should wrap to multiple lines when displayed in a narrow terminal window and take up more vertical space', None),
+            ('user', 'Multi\nline\nmessage\nwith\nbreaks', None),
         ]
         
         # Test with narrow width
@@ -500,9 +500,9 @@ class TestTUIDynamicLayout:
         # Create a message with lots of content
         huge_content = "\n".join([f"This is line {i} of a very long message" for i in range(50)])
         app.message_view.messages = [
-            ('user', 'Normal message'),
-            ('assistant', huge_content),
-            ('user', 'Another normal message'),
+            ('user', 'Normal message', None),
+            ('assistant', huge_content, None),
+            ('user', 'Another normal message', None),
         ]
         
         # Focus on huge message

@@ -84,7 +84,8 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
                     role = 'unknown'
                     
                 content = msg.content if hasattr(msg, 'content') else str(msg)
-                self.messages.append((role, content))
+                timestamp = msg.timestamp if hasattr(msg, 'timestamp') else None
+                self.messages.append((role, content, timestamp))
             
             # Reset cursor and scroll position for new messages
             self.cursor_idx = 0
@@ -98,6 +99,22 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
             self._needs_message_view_init = True
         except Exception:
             self.messages = []
+    
+    def _format_timestamp(self, timestamp) -> str:
+        """Format timestamp with space separator for readability.
+        
+        Args:
+            timestamp: Optional datetime object
+            
+        Returns:
+            Formatted string like " 09-08 03:05" or empty string
+        """
+        if not timestamp:
+            return ""
+        try:
+            return f" {timestamp.strftime('%m-%d %H:%M')}"
+        except:
+            return ""
     
     def get_display_lines(self, height: int, width: int = 40) -> List[str]:
         """Get display lines for messages pane with bottom-anchored display.
@@ -127,7 +144,7 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
 
         # Build display lines
         for i in range(start_idx, end_idx):
-            role, content = self.messages[i]
+            role, content, timestamp = self.messages[i]
             
             # Check if selected using mixin method
             is_selected = self.is_item_selected(i)
@@ -140,9 +157,9 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
             
             # Format message header
             if role == 'user':
-                header = f"{cursor_indicator}{selection_indicator} User:"
+                header = f"{cursor_indicator}{selection_indicator} User{self._format_timestamp(timestamp)}:"
             else:
-                header = f"{cursor_indicator}{selection_indicator} Assistant:"
+                header = f"{cursor_indicator}{selection_indicator} Assistant{self._format_timestamp(timestamp)}:"
             
             lines.append(header)
             
@@ -226,11 +243,11 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
         LINES_PER_MESSAGE = 2  # Header + first content line
         return max(1, rows // LINES_PER_MESSAGE)
     
-    def _calculate_message_heights(self, messages: List[Tuple[str, str]], width: int) -> List[int]:
+    def _calculate_message_heights(self, messages: List[Tuple[str, str, any]], width: int) -> List[int]:
         """Calculate height needed for each message with word wrapping.
         
         Args:
-            messages: List of (role, content) tuples
+            messages: List of (role, content, timestamp) tuples
             width: Available width for display
         
         Returns:
@@ -239,7 +256,7 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
         heights = []
         content_width = max(10, width - 6)  # Account for borders and indentation
         
-        for role, content in messages:
+        for role, content, timestamp in messages:
             # Header line
             height = 1
             

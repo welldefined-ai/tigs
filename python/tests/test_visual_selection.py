@@ -308,9 +308,9 @@ class TestMessageViewSelection:
         """Test MessageView handles navigation and keeps aliases in sync."""
         # Add some test messages
         self.view.messages = [
-            ('user', 'Message 1'),
-            ('assistant', 'Response 1'),
-            ('user', 'Message 2'),
+            ('user', 'Message 1', None),
+            ('assistant', 'Response 1', None),
+            ('user', 'Message 2', None),
         ]
         self.view.items = self.view.messages
         
@@ -327,9 +327,9 @@ class TestMessageViewSelection:
     def test_message_view_visual_selection(self):
         """Test MessageView uses mixin for visual selection."""
         self.view.messages = [
-            ('user', 'Message 1'),
-            ('assistant', 'Response 1'),
-            ('user', 'Message 2'),
+            ('user', 'Message 1', None),
+            ('assistant', 'Response 1', None),
+            ('user', 'Message 2', None),
         ]
         self.view.items = self.view.messages
         
