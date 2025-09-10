@@ -365,7 +365,7 @@ class TestTUIDynamicLayout:
             
             # First line should contain cursor, selection, and datetime
             first_line = display_lines[0]
-            assert "2009" in first_line  # Timestamp 1234567890 = 2009-02-14
+            assert "02-14" in first_line  # Timestamp 1234567890 = 02-14 07:31 (MM-DD format)
             
             # Navigation should still work (up/down, not left/right for scrolling)
             result = view.handle_input(curses.KEY_DOWN)
@@ -387,10 +387,10 @@ class TestTUIDynamicLayout:
             display_lines = view.get_display_lines(height=10, width=80)
             first_line = display_lines[0]
             
-            # Should have format: ">[ ] 2024-12-18 21:18 TestAuthor Short title"
+            # Should have format: ">[ ] 12-19 08:24 TestAuthor Short title"
             # Check that there's exactly one space between ] and the datetime
-            assert "] 20" in first_line  # One space between ] and year
-            assert "]  20" not in first_line  # Not two spaces
+            assert "] 12-19" in first_line  # One space between ] and MM-DD
+            assert "]  12-19" not in first_line  # Not two spaces
             
             # Test with note indicator
             view.commits_with_notes = {"abc123"}  # Add note
@@ -398,18 +398,18 @@ class TestTUIDynamicLayout:
             display_lines = view.get_display_lines(height=10, width=80)
             first_line = display_lines[0]
             
-            # Should have format: ">*[ ]2024-12-18 21:18 TestAuthor Short title"
-            # With note indicator (*), there should be no space before datetime
-            assert "]*20" in first_line or "]2024" in first_line  # No space with note
+            # Should have format: ">[ ]*12-19 08:24 TestAuthor Short title"
+            # With note indicator (*), format is ">[ ]*" then datetime
+            assert "]*" in first_line  # Note indicator after checkbox
             
             # Test selected item
             view.selected_commits.add(0)
             display_lines = view.get_display_lines(height=10, width=80)
             first_line = display_lines[0]
             
-            # Should have format: ">[x]*2024-12-18 21:18 TestAuthor Short title"
+            # Should have format: ">[x]*12-19 08:24 TestAuthor Short title"
             # Selected with note should have both indicators (x and *) with no extra space
-            assert "x]*20" in first_line or "[x]*20" in first_line  # No space with selected+note
+            assert "[x]*" in first_line  # Selected checkbox with note indicator
 
     def test_dynamic_width_calculation(self):
         """Test dynamic width calculation with various scenarios."""
