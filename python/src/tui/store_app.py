@@ -8,10 +8,10 @@ from typing import List
 
 from cligent import ChatParser
 
-from .commits import CommitView
-from .messages import MessageView
-from .logs import LogView
-from .layout import LayoutManager
+from .commits_view import CommitView
+from .messages_view import MessageView
+from .sessions_view import SessionsView
+from .layout_manager import LayoutManager
 
 
 class TigsStoreApp:
@@ -46,7 +46,7 @@ class TigsStoreApp:
         # Initialize view components
         self.commit_view = CommitView(self.store)
         self.message_view = MessageView(self.chat_parser)
-        self.log_view = LogView(self.chat_parser)
+        self.log_view = SessionsView(self.chat_parser)
         
         # Give layout manager to commit view for horizontal scrolling
         self.commit_view.layout_manager = self.layout_manager

@@ -5,10 +5,10 @@ import os
 import sys
 from typing import Optional
 
-from .commits import CommitView
-from .commit_details import CommitDetailsView
-from .chat_display import ChatDisplayView
-from .layout import LayoutManager
+from .commits_view import CommitView
+from .commit_details_view import CommitDetailsView
+from .chat_view import ChatView
+from .layout_manager import LayoutManager
 
 
 class TigsLogApp:
@@ -33,7 +33,7 @@ class TigsLogApp:
         # Initialize view components
         self.commit_view = CommitView(self.store, read_only=True)
         self.commit_details_view = CommitDetailsView(self.store)
-        self.chat_display_view = ChatDisplayView(self.store)
+        self.chat_display_view = ChatView(self.store)
         
         # Give layout manager to commit view for horizontal scrolling
         self.commit_view.layout_manager = self.layout_manager

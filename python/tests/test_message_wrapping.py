@@ -2,7 +2,7 @@
 
 import pytest
 from unittest.mock import Mock
-from src.tui.messages import MessageView
+from src.tui.messages_view import MessageView
 
 
 class TestMessageWrapping:

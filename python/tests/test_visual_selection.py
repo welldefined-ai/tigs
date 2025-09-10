@@ -4,9 +4,9 @@ import pytest
 import curses
 from unittest.mock import Mock, MagicMock, patch
 
-from src.tui.selection import VisualSelectionMixin
-from src.tui.commits import CommitView
-from src.tui.messages import MessageView
+from src.tui.selection_mixin import VisualSelectionMixin
+from src.tui.commits_view import CommitView
+from src.tui.messages_view import MessageView
 
 
 class TestVisualSelectionMixin:

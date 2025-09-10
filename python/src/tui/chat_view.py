@@ -1,14 +1,14 @@
-"""Chat display view for showing chat messages associated with commits."""
+"""Chat view for showing chat messages associated with commits."""
 
 from typing import List
 from .text_utils import word_wrap
 
 
-class ChatDisplayView:
+class ChatView:
     """Displays chat messages associated with a commit."""
     
     def __init__(self, store):
-        """Initialize chat display view.
+        """Initialize chat view.
         
         Args:
             store: TigsStore instance for Git operations

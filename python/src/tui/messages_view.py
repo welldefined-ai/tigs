@@ -5,8 +5,8 @@ from typing import List, Tuple, Optional, Set
 from datetime import datetime
 
 from cligent import Role
-from .selection import VisualSelectionMixin
-from .scrollable import ScrollableMixin
+from .selection_mixin import VisualSelectionMixin
+from .scrollable_mixin import ScrollableMixin
 from .indicators import SelectionIndicators
 from .text_utils import word_wrap
 

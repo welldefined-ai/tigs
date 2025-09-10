@@ -6,8 +6,8 @@ from typing import List, Tuple, Optional, Set, Dict
 from datetime import datetime, timedelta
 import re
 
-from .selection import VisualSelectionMixin
-from .scrollable import ScrollableMixin
+from .selection_mixin import VisualSelectionMixin
+from .scrollable_mixin import ScrollableMixin
 from .indicators import SelectionIndicators
 from .text_utils import word_wrap, display_width
 

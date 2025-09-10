@@ -1,15 +1,15 @@
-"""Log view management for TUI."""
+"""Sessions view management for TUI."""
 
 import curses
 from typing import List, Tuple, Optional
 from datetime import datetime, timedelta
 
 
-class LogView:
-    """Manages log/session display and interaction."""
+class SessionsView:
+    """Manages sessions display and interaction."""
     
     def __init__(self, chat_parser):
-        """Initialize log view.
+        """Initialize sessions view.
         
         Args:
             chat_parser: ChatParser instance for loading logs

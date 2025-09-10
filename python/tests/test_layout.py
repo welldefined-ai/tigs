@@ -1,7 +1,7 @@
 """Tests for dynamic layout management."""
 
 import pytest
-from src.tui.layout import LayoutManager
+from src.tui.layout_manager import LayoutManager
 
 
 class TestLayoutManager:

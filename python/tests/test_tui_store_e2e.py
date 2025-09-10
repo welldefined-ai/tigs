@@ -10,8 +10,8 @@ from pathlib import Path
 import pytest
 import yaml
 
-from src.tui.app import TigsStoreApp
-from src.tui.commits import CommitView
+from src.tui.store_app import TigsStoreApp
+from src.tui.commits_view import CommitView
 from src.store import TigsStore
 
 
