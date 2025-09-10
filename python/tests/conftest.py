@@ -4,24 +4,38 @@ import subprocess
 from pathlib import Path
 from typing import List, Dict, Any
 import yaml
+import os
 
 import pytest
 from click.testing import CliRunner
 
+from tests.mock_sessions import create_mock_claude_home
+
 
 @pytest.fixture
-def claude_logs():
-    """Get available Claude Code logs for testing."""
-    try:
-        from cligent import ChatParser
-        parser = ChatParser()
-        logs = parser.list_logs()
-        # Return first 3 accessible logs for testing
-        accessible_logs = [(log_id, info) for log_id, info in logs if info.get('accessible', False)][:3]
-        return accessible_logs
-    except Exception:
-        # If cligent is not available or has issues, return empty list
-        return []
+def claude_logs(tmp_path, monkeypatch):
+    """Create mock Claude Code logs for testing.
+    
+    This fixture creates a temporary home directory with mock .claude/projects
+    structure containing realistic JSONL session files that cligent can parse.
+    """
+    # Create mock home directory
+    mock_home = tmp_path / "mock_home"
+    mock_home.mkdir()
+    
+    # Set HOME environment variable to our mock directory
+    monkeypatch.setenv("HOME", str(mock_home))
+    
+    # Create mock Claude sessions
+    sessions = create_mock_claude_home(mock_home, num_sessions=3)
+    
+    # Convert to absolute paths for cligent
+    absolute_sessions = []
+    for relative_path, metadata in sessions:
+        absolute_path = mock_home / relative_path
+        absolute_sessions.append((str(absolute_path), metadata))
+    
+    return absolute_sessions
 
 
 @pytest.fixture

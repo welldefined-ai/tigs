@@ -43,7 +43,7 @@ class TestLogScrolling:
         
         command = f"uv run tigs --repo {long_commit_repo} log"
         
-        with TUI(command, cwd=PYTHON_DIR, dimensions=(20, 120)) as tui:
+        with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120)) as tui:
             try:
                 tui.wait_for("Commit", timeout=5.0)
                 
@@ -110,7 +110,7 @@ class TestLogScrolling:
         
         command = f"uv run tigs --repo {test_repo} log"
         
-        with TUI(command, cwd=PYTHON_DIR, dimensions=(20, 120)) as tui:
+        with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120)) as tui:
             try:
                 tui.wait_for("Commit", timeout=5.0)
                 
@@ -171,7 +171,7 @@ class TestLogScrolling:
         
         command = f"uv run tigs --repo {test_repo} log"
         
-        with TUI(command, cwd=PYTHON_DIR, dimensions=(20, 120)) as tui:
+        with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120)) as tui:
             try:
                 tui.wait_for("Commit", timeout=5.0)
                 
@@ -224,7 +224,7 @@ class TestLogScrolling:
         
         command = f"uv run tigs --repo {long_commit_repo} log"
         
-        with TUI(command, cwd=PYTHON_DIR, dimensions=(20, 120)) as tui:
+        with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120)) as tui:
             try:
                 tui.wait_for("Commit", timeout=5.0)
                 
@@ -237,7 +237,9 @@ class TestLogScrolling:
                     from framework.tui import get_first_pane
                     commit = get_first_pane(line)
                     if "Commit" in commit:
-                        initial_commits.append(commit)
+                        # Strip cursor marker to only check content
+                        commit_cleaned = commit.lstrip('>').lstrip()
+                        initial_commits.append(commit_cleaned)
                 
                 print(f"Initial commits: {initial_commits[:3]}")
                 
@@ -257,7 +259,9 @@ class TestLogScrolling:
                     from framework.tui import get_first_pane
                     commit = get_first_pane(line)
                     if "Commit" in commit:
-                        final_commits.append(commit)
+                        # Strip cursor marker to only check content
+                        commit_cleaned = commit.lstrip('>').lstrip()
+                        final_commits.append(commit_cleaned)
                 
                 print(f"Final commits: {final_commits[:3]}")
                 
