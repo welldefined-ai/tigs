@@ -1,11 +1,13 @@
 """Commit details view for displaying full commit information."""
 
+import curses
 import subprocess
 from typing import List, Optional
 from .text_utils import word_wrap
+from .view_scroll_mixin import ViewScrollMixin
 
 
-class CommitDetailsView:
+class CommitDetailsView(ViewScrollMixin):
     """Displays detailed commit information including message and changed files."""
     
     def __init__(self, store):
@@ -14,9 +16,9 @@ class CommitDetailsView:
         Args:
             store: TigsStore instance for Git operations
         """
+        ViewScrollMixin.__init__(self)
         self.store = store
         self.current_sha = None
-        self.details_lines = []
     
     def load_commit_details(self, sha: str) -> None:
         """Load detailed information for a commit.
@@ -28,7 +30,6 @@ class CommitDetailsView:
             return
         
         self.current_sha = sha
-        self.details_lines = []
         
         try:
             # Get commit information using git show
@@ -133,10 +134,29 @@ class CommitDetailsView:
                             formatted_lines.insert(i + 1, refs_line)
                             break
             
-            self.details_lines = formatted_lines
+            # Store all formatted lines without truncation
+            self.total_lines = formatted_lines
+            # Reset view to top when loading new content
+            self.reset_view()
             
         except Exception as e:
-            self.details_lines = [f"Error: {str(e)}"]
+            self.total_lines = [f"Error: {str(e)}"]
+    
+    def handle_input(self, key: int, pane_height: int) -> bool:
+        """Handle keyboard input for scrolling.
+        
+        Args:
+            key: Key code
+            pane_height: Height of the pane
+            
+        Returns:
+            True if handled, False otherwise
+        """
+        if key == curses.KEY_UP:
+            return self.scroll_up()
+        elif key == curses.KEY_DOWN:
+            return self.scroll_down(viewport_height=pane_height)
+        return False
     
     def get_display_lines(self, height: int, width: int) -> List[str]:
         """Get display lines for the details pane.
@@ -151,21 +171,22 @@ class CommitDetailsView:
         if not self.current_sha:
             return ["No commit selected"]
         
-        if not self.details_lines:
+        if not self.total_lines:
             return ["Loading..."]
         
-        # Format lines to fit width
-        formatted = []
-        for line in self.details_lines:
-            if len(line) <= width - 4:
-                formatted.append(line)
-            else:
-                # Word wrap long lines
-                wrapped = word_wrap(line, width - 4)
-                formatted.extend(wrapped)
+        # Format lines to fit width if needed
+        if not hasattr(self, '_formatted_lines') or self._last_width != width:
+            self._formatted_lines = []
+            for line in self.total_lines:
+                if len(line) <= width - 4:
+                    self._formatted_lines.append(line)
+                else:
+                    # Word wrap long lines
+                    wrapped = word_wrap(line, width - 4)
+                    self._formatted_lines.extend(wrapped)
+            self._last_width = width
+            # Update total_lines to use formatted version
+            self.total_lines = self._formatted_lines
         
-        # Truncate to available height
-        if len(formatted) > height - 2:
-            formatted = formatted[:height - 2]
-        
-        return formatted
+        # Return visible lines based on scroll position
+        return self.get_visible_lines(height)

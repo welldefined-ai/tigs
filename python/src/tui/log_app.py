@@ -26,6 +26,7 @@ class TigsLogApp:
         self.store = store
         self.running = True
         self._colors_enabled = False
+        self.focused_pane = 0  # 0=commits, 1=details, 2=chat
         
         # Initialize layout manager
         self.layout_manager = LayoutManager()
@@ -138,13 +139,13 @@ class TigsLogApp:
             details_lines = self.commit_details_view.get_display_lines(pane_height, details_width)
             chat_lines = self.chat_display_view.get_display_lines(pane_height, chat_width)
             
-            # Draw panes
+            # Draw panes with focus state
             self._draw_pane(stdscr, 0, 0, pane_height, commit_width,
-                           "Commits", True, commit_lines)
+                           "Commits", self.focused_pane == 0, commit_lines)
             self._draw_pane(stdscr, 0, commit_width, pane_height, details_width,
-                           "Commit Details", False, details_lines)
+                           "Commit Details", self.focused_pane == 1, details_lines)
             self._draw_pane(stdscr, 0, commit_width + details_width, pane_height, chat_width,
-                           "Chat", False, chat_lines)
+                           "Chat", self.focused_pane == 2, chat_lines)
             
             # Draw status bar
             self._draw_status_bar(stdscr, height - 1, width)
@@ -156,16 +157,28 @@ class TigsLogApp:
             key = stdscr.getch()
             if key == ord('q') or key == ord('Q'):
                 self.running = False
+            elif key == ord('\t'):  # Tab
+                self.focused_pane = (self.focused_pane + 1) % 3
+            elif key == curses.KEY_BTAB or key == 353:  # Shift-Tab
+                self.focused_pane = (self.focused_pane - 1) % 3
             elif key == curses.KEY_RESIZE:
                 continue
             else:
-                # Handle navigation in commits view
-                if self.commit_view.handle_input(key, pane_height):
-                    # Cursor moved, update other views
-                    sha = self.commit_view.get_cursor_sha()
-                    if sha:
-                        self.commit_details_view.load_commit_details(sha)
-                        self.chat_display_view.load_chat(sha)
+                # Route input to focused pane
+                if self.focused_pane == 0:
+                    # Commits pane - existing cursor navigation
+                    if self.commit_view.handle_input(key, pane_height):
+                        # Cursor moved, update other views
+                        sha = self.commit_view.get_cursor_sha()
+                        if sha:
+                            self.commit_details_view.load_commit_details(sha)
+                            self.chat_display_view.load_chat(sha)
+                elif self.focused_pane == 1:
+                    # Details pane - view scrolling
+                    self.commit_details_view.handle_input(key, pane_height)
+                elif self.focused_pane == 2:
+                    # Chat pane - view scrolling
+                    self.chat_display_view.handle_input(key, pane_height)
     
     def _draw_pane(self, stdscr, y: int, x: int, height: int, width: int, 
                    title: str, focused: bool, content: list) -> None:
@@ -257,7 +270,11 @@ class TigsLogApp:
             y: Y position for status bar
             width: Width of screen
         """
-        status_text = "↑/↓: navigate | q: quit"
+        # Context-sensitive status based on focused pane
+        if self.focused_pane == 0:
+            status_text = "↑/↓: navigate commits | Tab: switch pane | q: quit"
+        else:
+            status_text = "↑/↓: scroll | Tab: switch pane | q: quit"
         
         # Use reverse video for status bar
         if self._colors_enabled:
