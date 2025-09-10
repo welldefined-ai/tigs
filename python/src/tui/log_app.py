@@ -89,9 +89,13 @@ class TigsLogApp:
                 else:
                     curses.init_pair(1, curses.COLOR_WHITE, curses.COLOR_BLACK)
                 
-                curses.init_pair(2, curses.COLOR_CYAN, -1 if use_default_ok else curses.COLOR_BLACK)
-                curses.init_pair(3, curses.COLOR_GREEN, -1 if use_default_ok else curses.COLOR_BLACK)
-                curses.init_pair(4, curses.COLOR_YELLOW, -1 if use_default_ok else curses.COLOR_BLACK)
+                # Color pairs matching tig's scheme:
+                curses.init_pair(2, curses.COLOR_CYAN, -1 if use_default_ok else curses.COLOR_BLACK)     # Author, focused border
+                curses.init_pair(3, curses.COLOR_GREEN, -1 if use_default_ok else curses.COLOR_BLACK)    # Commit SHA, additions
+                curses.init_pair(4, curses.COLOR_YELLOW, -1 if use_default_ok else curses.COLOR_BLACK)   # Date, headers
+                curses.init_pair(5, curses.COLOR_MAGENTA, -1 if use_default_ok else curses.COLOR_BLACK)  # Refs, diff chunks
+                curses.init_pair(6, curses.COLOR_RED, -1 if use_default_ok else curses.COLOR_BLACK)      # Deletions
+                curses.init_pair(7, curses.COLOR_BLUE, -1 if use_default_ok else curses.COLOR_BLACK)     # Other metadata
                 
                 self._colors_enabled = True
             except curses.error:
@@ -136,7 +140,7 @@ class TigsLogApp:
             
             # Get display lines from each view
             commit_lines = self.commit_view.get_display_lines(pane_height, commit_width)
-            details_lines = self.commit_details_view.get_display_lines(pane_height, details_width)
+            details_lines = self.commit_details_view.get_display_lines(pane_height, details_width, self._colors_enabled)
             chat_lines = self.chat_display_view.get_display_lines(pane_height, chat_width)
             
             # Draw panes with focus state
@@ -197,28 +201,16 @@ class TigsLogApp:
         if width < 2 or height < 2:
             return
             
-        # Use different border styles for focused vs unfocused
+        # Use bold for focused pane instead of different colors
+        tl = curses.ACS_ULCORNER
+        tr = curses.ACS_URCORNER
+        bl = curses.ACS_LLCORNER
+        br = curses.ACS_LRCORNER
+        hz = curses.ACS_HLINE
+        vt = curses.ACS_VLINE
+        
         if focused:
-            tl = curses.ACS_ULCORNER
-            tr = curses.ACS_URCORNER
-            bl = curses.ACS_LLCORNER
-            br = curses.ACS_LRCORNER
-            hz = curses.ACS_HLINE
-            vt = curses.ACS_VLINE
-            
-            if self._colors_enabled:
-                stdscr.attron(curses.color_pair(2))
-                stdscr.attron(curses.A_BOLD)
-        else:
-            tl = curses.ACS_ULCORNER
-            tr = curses.ACS_URCORNER
-            bl = curses.ACS_LLCORNER
-            br = curses.ACS_LRCORNER
-            hz = curses.ACS_HLINE
-            vt = curses.ACS_VLINE
-            
-            if self._colors_enabled:
-                stdscr.attron(curses.color_pair(1))
+            stdscr.attron(curses.A_BOLD)
         
         # Draw corners
         try:
@@ -243,24 +235,48 @@ class TigsLogApp:
                 title_x = x + (width - len(title_text)) // 2
                 stdscr.addstr(y, title_x, title_text)
                 
-            # Draw content
-            for i, line in enumerate(content):
+            # Draw content (handle strings, tuples, and lists of tuples for multi-color)
+            for i, item in enumerate(content):
                 if i + 1 < height - 1:
-                    if len(line) > width - 4:
-                        line = line[:width - 4]
-                    stdscr.addstr(y + i + 1, x + 2, line)
+                    # Handle colored content
+                    if isinstance(item, list):
+                        # Multi-colored line (list of tuples)
+                        x_offset = x + 2
+                        remaining_width = width - 4
+                        for part_text, part_color in item:
+                            if remaining_width <= 0:
+                                break
+                            if len(part_text) > remaining_width:
+                                part_text = part_text[:remaining_width]
+                            if self._colors_enabled and part_color > 0:
+                                stdscr.attron(curses.color_pair(part_color))
+                            stdscr.addstr(y + i + 1, x_offset, part_text)
+                            if self._colors_enabled and part_color > 0:
+                                stdscr.attroff(curses.color_pair(part_color))
+                            x_offset += len(part_text)
+                            remaining_width -= len(part_text)
+                    elif isinstance(item, tuple):
+                        text, color_pair = item
+                        if len(text) > width - 4:
+                            text = text[:width - 4]
+                        if self._colors_enabled and color_pair > 0:
+                            stdscr.attron(curses.color_pair(color_pair))
+                        stdscr.addstr(y + i + 1, x + 2, text)
+                        if self._colors_enabled and color_pair > 0:
+                            stdscr.attroff(curses.color_pair(color_pair))
+                    else:
+                        # Plain string
+                        line = item
+                        if len(line) > width - 4:
+                            line = line[:width - 4]
+                        stdscr.addstr(y + i + 1, x + 2, line)
                     
         except curses.error:
             pass
             
         # Reset attributes
         if focused:
-            if self._colors_enabled:
-                stdscr.attroff(curses.A_BOLD)
-                stdscr.attroff(curses.color_pair(2))
-        else:
-            if self._colors_enabled:
-                stdscr.attroff(curses.color_pair(1))
+            stdscr.attroff(curses.A_BOLD)
     
     def _draw_status_bar(self, stdscr, y: int, width: int) -> None:
         """Draw the status bar.

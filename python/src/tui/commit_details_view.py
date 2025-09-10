@@ -158,15 +158,16 @@ class CommitDetailsView(ViewScrollMixin):
             return self.scroll_down(viewport_height=pane_height)
         return False
     
-    def get_display_lines(self, height: int, width: int) -> List[str]:
-        """Get display lines for the details pane.
+    def get_display_lines(self, height: int, width: int, colors_enabled: bool = False) -> List:
+        """Get display lines for the details pane with optional color coding.
         
         Args:
             height: Available height for content
             width: Available width for content
+            colors_enabled: Whether to return colored output
             
         Returns:
-            List of formatted detail lines
+            List of formatted detail lines (strings or (text, color_pair) tuples)
         """
         if not self.current_sha:
             return ["No commit selected"]
@@ -174,19 +175,138 @@ class CommitDetailsView(ViewScrollMixin):
         if not self.total_lines:
             return ["Loading..."]
         
-        # Format lines to fit width if needed
-        if not hasattr(self, '_formatted_lines') or self._last_width != width:
+        # Format lines to fit width and track colors if needed
+        if not hasattr(self, '_formatted_lines') or self._last_width != width or not hasattr(self, '_line_colors'):
             self._formatted_lines = []
+            self._line_colors = []  # Track color for each formatted line
+            self._file_stats_info = []  # Track original file stats info for wrapped lines
+            
             for line in self.total_lines:
+                # Determine color for this line before wrapping
+                color_pair = 0  # Default color
+                file_stats_data = None  # Will store (filename, changes) for file stats lines
+                
+                # Always calculate colors, we'll decide whether to use them later
+                line_stripped = line.lstrip()
+                
+                if line.startswith("commit "):
+                    color_pair = 3  # Green for entire commit line including SHA
+                elif line_stripped.startswith("Author:"):
+                    color_pair = 2  # Cyan for entire author line including email
+                elif line_stripped.startswith("Date:"):
+                    color_pair = 4  # Yellow for entire date line including time
+                elif line_stripped.startswith("Refs:"):
+                    color_pair = 5  # Magenta for refs
+                elif " | " in line and ("+" in line or "-" in line):
+                    # File stats line - will need special handling for multi-color
+                    # Mark it with a special color to identify it later
+                    color_pair = -1  # Special marker for file stats lines
+                    # Store the file stats data for wrapped lines
+                    pipe_idx = line.index(" | ")
+                    file_stats_data = (line[:pipe_idx + 3], line[pipe_idx + 3:])
+                elif "file changed" in line or "files changed" in line:
+                    # Summary line
+                    if "insertions(+)" in line and "deletions(-)" not in line:
+                        color_pair = 3  # Green for only insertions
+                    elif "deletions(-)" in line and "insertions(+)" not in line:
+                        color_pair = 6  # Red for only deletions
+                    else:
+                        color_pair = 0  # Default for mixed
+                
+                # Now wrap the line and apply the same color to all wrapped parts
                 if len(line) <= width - 4:
                     self._formatted_lines.append(line)
+                    self._line_colors.append(color_pair)
+                    self._file_stats_info.append(file_stats_data)
                 else:
                     # Word wrap long lines
                     wrapped = word_wrap(line, width - 4)
-                    self._formatted_lines.extend(wrapped)
+                    for i, wrapped_line in enumerate(wrapped):
+                        self._formatted_lines.append(wrapped_line)
+                        self._line_colors.append(color_pair)  # Same color for wrapped parts
+                        # For file stats lines, store the original data for all wrapped parts
+                        self._file_stats_info.append(file_stats_data if color_pair == -1 else None)
+            
             self._last_width = width
             # Update total_lines to use formatted version
             self.total_lines = self._formatted_lines
         
-        # Return visible lines based on scroll position
-        return self.get_visible_lines(height)
+        # Get visible lines based on scroll position
+        visible_lines = self.get_visible_lines(height)
+        start_idx = self.view_offset
+        
+        # Apply colors if enabled
+        if colors_enabled:
+            colored_lines = []
+            for i, line in enumerate(visible_lines):
+                # Get the color for this line from our pre-calculated colors
+                line_idx = start_idx + i
+                if line_idx < len(self._line_colors):
+                    color_pair = self._line_colors[line_idx]
+                else:
+                    color_pair = 0
+                
+                # Check if this is a file stats line (original or wrapped)
+                file_stats_data = None
+                if line_idx < len(self._file_stats_info):
+                    file_stats_data = self._file_stats_info[line_idx]
+                
+                # Special handling for file stats lines
+                if color_pair == -1 and file_stats_data:
+                    parts = []
+                    filename_part, changes_part = file_stats_data
+                    
+                    # Check what part of the file stats this line represents
+                    if " | " in line:
+                        # This is the line with the separator
+                        pipe_idx = line.index(" | ")
+                        actual_filename = line[:pipe_idx + 3]  # Include " | "
+                        parts.append((actual_filename, 7))  # Blue for filename
+                        
+                        # Changes part after the pipe
+                        actual_changes = line[pipe_idx + 3:]
+                    elif "+" in changes_part or "-" in changes_part:
+                        # Check if this line is part of the filename or the changes
+                        # If the original filename part contains this line, it's filename
+                        if line in filename_part:
+                            # This is a wrapped part of the filename (before the separator)
+                            parts.append((line, 7))  # Blue for filename part
+                            actual_changes = ""
+                        else:
+                            # This is a wrapped continuation of the changes
+                            actual_changes = line
+                    else:
+                        # No changes, just filename
+                        parts.append((line, 7))
+                        actual_changes = ""
+                    
+                    # Color the changes part
+                    if actual_changes:
+                        change_chars = []
+                        for char in actual_changes:
+                            if char == '+':
+                                change_chars.append((char, 3))  # Green for +
+                            elif char == '-':
+                                change_chars.append((char, 6))  # Red for -
+                            else:
+                                change_chars.append((char, 0))  # Default for other chars
+                        
+                        # Combine consecutive chars with same color
+                        if change_chars:
+                            current_text = change_chars[0][0]
+                            current_color = change_chars[0][1]
+                            for char, color in change_chars[1:]:
+                                if color == current_color:
+                                    current_text += char
+                                else:
+                                    parts.append((current_text, current_color))
+                                    current_text = char
+                                    current_color = color
+                            parts.append((current_text, current_color))
+                    
+                    colored_lines.append(parts)  # Return list of parts
+                else:
+                    colored_lines.append((line, color_pair))
+            return colored_lines
+        else:
+            return visible_lines
