@@ -138,9 +138,59 @@ class CommitDetailsView(ViewScrollMixin):
             self.total_lines = formatted_lines
             # Reset view to top when loading new content
             self.reset_view()
+            # Clear cached formatted lines to force re-wrapping
+            if hasattr(self, '_formatted_lines'):
+                del self._formatted_lines
+            if hasattr(self, '_line_colors'):
+                del self._line_colors
+            if hasattr(self, '_file_stats_info'):
+                del self._file_stats_info
             
         except Exception as e:
             self.total_lines = [f"Error: {str(e)}"]
+    
+    def _is_file_stats_line(self, line: str) -> bool:
+        """Check if a line is a file stats line (not a commit message line with |).
+        
+        File stats lines have the format:
+        - Start with single space (not 4 spaces like commit messages)
+        - Have " | " separator
+        - After separator have numbers, +/-, "Bin", or just 0
+        
+        Args:
+            line: Line to check
+            
+        Returns:
+            True if this is a file stats line, False otherwise
+        """
+        if " | " not in line:
+            return False
+        
+        # Commit message lines are indented with 4 spaces
+        # File stats lines typically have 1 space
+        if line.startswith("    "):
+            return False
+        
+        # Check the part after " | "
+        pipe_idx = line.index(" | ")
+        after_pipe = line[pipe_idx + 3:].strip()
+        
+        # File stats have numbers, +/-, Bin, or combinations
+        if not after_pipe:
+            return False
+        
+        # Check for typical file stats patterns
+        # Numbers (including 0 for renames)
+        if after_pipe[0].isdigit():
+            return True
+        # Binary files
+        if after_pipe.startswith("Bin"):
+            return True
+        # Direct +/- (rare but possible)
+        if after_pipe[0] in "+-":
+            return True
+        
+        return False
     
     def handle_input(self, key: int, pane_height: int) -> bool:
         """Handle keyboard input for scrolling.
@@ -197,8 +247,9 @@ class CommitDetailsView(ViewScrollMixin):
                     color_pair = 4  # Yellow for entire date line including time
                 elif line_stripped.startswith("Refs:"):
                     color_pair = 5  # Magenta for refs
-                elif " | " in line and ("+" in line or "-" in line):
+                elif " | " in line and self._is_file_stats_line(line):
                     # File stats line - will need special handling for multi-color
+                    # This includes regular changes, binary files, and renames with 0 changes
                     # Mark it with a special color to identify it later
                     color_pair = -1  # Special marker for file stats lines
                     # Store the file stats data for wrapped lines
