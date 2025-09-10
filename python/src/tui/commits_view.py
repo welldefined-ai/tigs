@@ -262,16 +262,16 @@ class CommitView(VisualSelectionMixin, ScrollableMixin):
         return None
     
     def _format_local_datetime(self, commit_time: datetime) -> str:
-        """Format commit time as full local datetime without timezone.
+        """Format commit time as short datetime.
         
         Args:
             commit_time: Datetime of the commit
             
         Returns:
-            Formatted local datetime string
+            Formatted short datetime string
         """
-        # Full local datetime without seconds: "2024-12-15 14:30"
-        return commit_time.strftime("%Y-%m-%d %H:%M")
+        # Short datetime: "09-10 08:18"
+        return commit_time.strftime("%m-%d %H:%M")
     
     def _format_relative_time(self, commit_time: datetime) -> str:
         """Format commit time as relative to now.
@@ -341,14 +341,27 @@ class CommitView(VisualSelectionMixin, ScrollableMixin):
         cursor_indicator = SelectionIndicators.format_cursor(has_cursor, style="arrow")
         # Hide selection box in read-only mode
         selection_indicator = "" if self.read_only else SelectionIndicators.format_selection_box(is_selected)
-        note_indicator = "*" if commit.get('has_note') else " "
         
-        # Build prefix
+        # Build prefix with different logic for read-only vs store mode
         datetime_str = self._format_local_datetime(commit['time'])
-        prefix = f"{cursor_indicator}{selection_indicator}{note_indicator}{datetime_str} {commit['author']} "
+        if self.read_only:
+            # Log mode: >• or >* (compact, no extra spaces)
+            note_char = "*" if commit.get('has_note') else "•"
+            prefix = f"{cursor_indicator}{note_char} {datetime_str} {commit['author']} "
+        else:
+            # Store mode: >[ ] or >[ ]* (space after checkbox for notes)
+            note_indicator = "*" if commit.get('has_note') else " "
+            prefix = f"{cursor_indicator}{selection_indicator}{note_indicator}{datetime_str} {commit['author']} "
         
         # visual indent for continuation lines (align with indicators area)
-        datetime_indent = display_width(f"{cursor_indicator}{selection_indicator}{note_indicator}")
+        if self.read_only:
+            # Log mode: cursor + note_char (>• or >*)
+            note_char = "*" if commit.get('has_note') else "•"
+            datetime_indent = display_width(f"{cursor_indicator}{note_char} ")
+        else:
+            # Store mode: cursor + selection + note
+            note_indicator = "*" if commit.get('has_note') else " " 
+            datetime_indent = display_width(f"{cursor_indicator}{selection_indicator}{note_indicator}")
         # Compute widths using display width (Unicode-aware)
         first_line_width = max(0, width - display_width(prefix) - 4)  # borders/margins
         content_width = max(0, width - 6)  # continuation width

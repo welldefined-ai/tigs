@@ -62,14 +62,97 @@ class TestLogDisplay:
                     assert has_cursor, "Should have cursor indicator"
                     assert not has_checkbox, "Should not have selection checkboxes"
                     
-                    # Check for timestamps
-                    has_timestamp = any("2024" in entry or "2025" in entry for entry in commit_entries)
+                    # Check for timestamps in short format (MM-DD HH:MM)
+                    import re
+                    has_timestamp = any(re.search(r'\d{2}-\d{2}\s+\d{2}:\d{2}', entry) for entry in commit_entries)
                     print(f"Has timestamps: {has_timestamp}")
                     
                     print("✓ Commits column displays correctly")
                     
                 except Exception as e:
                     print(f"Commits display test failed: {e}")
+                    if "not found" in str(e).lower():
+                        pytest.skip("Log command not available")
+                    else:
+                        raise
+    
+    def test_log_commit_prefix_formatting(self):
+        """Test that log mode uses compact formatting with bullet points."""
+        
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo_path = Path(tmpdir) / "prefix_test_repo"
+            
+            commits = [
+                "feat: Add feature A",
+                "fix: Fix bug B", 
+                "docs: Update docs"
+            ]
+            create_test_repo(repo_path, commits)
+            
+            command = f"uv run tigs --repo {repo_path} log"
+            
+            with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120)) as tui:
+                try:
+                    tui.wait_for("feat", timeout=5.0)
+                    lines = tui.capture()
+                    
+                    print("=== Log Commit Prefix Formatting Test ===")
+                    
+                    # Print ALL lines to debug where bullets/cursors are
+                    print("All captured lines:")
+                    for i, line in enumerate(lines[:20]):
+                        first_col = get_first_pane(line)
+                        print(f"Line {i:2d}: '{first_col}'")
+                    
+                    # Check commits column for compact bullet formatting
+                    commit_entries = []
+                    for line in lines[1:20]:  # Include line 1 which has the cursor, skip just line 0 (header)
+                        first_col = get_first_pane(line)
+                        # Look for lines with datetime patterns or bullet indicators, not just commit subjects
+                        if any(char in first_col for char in [">", "•", ":"]) or any(word in first_col for word in ["feat", "fix", "docs"]):
+                            commit_entries.append(first_col)
+                            print(f"Log commit line: '{first_col}'")
+                    
+                    assert len(commit_entries) >= 1, "Should have commit entries"
+                    
+                    # Use regex to verify exact compact formatting patterns
+                    import re
+                    
+                    # The actual format is ">• " (cursor, bullet, space) or " • " (space, bullet, space)
+                    # Pattern for cursor line: >• MM-DD HH:MM Author or >* MM-DD HH:MM Author
+                    cursor_pattern = r'>[\u2022•*]\s+\d{2}-\d{2}\s+\d{2}:\d{2}\s+\w+'
+                    # Pattern for non-cursor line:  • MM-DD HH:MM Author or  * MM-DD HH:MM Author  
+                    non_cursor_pattern = r'\s[\u2022•*]\s+\d{2}-\d{2}\s+\d{2}:\d{2}\s+\w+'
+                    # Alternative patterns if Unicode doesn't work in terminal emulator
+                    cursor_pattern_fallback = r'>\s+\d{2}-\d{2}\s+\d{2}:\d{2}\s+\w+'
+                    non_cursor_pattern_fallback = r'\s{2}\d{2}-\d{2}\s+\d{2}:\d{2}\s+\w+'
+                    
+                    cursor_found = False
+                    non_cursor_found = False
+                    
+                    for entry in commit_entries:
+                        # Try Unicode patterns first
+                        if re.search(cursor_pattern, entry):
+                            cursor_found = True
+                            print(f"✓ Log cursor formatting: '{entry}' matches '>• MM-DD HH:MM'")
+                        elif re.search(non_cursor_pattern, entry):
+                            non_cursor_found = True
+                            print(f"✓ Log non-cursor formatting: '{entry}' matches ' • MM-DD HH:MM'")
+                        # Try fallback patterns if Unicode doesn't render
+                        elif re.search(cursor_pattern_fallback, entry):
+                            cursor_found = True
+                            print(f"✓ Log cursor formatting (fallback): '{entry}' matches '> MM-DD HH:MM'")
+                        elif re.search(non_cursor_pattern_fallback, entry):
+                            non_cursor_found = True
+                            print(f"✓ Log non-cursor formatting (fallback): '{entry}' matches '  MM-DD HH:MM'")
+                    
+                    # Should find formatting (either with bullet or fallback without)
+                    assert cursor_found or non_cursor_found, "Should find either cursor or non-cursor formatting"
+                    
+                    print("✓ Log commit prefix formatting correct")
+                    
+                except Exception as e:
+                    print(f"Log prefix formatting test failed: {e}")
                     if "not found" in str(e).lower():
                         pytest.skip("Log command not available")
                     else:

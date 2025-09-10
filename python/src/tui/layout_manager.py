@@ -7,13 +7,13 @@ import curses
 class LayoutManager:
     """Manages dynamic column width calculations."""
     
-    # Constants for full datetime format approach
-    # Format: "YYYY-MM-DD HH:MM author_name title..."
-    # Full datetime (16 chars) + space + author + space + title
-    MIN_COMMIT_WIDTH = 32   # Minimum for datetime + reasonable author name
-    MAX_COMMIT_WIDTH = 60   # Cap to leave more space for messages
+    # Constants for short datetime format approach  
+    # Format: "MM-DD HH:MM author_name title..."
+    # Short datetime (11 chars) + space + author + space + title
+    MIN_COMMIT_WIDTH = 27   # Minimum for short datetime + reasonable author name
+    MAX_COMMIT_WIDTH = 48   # Cap to leave more space for messages
     MIN_MESSAGE_WIDTH = 25
-    MIN_LOG_WIDTH = 17  # Space for "• MM-DD HH:MM" (13 chars) + borders + padding (width-4 logic)
+    MIN_LOG_WIDTH = 17  # Space for "• MM-DD HH:MM" (13 chars) + borders + padding
     MAX_LOG_WIDTH = 17  # Keep minimal to avoid padding
     
     # Indicators for scrollable content
@@ -31,7 +31,8 @@ class LayoutManager:
         self, 
         screen_width: int, 
         commit_titles: List[str],
-        log_count: int = 0
+        log_count: int = 0,
+        read_only_mode: bool = False
     ) -> Tuple[int, int, int]:
         """Calculate optimal column widths.
         
@@ -39,6 +40,7 @@ class LayoutManager:
             screen_width: Total screen width available
             commit_titles: List of commit titles for width calculation
             log_count: Number of log entries (0 if no logs)
+            read_only_mode: If True, use shorter prefix (tigs log), else use checkbox prefix (tigs store)
         
         Returns:
             Tuple of (commit_width, message_width, log_width)
@@ -54,13 +56,22 @@ class LayoutManager:
         # Titles will wrap naturally, so we don't need to calculate based on title length
         available_for_commits = screen_width - log_width
         
-        # Use a proportion that balances commits and messages  
+        # Use a smaller proportion since short datetime saves space
         ideal_commit_width = min(
-            int(available_for_commits * 0.5),  # 50% for more balanced layout
+            int(available_for_commits * 0.4),  # 40% since short datetime is more compact
             self.MAX_COMMIT_WIDTH
         )
         
         commit_width = max(self.MIN_COMMIT_WIDTH, ideal_commit_width)
+        
+        # In read-only mode (tigs log), we can save 6 characters from shorter prefix  
+        # Store prefix: ">[ ] * " (6 chars), Log prefix: ">• " (3 chars)
+        # But add 1 extra char to store width so metadata display matches log
+        if read_only_mode:
+            commit_width = max(self.MIN_COMMIT_WIDTH - 6, commit_width - 6)
+        else:
+            # Store mode gets +1 char to match metadata display with log (but cap at MAX)
+            commit_width = min(self.MAX_COMMIT_WIDTH, commit_width + 1)
         
         # Calculate message width with remaining space
         message_width = screen_width - commit_width - log_width

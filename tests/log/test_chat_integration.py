@@ -92,12 +92,19 @@ class TestChatIntegration:
                 
                 lines = tui.capture()
                 
-                # Extract chat pane content
+                # Extract chat pane content - chat column starts at position 91
                 chat_content = []
                 for line in lines[2:20]:  # Skip headers
+                    # Try both methods: get_third_pane and direct extraction
                     third = get_third_pane(line)
                     if third:
                         chat_content.append(third)
+                    
+                    # Also try direct extraction from known position
+                    if len(line) > 91:
+                        direct_chat = line[91:].strip()
+                        if direct_chat and direct_chat not in chat_content:
+                            chat_content.append(direct_chat)
                 
                 chat_text = " ".join(chat_content)
                 print(f"Chat content: {chat_text[:300]}")
@@ -126,9 +133,16 @@ class TestChatIntegration:
                 lines = tui.capture()
                 no_chat_content = []
                 for line in lines[2:20]:
+                    # Try both methods: get_third_pane and direct extraction
                     third = get_third_pane(line)
                     if third:
                         no_chat_content.append(third)
+                    
+                    # Also try direct extraction from known position
+                    if len(line) > 91:
+                        direct_chat = line[91:].strip()
+                        if direct_chat and direct_chat not in no_chat_content:
+                            no_chat_content.append(direct_chat)
                 
                 no_chat_text = " ".join(no_chat_content)
                 

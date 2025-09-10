@@ -265,8 +265,8 @@ def get_last_commit(lines: List[str]) -> Optional[str]:
     import re
     for line in reversed(lines[1:]):  # Skip header line, search backwards
         pane_content = get_first_pane(line)
-        # Format: "x [ ][ ] YYYY-MM-DD HH:MM AuthorName commit message"
-        match = re.search(r'\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}\s+\S+\s+(.+)', pane_content)
+        # Format: "x [ ][ ] MM-DD HH:MM AuthorName commit message"
+        match = re.search(r'\d{2}-\d{2}\s+\d{2}:\d{2}\s+\S+\s+(.+)', pane_content)
         if match:
             return match.group(1).strip()
     return None
@@ -283,17 +283,18 @@ def get_commit_at_cursor(lines: List[str]) -> Optional[str]:
         header_pane_content = get_first_pane(lines[header_row])
         
         # If current line doesn't have timestamp, search backwards for header
-        if not re.search(r'\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}', header_pane_content):
+        # Only support short format (MM-DD HH:MM)
+        if not re.search(r'\d{2}-\d{2}\s+\d{2}:\d{2}', header_pane_content):
             for i in range(cursor_row, max(0, cursor_row - 5), -1):
                 if i < len(lines):
                     pane_content = get_first_pane(lines[i])
-                    if re.search(r'\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}', pane_content):
+                    if re.search(r'\d{2}-\d{2}\s+\d{2}:\d{2}', pane_content):
                         header_row = i
                         header_pane_content = pane_content
                         break
         
-        # Extract first line of commit message from header
-        match = re.search(r'\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}\s+\S+\s+(.+)', header_pane_content)
+        # Extract first line of commit message from header (MM-DD format only)
+        match = re.search(r'\d{2}-\d{2}\s+\d{2}:\d{2}\s+\S+\s+(.+)', header_pane_content)
         if not match:
             return None
             
@@ -304,7 +305,7 @@ def get_commit_at_cursor(lines: List[str]) -> Optional[str]:
             pane_content = get_first_pane(lines[i])
             
             # Stop if we hit another commit (has timestamp) or empty content
-            if re.search(r'\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}', pane_content) or not pane_content.strip():
+            if re.search(r'\d{2}-\d{2}\s+\d{2}:\d{2}', pane_content) or not pane_content.strip():
                 break
                 
             # Add continuation line (strip leading spaces and filter out separators)
@@ -326,8 +327,8 @@ def get_all_visible_commits(lines: List[str]) -> List[str]:
     commits = []
     for line in lines[1:]:  # Skip header line
         pane_content = get_first_pane(line)
-        # Format: "x [>][ ] YYYY-MM-DD HH:MM AuthorName commit message"
-        match = re.search(r'\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}\s+\S+\s+(.+)', pane_content)
+        # Format: "x [>][ ] MM-DD HH:MM AuthorName commit message"
+        match = re.search(r'\d{2}-\d{2}\s+\d{2}:\d{2}\s+\S+\s+(.+)', pane_content)
         if match and match.group(1).strip() not in commits:  # Avoid duplicates
             commits.append(match.group(1).strip())
     return commits

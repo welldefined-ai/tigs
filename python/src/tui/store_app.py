@@ -163,7 +163,7 @@ class TigsStoreApp:
             # Calculate dynamic widths
             if self.layout_manager.needs_recalculation(width):
                 commit_width, message_width, log_width = self.layout_manager.calculate_column_widths(
-                    width, commit_titles, log_count
+                    width, commit_titles, log_count, read_only_mode=False  # Full prefix with checkboxes
                 )
             else:
                 commit_width, message_width, log_width = self.layout_manager.cached_widths

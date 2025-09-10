@@ -61,7 +61,7 @@ class TestSessionNavigation:
         
         with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120), env=env) as tui:
             try:
-                tui.wait_for("Logs", timeout=5.0)
+                tui.wait_for("Sessions", timeout=5.0)
                 
                 print("=== Session Lifecycle Test ===")
                 
@@ -99,7 +99,7 @@ class TestSessionNavigation:
         
         with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120), env=env) as tui:
             try:
-                tui.wait_for("Logs", timeout=5.0)
+                tui.wait_for("Sessions", timeout=5.0)
                 
                 print("=== Session Navigation Reload Test ===")
                 

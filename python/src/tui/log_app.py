@@ -117,11 +117,19 @@ class TigsLogApp:
             # Clear screen
             stdscr.clear()
             
-            # Calculate column widths for three-column layout
-            # Commits: 30%, Details: 40%, Chat: 30%
-            commit_width = max(30, width * 30 // 100)
-            details_width = max(40, width * 40 // 100)
-            chat_width = width - commit_width - details_width
+            # Calculate column widths using layout manager for consistency with store
+            commit_titles = [c['subject'] for c in self.commit_view.commits] if self.commit_view.commits else []
+            
+            if self.layout_manager.needs_recalculation(width):
+                commit_width, remaining_width, _ = self.layout_manager.calculate_column_widths(
+                    width, commit_titles, 0, read_only_mode=True  # No log column, shorter prefix in log view
+                )
+            else:
+                commit_width, remaining_width, _ = self.layout_manager.cached_widths
+            
+            # Split remaining width evenly between details and chat
+            details_width = remaining_width // 2
+            chat_width = remaining_width - details_width
             
             pane_height = height - 1  # Leave room for status bar
             
