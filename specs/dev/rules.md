@@ -11,8 +11,9 @@
 ## Python Implementation
 
 - Directory: `python/`
-- Package name: `cligent`
+- Package name: `tigs`
 - Package manager: `uv`
 - Registry: PyPI
-- Source layout: `python/src/` (no nested `src/cligent/` directory)
+- Source layout: `python/src/` (no nested `src/tigs/` directory)
 
+On first setup, if a uv virtual environment is not present in the python directory, create one with `uv init`.
