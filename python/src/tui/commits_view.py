@@ -2,7 +2,7 @@
 
 import curses
 import subprocess
-from typing import List, Tuple, Optional, Set, Dict
+from typing import List, Tuple, Optional, Set, Dict, Union
 from datetime import datetime, timedelta
 import re
 
@@ -10,6 +10,7 @@ from .selection_mixin import VisualSelectionMixin
 from .scrollable_mixin import ScrollableMixin
 from .indicators import SelectionIndicators
 from .text_utils import word_wrap, display_width
+from .color_constants import COLOR_AUTHOR, COLOR_METADATA, COLOR_DEFAULT
 
 
 class CommitView(VisualSelectionMixin, ScrollableMixin):
@@ -106,19 +107,24 @@ class CommitView(VisualSelectionMixin, ScrollableMixin):
             # Could be: not a git repo, no commits, or other git issue
             # For debugging, we could log: e.stderr
     
-    def get_display_lines(self, height: int, width: int = 32) -> List[str]:
+    def get_display_lines(self, height: int, width: int = 32, colors_enabled: bool = False) -> List[Union[str, List[Tuple[str, int]]]]:
         """Get display lines for commits pane.
         
         Args:
             height: Available height for content
+            width: Available width for content
+            colors_enabled: Whether to return colored output
             
         Returns:
-            List of formatted commit lines
+            List of formatted commit lines (strings or color tuple lists)
         """
         lines = []
         
         if not self.commits:
-            lines.append("(No commits to display)")
+            if colors_enabled:
+                lines.append([("(No commits to display)", COLOR_DEFAULT)])
+            else:
+                lines.append("(No commits to display)")
             return lines
         
         # Calculate commit heights with current width
@@ -150,7 +156,10 @@ class CommitView(VisualSelectionMixin, ScrollableMixin):
                     # Try to fit as much as possible on first line
                     if display_width(first_title_line) <= first_line_width:
                         # Full first line fits
-                        lines.append(f"{prefix}{first_title_line}")
+                        if colors_enabled:
+                            lines.append(self._build_colored_line(prefix, first_title_line, datetime_indent))
+                        else:
+                            lines.append(f"{prefix}{first_title_line}")
                         start_idx = 1
                     else:
                         # Split the first line to fit what we can
@@ -169,7 +178,11 @@ class CommitView(VisualSelectionMixin, ScrollableMixin):
                         
                         if line_words:
                             # Put partial title on first line
-                            lines.append(f"{prefix}{' '.join(line_words)}")
+                            partial_title = ' '.join(line_words)
+                            if colors_enabled:
+                                lines.append(self._build_colored_line(prefix, partial_title, datetime_indent))
+                            else:
+                                lines.append(f"{prefix}{partial_title}")
                             # Rewrap remaining text with rest of wrapped title
                             remaining_words = words[len(line_words):]
                             if remaining_words:
@@ -179,33 +192,59 @@ class CommitView(VisualSelectionMixin, ScrollableMixin):
                                     combined_text += ' ' + wrapped_title[idx]
                                 wrapped_remaining = self._word_wrap_commit_title(combined_text, width - datetime_indent - 4)
                                 for title_line in wrapped_remaining:
-                                    lines.append(f"{' ' * datetime_indent}{title_line}")
+                                    if colors_enabled:
+                                        # Wrapped lines: indentation + title with default color
+                                        lines.append([(" " * datetime_indent, COLOR_DEFAULT), (title_line, COLOR_DEFAULT)])
+                                    else:
+                                        lines.append(f"{' ' * datetime_indent}{title_line}")
                             else:
                                 # First line partially fits, add rest of wrapped lines
                                 for idx in range(1, len(wrapped_title)):
-                                    lines.append(f"{' ' * datetime_indent}{wrapped_title[idx]}")
+                                    if colors_enabled:
+                                        lines.append([(" " * datetime_indent, COLOR_DEFAULT), (wrapped_title[idx], COLOR_DEFAULT)])
+                                    else:
+                                        lines.append(f"{' ' * datetime_indent}{wrapped_title[idx]}")
                         else:
                             # Can't fit any title words, put on next line
-                            lines.append(prefix.rstrip())
-                            lines.append(f"{' ' * datetime_indent}{first_title_line}")
+                            if colors_enabled:
+                                lines.append(self._build_colored_line(prefix.rstrip(), "", datetime_indent))
+                                lines.append([(" " * datetime_indent, COLOR_DEFAULT), (first_title_line, COLOR_DEFAULT)])
+                            else:
+                                lines.append(prefix.rstrip())
+                                lines.append(f"{' ' * datetime_indent}{first_title_line}")
                             # Add rest of wrapped lines
                             for idx in range(1, len(wrapped_title)):
-                                lines.append(f"{' ' * datetime_indent}{wrapped_title[idx]}")
+                                if colors_enabled:
+                                    lines.append([(" " * datetime_indent, COLOR_DEFAULT), (wrapped_title[idx], COLOR_DEFAULT)])
+                                else:
+                                    lines.append(f"{' ' * datetime_indent}{wrapped_title[idx]}")
                 else:
                     # Not enough space, put all title lines on next lines
-                    lines.append(prefix.rstrip())
-                    for title_line in wrapped_title:
-                        lines.append(f"{' ' * datetime_indent}{title_line}")
+                    if colors_enabled:
+                        lines.append(self._build_colored_line(prefix.rstrip(), "", datetime_indent))
+                        for title_line in wrapped_title:
+                            lines.append([(" " * datetime_indent, COLOR_DEFAULT), (title_line, COLOR_DEFAULT)])
+                    else:
+                        lines.append(prefix.rstrip())
+                        for title_line in wrapped_title:
+                            lines.append(f"{' ' * datetime_indent}{title_line}")
             else:
                 # No title
-                lines.append(prefix.rstrip())
+                if colors_enabled:
+                    lines.append(self._build_colored_line(prefix.rstrip(), "", datetime_indent))
+                else:
+                    lines.append(prefix.rstrip())
         
         # Add visual mode indicator if active (not in read-only mode)
         if self.visual_mode and not self.read_only:
             # Add at bottom if there's room
             if len(lines) < height - 2:
-                lines.append("")
-                lines.append(SelectionIndicators.VISUAL_MODE)
+                if colors_enabled:
+                    lines.append([("", COLOR_DEFAULT)])  # Blank line
+                    lines.append([(SelectionIndicators.VISUAL_MODE, COLOR_DEFAULT)])
+                else:
+                    lines.append("")
+                    lines.append(SelectionIndicators.VISUAL_MODE)
         
         return lines
     
@@ -442,6 +481,70 @@ class CommitView(VisualSelectionMixin, ScrollableMixin):
         
         return heights
     
+    
+    def _build_colored_line(self, prefix: str, title: str, datetime_indent: int) -> List[Tuple[str, int]]:
+        """Build a colored line from commit components.
+        
+        Args:
+            prefix: The prefix containing selection/cursor, datetime, author
+            title: The commit subject/title text
+            datetime_indent: Indentation for wrapped lines
+            
+        Returns:
+            List of (text, color_pair) tuples for colored rendering
+        """
+        parts = []
+        
+        # Parse prefix to identify components
+        # Format in store mode: "[ ]* 09-10 15:30 Author "
+        # Format in log mode: ">• 09-10 15:30 Author "
+        if not prefix:
+            return [(title, COLOR_DEFAULT)] if title else []
+        
+        # For read-only mode, format is: ">• datetime author"
+        # For store mode, format is: "[ ]* datetime author"
+        
+        # Find the first digit (start of datetime)
+        datetime_start = -1
+        for i, char in enumerate(prefix):
+            if char.isdigit():
+                datetime_start = i
+                break
+        
+        if datetime_start > 0:
+            # Everything before datetime is selection/cursor/note indicators
+            indicator_part = prefix[:datetime_start]
+            parts.append((indicator_part, COLOR_DEFAULT))
+            
+            # Find where datetime ends (look for next letter after digits/punctuation)
+            datetime_end = datetime_start
+            for i in range(datetime_start, len(prefix)):
+                char = prefix[i]
+                # DateTime contains digits, hyphens, colons, spaces
+                if char.isdigit() or char in '-: ':
+                    datetime_end = i + 1
+                elif char.isalpha():
+                    # Found start of author name
+                    break
+            
+            # DateTime part
+            datetime_part = prefix[datetime_start:datetime_end]
+            if datetime_part:
+                parts.append((datetime_part, COLOR_METADATA))
+            
+            # Author part (everything after datetime)
+            author_part = prefix[datetime_end:]
+            if author_part:
+                parts.append((author_part, COLOR_AUTHOR))
+        else:
+            # No datetime found, treat whole prefix as indicator
+            parts.append((prefix, COLOR_DEFAULT))
+        
+        # Add title with default color
+        if title:
+            parts.append((title, COLOR_DEFAULT))
+        
+        return parts
     
     def _visible_commit_items(self, height: int) -> int:
         """Calculate how many commit items can fit in the given height.

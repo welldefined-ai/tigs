@@ -178,8 +178,8 @@ class TigsStoreApp:
             else:
                 session_width = log_width
             
-            # Get commit display lines (now with width parameter)
-            commit_lines = self.commit_view.get_display_lines(pane_height, commit_width)
+            # Get commit display lines (now with width and colors parameters)
+            commit_lines = self.commit_view.get_display_lines(pane_height, commit_width, self._colors_enabled)
             
             # DEBUG: Add status to see if commits are loading
             if not commit_lines:
@@ -190,8 +190,8 @@ class TigsStoreApp:
                                   "Commits", self.focused_pane == 0,
                                   commit_lines, self._colors_enabled)
             
-            # Get message display lines (now with width parameter)
-            message_lines = self.message_view.get_display_lines(pane_height, message_width)
+            # Get message display lines (now with width and colors parameters)
+            message_lines = self.message_view.get_display_lines(pane_height, message_width, self._colors_enabled)
             
             PaneRenderer.draw_pane(stdscr, 0, commit_width, pane_height, message_width,
                                   "Messages", self.focused_pane == 1,

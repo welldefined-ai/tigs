@@ -47,7 +47,7 @@ class TestLogAppIntegration:
             mock_stdscr.getmaxyx.return_value = (30, 120)
             
             # Simulate Tab key press
-            with patch.object(app, '_draw_pane'):
+            with patch('src.tui.log_app.PaneRenderer'):
                 # Tab should move to pane 1 (details)
                 app.focused_pane = 0
                 key = ord('\t')

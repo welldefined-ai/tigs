@@ -1,7 +1,7 @@
 """Message view management for TUI."""
 
 import curses
-from typing import List, Tuple, Optional, Set
+from typing import List, Tuple, Optional, Set, Union
 from datetime import datetime
 
 from cligent import Role
@@ -9,6 +9,7 @@ from .selection_mixin import VisualSelectionMixin
 from .scrollable_mixin import ScrollableMixin
 from .indicators import SelectionIndicators
 from .text_utils import word_wrap
+from .color_constants import get_role_color, COLOR_METADATA, COLOR_DEFAULT
 
 
 class MessageView(VisualSelectionMixin, ScrollableMixin):
@@ -116,19 +117,24 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
         except:
             return ""
     
-    def get_display_lines(self, height: int, width: int = 40) -> List[str]:
+    def get_display_lines(self, height: int, width: int = 40, colors_enabled: bool = False) -> List[Union[str, List[Tuple[str, int]]]]:
         """Get display lines for messages pane with bottom-anchored display.
         
         Args:
             height: Available height for content
+            width: Available width for content
+            colors_enabled: Whether to return colored output
             
         Returns:
-            List of formatted message lines
+            List of formatted message lines (strings or color tuple lists)
         """
         lines = []
         
         if not self.messages:
-            lines.append("(No messages to display)")
+            if colors_enabled:
+                lines.append([("(No messages to display)", COLOR_DEFAULT)])
+            else:
+                lines.append("(No messages to display)")
             return lines
         
         # Initialize message view on first draw when we have screen height
@@ -157,11 +163,32 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
             
             # Format message header
             if role == 'user':
-                header = f"{cursor_indicator}{selection_indicator} User{self._format_timestamp(timestamp)}:"
+                role_text = "User"
+            elif role == 'assistant':
+                role_text = "Assistant"
+            elif role == 'system':
+                role_text = "System"
             else:
-                header = f"{cursor_indicator}{selection_indicator} Assistant{self._format_timestamp(timestamp)}:"
+                role_text = role.capitalize()
+            timestamp_text = self._format_timestamp(timestamp)
             
-            lines.append(header)
+            if colors_enabled:
+                # Build colored header parts
+                header_parts = []
+                # Selection and cursor indicators - default color
+                header_parts.append((f"{cursor_indicator}{selection_indicator} ", COLOR_DEFAULT))
+                # Role with appropriate color
+                role_color = get_role_color(role)
+                header_parts.append((role_text, role_color))
+                # Timestamp with metadata color
+                if timestamp_text:
+                    header_parts.append((timestamp_text, COLOR_METADATA))
+                # Colon separator
+                header_parts.append((":", COLOR_DEFAULT))
+                lines.append(header_parts)
+            else:
+                header = f"{cursor_indicator}{selection_indicator} {role_text}{timestamp_text}:"
+                lines.append(header)
             
             # Add wrapped content lines
             content_width = max(10, width - 6)  # Account for borders and indentation
@@ -170,16 +197,27 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
                     wrapped_lines = self._word_wrap(line, content_width)
                     for wrapped in wrapped_lines:
                         if len(lines) < height - 2:
-                            lines.append(f"    {wrapped}")
+                            if colors_enabled:
+                                # Indented content with default color
+                                lines.append([("    ", COLOR_DEFAULT), (wrapped, COLOR_DEFAULT)])
+                            else:
+                                lines.append(f"    {wrapped}")
             
             # Add separator between messages if not the last
             if i < end_idx - 1 and len(lines) < height - 2:
-                lines.append("")
+                if colors_enabled:
+                    lines.append([("", COLOR_DEFAULT)])
+                else:
+                    lines.append("")
         
         # Add status line if in visual mode
         if self.visual_mode:
-            lines.append("")
-            lines.append(SelectionIndicators.VISUAL_MODE)
+            if colors_enabled:
+                lines.append([("", COLOR_DEFAULT)])
+                lines.append([(SelectionIndicators.VISUAL_MODE, COLOR_DEFAULT)])
+            else:
+                lines.append("")
+                lines.append(SelectionIndicators.VISUAL_MODE)
         
         return lines
     

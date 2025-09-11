@@ -5,6 +5,10 @@ import subprocess
 from typing import List, Optional
 from .text_utils import word_wrap
 from .view_scroll_mixin import ViewScrollMixin
+from .color_constants import (
+    COLOR_DEFAULT, COLOR_AUTHOR, COLOR_COMMIT, COLOR_DATE,
+    COLOR_REFS, COLOR_DELETE, COLOR_METADATA
+)
 
 
 class CommitDetailsView(ViewScrollMixin):
@@ -233,20 +237,20 @@ class CommitDetailsView(ViewScrollMixin):
             
             for line in self.total_lines:
                 # Determine color for this line before wrapping
-                color_pair = 0  # Default color
+                color_pair = COLOR_DEFAULT  # Default color
                 file_stats_data = None  # Will store (filename, changes) for file stats lines
                 
                 # Always calculate colors, we'll decide whether to use them later
                 line_stripped = line.lstrip()
                 
                 if line.startswith("commit "):
-                    color_pair = 3  # Green for entire commit line including SHA
+                    color_pair = COLOR_COMMIT  # Green for entire commit line including SHA
                 elif line_stripped.startswith("Author:"):
-                    color_pair = 2  # Cyan for entire author line including email
+                    color_pair = COLOR_AUTHOR  # Cyan for entire author line including email
                 elif line_stripped.startswith("Date:"):
-                    color_pair = 4  # Yellow for entire date line including time
+                    color_pair = COLOR_DATE  # Yellow for entire date line including time
                 elif line_stripped.startswith("Refs:"):
-                    color_pair = 5  # Magenta for refs
+                    color_pair = COLOR_REFS  # Magenta for refs
                 elif " | " in line and self._is_file_stats_line(line):
                     # File stats line - will need special handling for multi-color
                     # This includes regular changes, binary files, and renames with 0 changes
@@ -258,11 +262,11 @@ class CommitDetailsView(ViewScrollMixin):
                 elif "file changed" in line or "files changed" in line:
                     # Summary line
                     if "insertions(+)" in line and "deletions(-)" not in line:
-                        color_pair = 3  # Green for only insertions
+                        color_pair = COLOR_COMMIT  # Green for only insertions
                     elif "deletions(-)" in line and "insertions(+)" not in line:
-                        color_pair = 6  # Red for only deletions
+                        color_pair = COLOR_DELETE  # Red for only deletions
                     else:
-                        color_pair = 0  # Default for mixed
+                        color_pair = COLOR_DEFAULT  # Default for mixed
                 
                 # Now wrap the line and apply the same color to all wrapped parts
                 if len(line) <= width - 4:
@@ -295,7 +299,7 @@ class CommitDetailsView(ViewScrollMixin):
                 if line_idx < len(self._line_colors):
                     color_pair = self._line_colors[line_idx]
                 else:
-                    color_pair = 0
+                    color_pair = COLOR_DEFAULT
                 
                 # Check if this is a file stats line (original or wrapped)
                 file_stats_data = None
@@ -312,7 +316,7 @@ class CommitDetailsView(ViewScrollMixin):
                         # This is the line with the separator
                         pipe_idx = line.index(" | ")
                         actual_filename = line[:pipe_idx + 3]  # Include " | "
-                        parts.append((actual_filename, 7))  # Blue for filename
+                        parts.append((actual_filename, COLOR_METADATA))  # Blue for filename
                         
                         # Changes part after the pipe
                         actual_changes = line[pipe_idx + 3:]
@@ -321,14 +325,14 @@ class CommitDetailsView(ViewScrollMixin):
                         # If the original filename part contains this line, it's filename
                         if line in filename_part:
                             # This is a wrapped part of the filename (before the separator)
-                            parts.append((line, 7))  # Blue for filename part
+                            parts.append((line, COLOR_METADATA))  # Blue for filename part
                             actual_changes = ""
                         else:
                             # This is a wrapped continuation of the changes
                             actual_changes = line
                     else:
                         # No changes, just filename
-                        parts.append((line, 7))
+                        parts.append((line, COLOR_METADATA))
                         actual_changes = ""
                     
                     # Color the changes part
@@ -336,11 +340,11 @@ class CommitDetailsView(ViewScrollMixin):
                         change_chars = []
                         for char in actual_changes:
                             if char == '+':
-                                change_chars.append((char, 3))  # Green for +
+                                change_chars.append((char, COLOR_COMMIT))  # Green for +
                             elif char == '-':
-                                change_chars.append((char, 6))  # Red for -
+                                change_chars.append((char, COLOR_DELETE))  # Red for -
                             else:
-                                change_chars.append((char, 0))  # Default for other chars
+                                change_chars.append((char, COLOR_DEFAULT))  # Default for other chars
                         
                         # Combine consecutive chars with same color
                         if change_chars:
