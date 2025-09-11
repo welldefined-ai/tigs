@@ -12,6 +12,7 @@ from .commits_view import CommitView
 from .messages_view import MessageView
 from .sessions_view import SessionsView
 from .layout_manager import LayoutManager
+from .pane_renderer import PaneRenderer
 
 
 class TigsStoreApp:
@@ -94,16 +95,18 @@ class TigsStoreApp:
                 except curses.error:
                     use_default_ok = False
 
-                # pair 1: "normal" – only safe to set to (-1,-1) if use_default_colors worked
                 if use_default_ok:
                     curses.init_pair(1, -1, -1)
                 else:
-                    # fallback: conservative bg, still keep pair id consistent
                     curses.init_pair(1, curses.COLOR_WHITE, curses.COLOR_BLACK)
-
-                # pair 2: focused - use green like tig for better visibility on light backgrounds
-                bg = -1 if use_default_ok else curses.COLOR_BLACK
-                curses.init_pair(2, curses.COLOR_GREEN, bg)
+                
+                # Color pairs matching tig's scheme:
+                curses.init_pair(2, curses.COLOR_CYAN, -1 if use_default_ok else curses.COLOR_BLACK)     # Author, focused border
+                curses.init_pair(3, curses.COLOR_GREEN, -1 if use_default_ok else curses.COLOR_BLACK)    # Commit SHA, additions
+                curses.init_pair(4, curses.COLOR_YELLOW, -1 if use_default_ok else curses.COLOR_BLACK)   # Date, headers
+                curses.init_pair(5, curses.COLOR_MAGENTA, -1 if use_default_ok else curses.COLOR_BLACK)  # Refs, diff chunks
+                curses.init_pair(6, curses.COLOR_RED, -1 if use_default_ok else curses.COLOR_BLACK)      # Deletions
+                curses.init_pair(7, curses.COLOR_BLUE, -1 if use_default_ok else curses.COLOR_BLACK)     # Other metadata
 
                 self._colors_enabled = True
             except curses.error:
@@ -182,24 +185,24 @@ class TigsStoreApp:
             if not commit_lines:
                 commit_lines = [f"DEBUG: {len(self.commit_view.commits)} commits"]
             
-            # Draw panes directly on stdscr
-            self._draw_pane(stdscr, 0, 0, pane_height, commit_width, 
-                           "Commits", self.focused_pane == 0,
-                           commit_lines)
+            # Draw panes using PaneRenderer
+            PaneRenderer.draw_pane(stdscr, 0, 0, pane_height, commit_width, 
+                                  "Commits", self.focused_pane == 0,
+                                  commit_lines, self._colors_enabled)
             
             # Get message display lines (now with width parameter)
             message_lines = self.message_view.get_display_lines(pane_height, message_width)
             
-            self._draw_pane(stdscr, 0, commit_width, pane_height, message_width,
-                           "Messages", self.focused_pane == 1,
-                           message_lines)
+            PaneRenderer.draw_pane(stdscr, 0, commit_width, pane_height, message_width,
+                                  "Messages", self.focused_pane == 1,
+                                  message_lines, self._colors_enabled)
             
             # Get log display lines and draw logs pane only if wide enough
             if session_width >= 2:
                 log_lines = self.log_view.get_display_lines(pane_height)
-                self._draw_pane(stdscr, 0, commit_width + message_width, pane_height, session_width,
-                               "Sessions", self.focused_pane == 2,
-                               log_lines)
+                PaneRenderer.draw_pane(stdscr, 0, commit_width + message_width, pane_height, session_width,
+                                      "Sessions", self.focused_pane == 2,
+                                      log_lines, self._colors_enabled)
             
             # Draw status bar
             self._draw_status_bar(stdscr, height - 1, width)
@@ -230,92 +233,6 @@ class TigsStoreApp:
                     log_id = self.log_view.get_selected_log_id()
                     if log_id:
                         self.message_view.load_messages(log_id)
-                
-    def _draw_pane(self, stdscr, y: int, x: int, height: int, width: int, 
-                   title: str, focused: bool, content: List[str]) -> None:
-        """Draw a pane directly on stdscr.
-        
-        Args:
-            stdscr: The curses screen
-            y: Top position
-            x: Left position
-            height: Pane height
-            width: Pane width
-            title: Pane title
-            focused: Whether this pane has focus
-            content: Lines of content to display
-        """
-        if width < 2 or height < 2:
-            return
-            
-        # Use different border styles for focused vs unfocused
-        if focused:
-            # Same box characters but with color/bold for focused pane
-            tl = curses.ACS_ULCORNER  # Top-left
-            tr = curses.ACS_URCORNER  # Top-right
-            bl = curses.ACS_LLCORNER  # Bottom-left
-            br = curses.ACS_LRCORNER  # Bottom-right
-            hz = curses.ACS_HLINE     # Horizontal
-            vt = curses.ACS_VLINE     # Vertical
-            
-            # Use color if available
-            if self._colors_enabled:
-                stdscr.attron(curses.color_pair(2))
-                stdscr.attron(curses.A_BOLD)
-        else:
-            # Same characters for unfocused, just without color/bold
-            tl = curses.ACS_ULCORNER
-            tr = curses.ACS_URCORNER
-            bl = curses.ACS_LLCORNER
-            br = curses.ACS_LRCORNER
-            hz = curses.ACS_HLINE
-            vt = curses.ACS_VLINE
-            
-            if self._colors_enabled:
-                stdscr.attron(curses.color_pair(1))
-        
-        # Draw corners
-        try:
-            stdscr.addch(y, x, tl)
-            stdscr.addch(y, x + width - 1, tr)
-            stdscr.addch(y + height - 1, x, bl)
-            stdscr.addch(y + height - 1, x + width - 1, br)
-            
-            # Draw horizontal lines
-            for i in range(1, width - 1):
-                stdscr.addch(y, x + i, hz)
-                stdscr.addch(y + height - 1, x + i, hz)
-                
-            # Draw vertical lines
-            for i in range(1, height - 1):
-                stdscr.addch(y + i, x, vt)
-                stdscr.addch(y + i, x + width - 1, vt)
-                
-            # Draw title
-            if title and len(title) + 4 < width:
-                title_text = f" {title} "
-                title_x = x + (width - len(title_text)) // 2
-                stdscr.addstr(y, title_x, title_text)
-                
-            # Draw content
-            for i, line in enumerate(content):
-                if i + 1 < height - 1:  # Leave room for border
-                    if len(line) > width - 4:
-                        line = line[:width - 4]
-                    stdscr.addstr(y + i + 1, x + 2, line)
-                    
-        except curses.error:
-            pass  # Ignore errors from drawing outside screen
-            
-        # Reset attributes
-        if focused:
-            if self._colors_enabled:
-                stdscr.attroff(curses.A_BOLD)
-                stdscr.attroff(curses.color_pair(2))
-        else:
-            if self._colors_enabled:
-                stdscr.attroff(curses.color_pair(1))
-                
     def _draw_status_bar(self, stdscr, y: int, width: int) -> None:
         """Draw the status bar.
         

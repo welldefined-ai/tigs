@@ -9,6 +9,7 @@ from .commits_view import CommitView
 from .commit_details_view import CommitDetailsView
 from .chat_view import ChatView
 from .layout_manager import LayoutManager
+from .pane_renderer import PaneRenderer
 
 
 class TigsLogApp:
@@ -143,13 +144,16 @@ class TigsLogApp:
             details_lines = self.commit_details_view.get_display_lines(pane_height, details_width, self._colors_enabled)
             chat_lines = self.chat_display_view.get_display_lines(pane_height, chat_width)
             
-            # Draw panes with focus state
-            self._draw_pane(stdscr, 0, 0, pane_height, commit_width,
-                           "Commits", self.focused_pane == 0, commit_lines)
-            self._draw_pane(stdscr, 0, commit_width, pane_height, details_width,
-                           "Commit Details", self.focused_pane == 1, details_lines)
-            self._draw_pane(stdscr, 0, commit_width + details_width, pane_height, chat_width,
-                           "Chat", self.focused_pane == 2, chat_lines)
+            # Draw panes with focus state using PaneRenderer
+            PaneRenderer.draw_pane(stdscr, 0, 0, pane_height, commit_width,
+                                  "Commits", self.focused_pane == 0, commit_lines,
+                                  self._colors_enabled)
+            PaneRenderer.draw_pane(stdscr, 0, commit_width, pane_height, details_width,
+                                  "Commit Details", self.focused_pane == 1, details_lines,
+                                  self._colors_enabled)
+            PaneRenderer.draw_pane(stdscr, 0, commit_width + details_width, pane_height, chat_width,
+                                  "Chat", self.focused_pane == 2, chat_lines,
+                                  self._colors_enabled)
             
             # Draw status bar
             self._draw_status_bar(stdscr, height - 1, width)
@@ -184,99 +188,6 @@ class TigsLogApp:
                     # Chat pane - view scrolling
                     self.chat_display_view.handle_input(key, pane_height)
     
-    def _draw_pane(self, stdscr, y: int, x: int, height: int, width: int, 
-                   title: str, focused: bool, content: list) -> None:
-        """Draw a pane directly on stdscr.
-        
-        Args:
-            stdscr: The curses screen
-            y: Top position
-            x: Left position
-            height: Pane height
-            width: Pane width
-            title: Pane title
-            focused: Whether this pane has focus
-            content: Lines of content to display
-        """
-        if width < 2 or height < 2:
-            return
-            
-        # Use bold for focused pane instead of different colors
-        tl = curses.ACS_ULCORNER
-        tr = curses.ACS_URCORNER
-        bl = curses.ACS_LLCORNER
-        br = curses.ACS_LRCORNER
-        hz = curses.ACS_HLINE
-        vt = curses.ACS_VLINE
-        
-        if focused:
-            stdscr.attron(curses.A_BOLD)
-        
-        # Draw corners
-        try:
-            stdscr.addch(y, x, tl)
-            stdscr.addch(y, x + width - 1, tr)
-            stdscr.addch(y + height - 1, x, bl)
-            stdscr.addch(y + height - 1, x + width - 1, br)
-            
-            # Draw horizontal lines
-            for i in range(1, width - 1):
-                stdscr.addch(y, x + i, hz)
-                stdscr.addch(y + height - 1, x + i, hz)
-                
-            # Draw vertical lines
-            for i in range(1, height - 1):
-                stdscr.addch(y + i, x, vt)
-                stdscr.addch(y + i, x + width - 1, vt)
-                
-            # Draw title
-            if title and len(title) + 4 < width:
-                title_text = f" {title} "
-                title_x = x + (width - len(title_text)) // 2
-                stdscr.addstr(y, title_x, title_text)
-                
-            # Draw content (handle strings, tuples, and lists of tuples for multi-color)
-            for i, item in enumerate(content):
-                if i + 1 < height - 1:
-                    # Handle colored content
-                    if isinstance(item, list):
-                        # Multi-colored line (list of tuples)
-                        x_offset = x + 2
-                        remaining_width = width - 4
-                        for part_text, part_color in item:
-                            if remaining_width <= 0:
-                                break
-                            if len(part_text) > remaining_width:
-                                part_text = part_text[:remaining_width]
-                            if self._colors_enabled and part_color > 0:
-                                stdscr.attron(curses.color_pair(part_color))
-                            stdscr.addstr(y + i + 1, x_offset, part_text)
-                            if self._colors_enabled and part_color > 0:
-                                stdscr.attroff(curses.color_pair(part_color))
-                            x_offset += len(part_text)
-                            remaining_width -= len(part_text)
-                    elif isinstance(item, tuple):
-                        text, color_pair = item
-                        if len(text) > width - 4:
-                            text = text[:width - 4]
-                        if self._colors_enabled and color_pair > 0:
-                            stdscr.attron(curses.color_pair(color_pair))
-                        stdscr.addstr(y + i + 1, x + 2, text)
-                        if self._colors_enabled and color_pair > 0:
-                            stdscr.attroff(curses.color_pair(color_pair))
-                    else:
-                        # Plain string
-                        line = item
-                        if len(line) > width - 4:
-                            line = line[:width - 4]
-                        stdscr.addstr(y + i + 1, x + 2, line)
-                    
-        except curses.error:
-            pass
-            
-        # Reset attributes
-        if focused:
-            stdscr.attroff(curses.A_BOLD)
     
     def _draw_status_bar(self, stdscr, y: int, width: int) -> None:
         """Draw the status bar.
