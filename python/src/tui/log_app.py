@@ -140,7 +140,7 @@ class TigsLogApp:
             pane_height = height - 1  # Leave room for status bar
             
             # Get display lines from each view
-            commit_lines = self.commit_view.get_display_lines(pane_height, commit_width)
+            commit_lines = self.commit_view.get_display_lines(pane_height, commit_width, self._colors_enabled)
             details_lines = self.commit_details_view.get_display_lines(pane_height, details_width, self._colors_enabled)
             chat_lines = self.chat_display_view.get_display_lines(pane_height, chat_width)
             
