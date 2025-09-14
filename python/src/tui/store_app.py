@@ -10,7 +10,7 @@ from cligent import ChatParser
 
 from .commits_view import CommitView
 from .messages_view import MessageView
-from .sessions_view import SessionsView
+from .logs_view import LogsView
 from .layout_manager import LayoutManager
 from .pane_renderer import PaneRenderer
 
@@ -47,7 +47,7 @@ class TigsStoreApp:
         # Initialize view components
         self.commit_view = CommitView(self.store)
         self.message_view = MessageView(self.chat_parser)
-        self.log_view = SessionsView(self.chat_parser)
+        self.log_view = LogsView(self.chat_parser)
         
         # Give layout manager to commit view for horizontal scrolling
         self.commit_view.layout_manager = self.layout_manager
@@ -174,9 +174,9 @@ class TigsStoreApp:
             # Handle no logs case - give extra space to messages
             if log_count == 0:
                 message_width = width - commit_width
-                session_width = 0
+                log_pane_width = 0
             else:
-                session_width = log_width
+                log_pane_width = log_width
             
             # Get commit display lines (now with width and colors parameters)
             commit_lines = self.commit_view.get_display_lines(pane_height, commit_width, self._colors_enabled)
@@ -198,10 +198,10 @@ class TigsStoreApp:
                                   message_lines, self._colors_enabled)
             
             # Get log display lines and draw logs pane only if wide enough
-            if session_width >= 2:
+            if log_pane_width >= 2:
                 log_lines = self.log_view.get_display_lines(pane_height)
-                PaneRenderer.draw_pane(stdscr, 0, commit_width + message_width, pane_height, session_width,
-                                      "Sessions", self.focused_pane == 2,
+                PaneRenderer.draw_pane(stdscr, 0, commit_width + message_width, pane_height, log_pane_width,
+                                      "Logs", self.focused_pane == 2,
                                       log_lines, self._colors_enabled)
             
             # Draw status bar
@@ -227,9 +227,9 @@ class TigsStoreApp:
                 self.commit_view.handle_input(key, pane_height)
             elif self.focused_pane == 1:  # Messages pane focused
                 self.message_view.handle_input(stdscr, key, pane_height)
-            elif self.focused_pane == 2:  # Sessions pane focused
+            elif self.focused_pane == 2:  # Logs pane focused
                 if self.log_view.handle_input(key):
-                    # Session selection changed, reload messages
+                    # Log selection changed, reload messages
                     log_id = self.log_view.get_selected_log_id()
                     if log_id:
                         self.message_view.load_messages(log_id)

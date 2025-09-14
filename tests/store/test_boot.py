@@ -36,13 +36,13 @@ def claude_logs_dir():
         logs_path = Path(tmpdir) / "claude_logs"
         logs_path.mkdir(parents=True, exist_ok=True)
         
-        # Create a test session file
-        session_file = logs_path / "session_20250107_141500.jsonl"
+        # Create a test log file
+        log_file = logs_path / "log_20250107_141500.jsonl"
         messages = [
             '{"role": "user", "content": "Test message"}',
             '{"role": "assistant", "content": "Test response"}'
         ]
-        session_file.write_text('\n'.join(messages))
+        log_file.write_text('\n'.join(messages))
         
         yield logs_path
 

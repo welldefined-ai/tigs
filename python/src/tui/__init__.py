@@ -7,6 +7,6 @@ except ImportError:
     CURSES_AVAILABLE = False
 
 from .store_app import TigsStoreApp
-from .log_app import TigsLogApp
+from .view_app import TigsViewApp
 
-__all__ = ['TigsStoreApp', 'TigsLogApp', 'CURSES_AVAILABLE']
+__all__ = ['TigsStoreApp', 'TigsViewApp', 'CURSES_AVAILABLE']

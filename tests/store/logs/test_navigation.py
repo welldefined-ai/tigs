@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Test session navigation and lifecycle functionality."""
+"""Test log navigation and lifecycle functionality."""
 
 import os
 import tempfile
@@ -14,44 +14,44 @@ from framework.paths import PYTHON_DIR
 
 
 @pytest.fixture
-def repo_with_sessions():
-    """Create repository with session files for testing."""
+def repo_with_logs():
+    """Create repository with log files for testing."""
     with tempfile.TemporaryDirectory() as tmpdir:
         repo_path = Path(tmpdir) / "repo"
         logs_path = Path(tmpdir) / "logs"
         
         # Create test repo
-        commits = [f"Session test commit {i+1}" for i in range(5)]
+        commits = [f"Log test commit {i+1}" for i in range(5)]
         create_test_repo(repo_path, commits)
         
-        # Create multiple session files
+        # Create multiple log files
         logs_path.mkdir(parents=True, exist_ok=True)
         
-        sessions = [
-            "session_20250107_141500.jsonl",
-            "session_20250107_151200.jsonl", 
-            "session_20250107_161800.jsonl"
+        logs = [
+            "log_20250107_141500.jsonl",
+            "log_20250107_151200.jsonl",
+            "log_20250107_161800.jsonl"
         ]
         
-        for session_name in sessions:
-            session_file = logs_path / session_name
+        for log_name in logs:
+            log_file = logs_path / log_name
             messages = [
                 '{"role": "user", "content": "Test question"}',
                 '{"role": "assistant", "content": "Test response"}'
             ]
-            session_file.write_text('\n'.join(messages))
-            session_file.touch()
-            os.utime(session_file, times=(time.time(), time.time()))
+            log_file.write_text('\n'.join(messages))
+            log_file.touch()
+            os.utime(log_file, times=(time.time(), time.time()))
         
         yield repo_path, logs_path
 
 
-class TestSessionNavigation:
-    """Test session navigation functionality."""
+class TestLogNavigation:
+    """Test log navigation functionality."""
     
-    def test_session_lifecycle_operations(self, repo_with_sessions):
-        """Test session creation and loading."""
-        repo_path, logs_path = repo_with_sessions
+    def test_log_lifecycle_operations(self, repo_with_logs):
+        """Test log creation and loading."""
+        repo_path, logs_path = repo_with_logs
         
         import os
         env = os.environ.copy()
@@ -61,35 +61,35 @@ class TestSessionNavigation:
         
         with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120), env=env) as tui:
             try:
-                tui.wait_for("Sessions", timeout=5.0)
+                tui.wait_for("Logs", timeout=5.0)
                 
-                print("=== Session Lifecycle Test ===")
+                print("=== Log Lifecycle Test ===")
                 
                 lines = tui.capture()
                 
-                # Look for session indicators
-                session_indicators = 0
+                # Look for log indicators
+                log_indicators = 0
                 for line in lines:
-                    if "session" in line.lower() or "20250107" in line:
-                        session_indicators += 1
+                    if "log" in line.lower() or "20250107" in line:
+                        log_indicators += 1
                 
-                print(f"Session indicators found: {session_indicators}")
+                print(f"Log indicators found: {log_indicators}")
                 
-                if session_indicators > 0:
-                    print("✓ Session lifecycle functionality detected")
+                if log_indicators > 0:
+                    print("✓ Log lifecycle functionality detected")
                 else:
-                    print("No clear session indicators found")
+                    print("No clear log indicators found")
                 
             except Exception as e:
-                print(f"Session lifecycle test failed: {e}")
+                print(f"Log lifecycle test failed: {e}")
                 if "not found" in str(e).lower():
-                    pytest.skip("Sessions not available")
+                    pytest.skip("Logs not available")
                 else:
                     raise
     
-    def test_session_navigation_triggers_reload(self, repo_with_sessions):
-        """Test that session navigation triggers message reload."""
-        repo_path, logs_path = repo_with_sessions
+    def test_log_navigation_triggers_reload(self, repo_with_logs):
+        """Test that log navigation triggers message reload."""
+        repo_path, logs_path = repo_with_logs
         
         import os
         env = os.environ.copy()
@@ -99,36 +99,36 @@ class TestSessionNavigation:
         
         with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120), env=env) as tui:
             try:
-                tui.wait_for("Sessions", timeout=5.0)
+                tui.wait_for("Logs", timeout=5.0)
                 
-                print("=== Session Navigation Reload Test ===")
+                print("=== Log Navigation Reload Test ===")
                 
-                # Try to navigate between sessions
+                # Try to navigate between logs
                 initial_lines = tui.capture()
                 
-                # Navigate in sessions (if session pane exists)
+                # Navigate in logs (if log pane exists)
                 tui.send_arrow("down")
                 tui.send_arrow("up")
                 
                 after_navigation = tui.capture()
                 
-                print("=== After session navigation ===")
+                print("=== After log navigation ===")
                 for i, line in enumerate(after_navigation[:10]):
                     print(f"{i:02d}: {line}")
                 
                 # Basic test: navigation doesn't crash
-                assert len(after_navigation) > 0, "Should maintain display after session navigation"
+                assert len(after_navigation) > 0, "Should maintain display after log navigation"
                 
             except Exception as e:
-                print(f"Session navigation test failed: {e}")
+                print(f"Log navigation test failed: {e}")
                 if "not found" in str(e).lower():
-                    pytest.skip("Sessions not available")
+                    pytest.skip("Logs not available")
                 else:
                     raise
     
-    def test_empty_session_state(self, repo_with_sessions):
-        """Test handling of empty session state."""
-        repo_path, logs_path = repo_with_sessions
+    def test_empty_log_state(self, repo_with_logs):
+        """Test handling of empty log state."""
+        repo_path, logs_path = repo_with_logs
         
         # Create empty logs directory
         empty_logs = logs_path.parent / "empty_logs"
@@ -145,11 +145,11 @@ class TestSessionNavigation:
                 # Wait for some content to load
                 tui.wait_for("commit", timeout=5.0)
                 
-                print("=== Empty Session State Test ===")
+                print("=== Empty Log State Test ===")
                 
                 lines = tui.capture()
                 
-                print("=== Display with empty sessions ===")
+                print("=== Display with empty logs ===")
                 for i, line in enumerate(lines[:15]):
                     print(f"{i:02d}: {line}")
                 
@@ -157,21 +157,21 @@ class TestSessionNavigation:
                 empty_indicators = []
                 for line in lines:
                     if any(indicator in line.lower() for indicator in 
-                          ["no session", "empty", "no messages"]):
+                          ["no log", "empty", "no messages"]):
                         empty_indicators.append(line)
                 
                 if empty_indicators:
-                    print("✓ Empty session state handling detected")
+                    print("✓ Empty log state handling detected")
                 else:
-                    print("No specific empty session indicators found")
+                    print("No specific empty log indicators found")
                 
-                # Basic test: doesn't crash with empty sessions
-                assert len(lines) > 0, "Should display something even with empty sessions"
+                # Basic test: doesn't crash with empty logs
+                assert len(lines) > 0, "Should display something even with empty logs"
                 
             except Exception as e:
-                print(f"Empty session state test failed: {e}")
+                print(f"Empty log state test failed: {e}")
                 if "not found" in str(e).lower():
-                    pytest.skip("Sessions not available")
+                    pytest.skip("Logs not available")
                 else:
                     raise
 

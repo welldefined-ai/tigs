@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Test scrolling functionality in tigs log command."""
+"""Test scrolling functionality in tigs view command."""
 
 import tempfile
 from pathlib import Path
@@ -35,13 +35,13 @@ def long_commit_repo():
         yield repo_path
 
 
-class TestLogScrolling:
-    """Test scrolling in tigs log command."""
+class TestViewScrolling:
+    """Test scrolling in tigs view command."""
     
     def test_details_pane_scrolling(self, long_commit_repo):
         """Test UP/DOWN scrolling in commit details pane."""
         
-        command = f"uv run tigs --repo {long_commit_repo} log"
+        command = f"uv run tigs --repo {long_commit_repo} view"
         
         with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120)) as tui:
             try:
@@ -101,14 +101,14 @@ class TestLogScrolling:
             except Exception as e:
                 print(f"Details pane scrolling test failed: {e}")
                 if "not found" in str(e).lower():
-                    pytest.skip("Log command not available")
+                    pytest.skip("View command not available")
                 else:
                     raise
     
     def test_chat_pane_scrolling(self, test_repo):
         """Test scrolling in chat pane when chat content is available."""
         
-        command = f"uv run tigs --repo {test_repo} log"
+        command = f"uv run tigs --repo {test_repo} view"
         
         with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120)) as tui:
             try:
@@ -162,14 +162,14 @@ class TestLogScrolling:
             except Exception as e:
                 print(f"Chat pane scrolling test failed: {e}")
                 if "not found" in str(e).lower():
-                    pytest.skip("Log command not available")
+                    pytest.skip("View command not available")
                 else:
                     raise
     
     def test_tab_navigation_between_panes(self, test_repo):
         """Test Tab/Shift-Tab navigation between panes."""
         
-        command = f"uv run tigs --repo {test_repo} log"
+        command = f"uv run tigs --repo {test_repo} view"
         
         with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120)) as tui:
             try:
@@ -215,14 +215,14 @@ class TestLogScrolling:
             except Exception as e:
                 print(f"Tab navigation test failed: {e}")
                 if "not found" in str(e).lower():
-                    pytest.skip("Log command not available")
+                    pytest.skip("View command not available")
                 else:
                     raise
     
     def test_independent_pane_scrolling(self, long_commit_repo):
         """Test that scrolling in one pane doesn't affect others."""
         
-        command = f"uv run tigs --repo {long_commit_repo} log"
+        command = f"uv run tigs --repo {long_commit_repo} view"
         
         with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120)) as tui:
             try:
@@ -274,7 +274,7 @@ class TestLogScrolling:
             except Exception as e:
                 print(f"Independent scrolling test failed: {e}")
                 if "not found" in str(e).lower():
-                    pytest.skip("Log command not available")
+                    pytest.skip("View command not available")
                 else:
                     raise
 

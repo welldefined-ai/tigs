@@ -40,7 +40,7 @@ class LayoutManager:
             screen_width: Total screen width available
             commit_titles: List of commit titles for width calculation
             log_count: Number of log entries (0 if no logs)
-            read_only_mode: If True, use shorter prefix (tigs log), else use checkbox prefix (tigs store)
+            read_only_mode: If True, use shorter prefix (tigs view), else use checkbox prefix (tigs store)
         
         Returns:
             Tuple of (commit_width, message_width, log_width)
@@ -64,13 +64,13 @@ class LayoutManager:
         
         commit_width = max(self.MIN_COMMIT_WIDTH, ideal_commit_width)
         
-        # In read-only mode (tigs log), we can save 6 characters from shorter prefix  
-        # Store prefix: ">[ ] * " (6 chars), Log prefix: ">• " (3 chars)
-        # But add 1 extra char to store width so metadata display matches log
+        # In read-only mode (tigs view), we can save 6 characters from shorter prefix
+        # Store prefix: ">[ ] * " (6 chars), View prefix: ">• " (3 chars)
+        # But add 1 extra char to store width so metadata display matches view
         if read_only_mode:
             commit_width = max(self.MIN_COMMIT_WIDTH - 6, commit_width - 6)
         else:
-            # Store mode gets +1 char to match metadata display with log (but cap at MAX)
+            # Store mode gets +1 char to match metadata display with view (but cap at MAX)
             commit_width = min(self.MAX_COMMIT_WIDTH, commit_width + 1)
         
         # Calculate message width with remaining space

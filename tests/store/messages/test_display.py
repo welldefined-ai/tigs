@@ -24,18 +24,18 @@ def messages_setup():
         commits = [f"Test commit {i+1}" for i in range(5)]
         create_test_repo(repo_path, commits)
         
-        # Create session with several messages
+        # Create log with several messages
         logs_path.mkdir(parents=True, exist_ok=True)
-        
-        session_file = logs_path / "session_20250107_141500.jsonl"
+
+        log_file = logs_path / "log_20250107_141500.jsonl"
         messages = []
         for i in range(8):
             messages.append(f'{{"role": "user", "content": "User message {i+1}: Question about the code"}}')
             messages.append(f'{{"role": "assistant", "content": "Assistant message {i+1}: Here is the detailed answer with explanations"}}')
-        
-        session_file.write_text('\n'.join(messages))
-        session_file.touch()
-        os.utime(session_file, times=(time.time(), time.time()))
+
+        log_file.write_text('\n'.join(messages))
+        log_file.touch()
+        os.utime(log_file, times=(time.time(), time.time()))
         
         yield repo_path, logs_path
 

@@ -1,16 +1,16 @@
-"""Tests for commit view coloring in log app following tig's color scheme."""
+"""Tests for commit view coloring in view app following tig's color scheme."""
 
 import pytest
 from unittest.mock import Mock, patch
 from datetime import datetime
 
-from src.tui.log_app import TigsLogApp
+from src.tui.view_app import TigsViewApp
 from src.tui.commits_view import CommitView
 from src.tui.color_constants import COLOR_AUTHOR, COLOR_METADATA, COLOR_DEFAULT
 
 
-class TestLogCommitsViewColors:
-    """Test color assignment in log app's commits view."""
+class TestViewCommitsViewColors:
+    """Test color assignment in view app's commits view."""
     
     def setup_method(self):
         """Set up test fixtures."""
@@ -20,7 +20,7 @@ class TestLogCommitsViewColors:
         
         # Patch subprocess to avoid actual git calls
         with patch('subprocess.run'):
-            self.app = TigsLogApp(self.mock_store)
+            self.app = TigsViewApp(self.mock_store)
         
         # Sample commits for testing
         self.app.commit_view.commits = [
@@ -44,7 +44,7 @@ class TestLogCommitsViewColors:
         self.app.commit_view.items = self.app.commit_view.commits
     
     def test_colors_enabled_returns_colored_tuples(self):
-        """Test that colors_enabled=True returns list of color tuples for log view."""
+        """Test that colors_enabled=True returns list of color tuples for view."""
         # Enable colors in the app
         self.app._colors_enabled = True
         
@@ -58,7 +58,7 @@ class TestLogCommitsViewColors:
         assert all(isinstance(part, tuple) and len(part) == 2 for part in lines[0])
     
     def test_colors_disabled_returns_plain_strings(self):
-        """Test that colors_enabled=False returns plain strings for log view."""
+        """Test that colors_enabled=False returns plain strings for view."""
         # Disable colors in the app
         self.app._colors_enabled = False
         
@@ -70,7 +70,7 @@ class TestLogCommitsViewColors:
         assert all(isinstance(line, str) for line in lines)
     
     def test_commit_line_color_components(self):
-        """Test that commit lines have proper color assignments in log view."""
+        """Test that commit lines have proper color assignments in view."""
         self.app._colors_enabled = True
         
         lines = self.app.commit_view.get_display_lines(height=20, width=80, colors_enabled=True)
@@ -97,22 +97,22 @@ class TestLogCommitsViewColors:
         assert COLOR_AUTHOR in colors    # Author should be cyan
         assert COLOR_DEFAULT in colors   # Indicators and subject should be default
     
-    def test_log_view_read_only_format(self):
-        """Test that log view uses read-only format (no checkboxes)."""
+    def test_view_read_only_format(self):
+        """Test that view uses read-only format (no checkboxes)."""
         # Ensure read_only is set
         assert self.app.commit_view.read_only is True
         
         self.app._colors_enabled = False
         lines = self.app.commit_view.get_display_lines(height=20, width=80, colors_enabled=False)
         
-        # Log view format should have bullet points, not checkboxes
+        # View format should have bullet points, not checkboxes
         first_line = lines[0]
         # Should have bullet (•) or star (*) for notes, not [ ]
         assert '[ ]' not in first_line
         assert ('•' in first_line or '*' in first_line)
     
     def test_commit_with_note_indicator(self):
-        """Test that commits with notes show star indicator in log view."""
+        """Test that commits with notes show star indicator in view."""
         self.app._colors_enabled = False
         
         # Second commit has a note
@@ -129,9 +129,9 @@ class TestLogCommitsViewColors:
         # Should have star indicator for note
         assert '*' in bob_line[:5]  # Star should be near the beginning
     
-    def test_log_app_passes_colors_to_commit_view(self):
-        """Test that log app correctly passes colors_enabled to commit view."""
-        with patch('src.tui.log_app.PaneRenderer'):
+    def test_view_app_passes_colors_to_commit_view(self):
+        """Test that view app correctly passes colors_enabled to commit view."""
+        with patch('src.tui.view_app.PaneRenderer'):
             with patch.object(self.app.commit_view, 'get_display_lines') as mock_get_lines:
                 with patch.object(self.app.commit_details_view, 'get_display_lines'):
                     with patch.object(self.app.chat_display_view, 'get_display_lines'):

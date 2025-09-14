@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Test navigation behavior in tigs log command."""
+"""Test navigation behavior in tigs view command."""
 
 import tempfile
 from pathlib import Path
@@ -11,13 +11,13 @@ from framework.fixtures import create_test_repo, multiline_repo
 from framework.paths import PYTHON_DIR
 
 
-class TestLogNavigation:
-    """Test cursor navigation in read-only log view."""
+class TestViewNavigation:
+    """Test cursor navigation in read-only view."""
     
     def test_cursor_movement(self, multiline_repo):
         """Test basic cursor movement with arrow keys."""
         
-        command = f"uv run tigs --repo {multiline_repo} log"
+        command = f"uv run tigs --repo {multiline_repo} view"
         
         with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120)) as tui:
             try:
@@ -56,14 +56,14 @@ class TestLogNavigation:
             except Exception as e:
                 print(f"Cursor movement test failed: {e}")
                 if "not found" in str(e).lower():
-                    pytest.skip("Log command not available")
+                    pytest.skip("View command not available")
                 else:
                     raise
     
     def test_no_selection_indicators(self, multiline_repo):
-        """Test that no selection checkboxes appear in log view."""
+        """Test that no selection checkboxes appear in view view."""
         
-        command = f"uv run tigs --repo {multiline_repo} log"
+        command = f"uv run tigs --repo {multiline_repo} view"
         
         with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120)) as tui:
             try:
@@ -101,14 +101,14 @@ class TestLogNavigation:
             except Exception as e:
                 print(f"Selection indicator test failed: {e}")
                 if "not found" in str(e).lower():
-                    pytest.skip("Log command not available")
+                    pytest.skip("View command not available")
                 else:
                     raise
     
     def test_navigation_updates_details(self, multiline_repo):
         """Test that cursor movement updates the commit details pane."""
         
-        command = f"uv run tigs --repo {multiline_repo} log"
+        command = f"uv run tigs --repo {multiline_repo} view"
         
         with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 140)) as tui:
             try:
@@ -161,7 +161,7 @@ class TestLogNavigation:
             except Exception as e:
                 print(f"Details update test failed: {e}")
                 if "not found" in str(e).lower():
-                    pytest.skip("Log command not available")
+                    pytest.skip("View command not available")
                 else:
                     raise
     
@@ -175,7 +175,7 @@ class TestLogNavigation:
             commits = [f"Scroll test {i+1}" for i in range(100)]
             create_test_repo(repo_path, commits)
             
-            command = f"uv run tigs --repo {repo_path} log"
+            command = f"uv run tigs --repo {repo_path} view"
             
             with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120)) as tui:
                 try:
@@ -215,7 +215,7 @@ class TestLogNavigation:
                 except Exception as e:
                     print(f"Scrolling test failed: {e}")
                     if "not found" in str(e).lower():
-                        pytest.skip("Log command not available")
+                        pytest.skip("View command not available")
                     else:
                         raise
 

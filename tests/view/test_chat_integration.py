@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Test chat integration in tigs log command."""
+"""Test chat integration in tigs view command."""
 
 import subprocess
 import tempfile
@@ -74,12 +74,12 @@ messages:
 
 
 class TestChatIntegration:
-    """Test chat display integration in log command."""
+    """Test chat display integration in view command."""
     
     def test_chat_display_for_commits_with_notes(self, repo_with_chats):
         """Test that chats are displayed for commits that have them."""
         
-        command = f"uv run tigs --repo {repo_with_chats} log"
+        command = f"uv run tigs --repo {repo_with_chats} view"
         
         with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 140)) as tui:
             try:
@@ -158,14 +158,14 @@ class TestChatIntegration:
             except Exception as e:
                 print(f"Chat display test failed: {e}")
                 if "not found" in str(e).lower():
-                    pytest.skip("Log command not available")
+                    pytest.skip("View command not available")
                 else:
                     raise
     
     def test_chat_updates_with_navigation(self, repo_with_chats):
         """Test that chat pane updates when navigating between commits."""
         
-        command = f"uv run tigs --repo {repo_with_chats} log"
+        command = f"uv run tigs --repo {repo_with_chats} view"
         
         with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 140)) as tui:
             try:
@@ -258,7 +258,7 @@ class TestChatIntegration:
             except Exception as e:
                 print(f"Chat update test failed: {e}")
                 if "not found" in str(e).lower():
-                    pytest.skip("Log command not available")
+                    pytest.skip("View command not available")
                 else:
                     raise
     
@@ -298,7 +298,7 @@ class TestChatIntegration:
                 check=True
             )
             
-            command = f"uv run tigs --repo {repo_path} log"
+            command = f"uv run tigs --repo {repo_path} view"
             
             with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 140)) as tui:
                 try:
@@ -333,7 +333,7 @@ class TestChatIntegration:
                 except Exception as e:
                     print(f"Long chat test failed: {e}")
                     if "not found" in str(e).lower():
-                        pytest.skip("Log command not available")
+                        pytest.skip("View command not available")
                     else:
                         raise
 

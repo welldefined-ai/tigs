@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Test log app boot and initialization functionality."""
+"""Test view app boot and initialization functionality."""
 
 import tempfile
 from pathlib import Path
@@ -12,10 +12,10 @@ from framework.paths import PYTHON_DIR
 
 
 @pytest.fixture
-def log_repo():
-    """Create repository with commits for testing log command."""
+def view_repo():
+    """Create repository with commits for testing view command."""
     with tempfile.TemporaryDirectory() as tmpdir:
-        repo_path = Path(tmpdir) / "log_repo"
+        repo_path = Path(tmpdir) / "view_repo"
         
         # Create 30 commits for testing
         commits = []
@@ -29,13 +29,13 @@ def log_repo():
         yield repo_path
 
 
-class TestLogBoot:
-    """Test log app initialization and layout."""
+class TestViewBoot:
+    """Test view app initialization and layout."""
     
-    def test_boot_with_three_columns(self, log_repo):
-        """Test tigs log launches with proper 3-column layout."""
+    def test_boot_with_three_columns(self, view_repo):
+        """Test tigs view launches with proper 3-column layout."""
         
-        command = f"uv run tigs --repo {log_repo} log"
+        command = f"uv run tigs --repo {view_repo} view"
         
         with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120)) as tui:
             try:
@@ -43,7 +43,7 @@ class TestLogBoot:
                 tui.wait_for("Commits", timeout=5.0)
                 lines = tui.capture()
                 
-                print("=== Log Boot Test - Three Column Layout ===")
+                print("=== View Boot Test - Three Column Layout ===")
                 for i, line in enumerate(lines[:10]):
                     print(f"{i:02d}: {line}")
                 
@@ -95,14 +95,14 @@ class TestLogBoot:
                     print(f"{i:02d}: {line}")
                 
                 if "not found" in str(e).lower() or "command not found" in str(e).lower():
-                    pytest.skip("Log command not implemented yet")
+                    pytest.skip("View command not implemented yet")
                 else:
                     raise
     
-    def test_initial_commit_display(self, log_repo):
+    def test_initial_commit_display(self, view_repo):
         """Test that commits are displayed on initial load."""
         
-        command = f"uv run tigs --repo {log_repo} log"
+        command = f"uv run tigs --repo {view_repo} view"
         
         with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120)) as tui:
             try:
@@ -115,7 +115,7 @@ class TestLogBoot:
                 commit_count = 0
                 for line in lines:
                     # Extract first column content - look for commit patterns
-                    # In the log output, commits appear after the cursor/selection indicators
+                    # In the view output, commits appear after the cursor/selection indicators
                     if ">" in line or ("2024" in line or "2025" in line):
                         # Look for commit message patterns
                         if any(word in line for word in ["Commit", "Feature", "development", "work"]):
@@ -136,14 +136,14 @@ class TestLogBoot:
             except Exception as e:
                 print(f"Commit display test failed: {e}")
                 if "not found" in str(e).lower():
-                    pytest.skip("Log command not available yet")
+                    pytest.skip("View command not available yet")
                 else:
                     raise
     
-    def test_minimum_size_handling(self, log_repo):
-        """Test that log command handles small terminal sizes gracefully."""
+    def test_minimum_size_handling(self, view_repo):
+        """Test that view command handles small terminal sizes gracefully."""
         
-        command = f"uv run tigs --repo {log_repo} log"
+        command = f"uv run tigs --repo {view_repo} view"
         
         # Test with very small terminal
         with TUI(command, cwd=PYTHON_DIR, dimensions=(10, 50)) as tui:
@@ -173,10 +173,10 @@ class TestLogBoot:
                 # Might just fail to render, which is acceptable
                 print("Small terminal handling: fails to render (acceptable)")
     
-    def test_status_bar_display(self, log_repo):
+    def test_status_bar_display(self, view_repo):
         """Test that status bar shows navigation hints."""
         
-        command = f"uv run tigs --repo {log_repo} log"
+        command = f"uv run tigs --repo {view_repo} view"
         
         with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120)) as tui:
             try:
@@ -209,7 +209,7 @@ class TestLogBoot:
             except Exception as e:
                 print(f"Status bar test failed: {e}")
                 if "not found" in str(e).lower():
-                    pytest.skip("Log command not available yet")
+                    pytest.skip("View command not available yet")
                 else:
                     raise
 
