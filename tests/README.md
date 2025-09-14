@@ -15,7 +15,7 @@
 # Run specific view tests  
 ./run_python.sh tests/store/commits/ -v
 ./run_python.sh tests/store/messages/ -v
-./run_python.sh tests/store/sessions/ -v
+./run_python.sh tests/store/logs/ -v
 ```
 
 ## Test Structure (Command → View → Aspect)
@@ -34,8 +34,8 @@ tests/
 │   ├── messages/          # Message pane view tests
 │   │   ├── test_display.py      # Message formatting & anchoring  
 │   │   └── test_selection.py    # Message selection operations
-│   ├── sessions/          # Session management tests
-│   │   └── test_navigation.py   # Session lifecycle & navigation
+│   ├── logs/              # Log management tests
+│   │   └── test_navigation.py   # Log lifecycle & navigation
 │   ├── test_boot.py       # App initialization & 3-pane layout
 │   ├── test_repo_edge_cases.py  # Repository edge cases
 │   ├── test_storage.py    # Store operations & confirmation
@@ -78,12 +78,12 @@ tests/
 - Message selection with space/v/c/a keys
 - Visual mode operations
 
-### Store Command - Sessions View
+### Store Command - Logs View
 
-**Navigation (`sessions/test_navigation.py`)**
-- Session lifecycle operations
-- Session navigation triggers reload
-- Empty session state handling
+**Navigation (`logs/test_navigation.py`)**
+- Log lifecycle operations
+- Log navigation triggers reload
+- Empty log state handling
 
 ### Store Command - App Level
 

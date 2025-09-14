@@ -25,17 +25,17 @@ def overwrite_setup():
         commits = [f"Overwrite test commit {i+1}" for i in range(5)]
         create_test_repo(repo_path, commits)
         
-        # Create session with messages
+        # Create log with messages
         logs_path.mkdir(parents=True, exist_ok=True)
         
-        session_file = logs_path / "session_20250107_144000.jsonl"
-        session_content = """\
+        log_file = logs_path / "log_20250107_144000.jsonl"
+        log_content = """\
 {"role": "user", "content": "New message for overwrite test"}
 {"role": "assistant", "content": "New response for overwrite test"}
 """
-        session_file.write_text(session_content)
-        session_file.touch()
-        os.utime(session_file, times=(time.time(), time.time()))
+        log_file.write_text(log_content)
+        log_file.touch()
+        os.utime(log_file, times=(time.time(), time.time()))
         
         # Add existing Git note to HEAD commit
         try:

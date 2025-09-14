@@ -39,7 +39,7 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
         Returns:
             The exported chat content from cligent
         """
-        if not self.chat_parser or not hasattr(self, 'current_session_id'):
+        if not self.chat_parser or not hasattr(self, 'current_log_id'):
             raise ValueError("No chat loaded")
         
         # Clear any previous selections
@@ -47,24 +47,24 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
         
         # Select the messages we want
         selected_indices = sorted(self.selected_messages)
-        self.chat_parser.select(self.current_session_id, selected_indices)
+        self.chat_parser.select(self.current_log_id, selected_indices)
         
         # Compose returns the exported text directly
         return self.chat_parser.compose()
     
-    def load_messages(self, session_id: str) -> None:
-        """Load messages for a specific session.
-        
+    def load_messages(self, log_id: str) -> None:
+        """Load messages for a specific log.
+
         Args:
-            session_id: ID of the session to load messages from
+            log_id: ID of the log to load messages from
         """
         if not self.chat_parser:
             self.messages = []
             return
             
         try:
-            chat = self.chat_parser.parse(session_id)
-            self.current_session_id = session_id  # Store session ID for compose()
+            chat = self.chat_parser.parse(log_id)
+            self.current_log_id = log_id  # Store log ID for compose()
             
             # Extract messages from the chat
             self.messages = []

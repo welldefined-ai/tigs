@@ -30,7 +30,7 @@ tests/
 ├── store/                  # `tigs store` command tests
 │   ├── commits/           # Commit list view
 │   ├── messages/          # Message pane view
-│   ├── sessions/          # Session management
+│   ├── logs/              # Log management
 │   └── *.py               # App-level tests
 └── conftest.py            # Global configuration
 ```
