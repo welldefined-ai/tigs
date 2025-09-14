@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Test display functionality of tigs log command."""
+"""Test display functionality of tigs view command."""
 
 import subprocess
 import tempfile
@@ -16,8 +16,8 @@ from framework.paths import PYTHON_DIR
 from framework.tui import get_middle_pane, get_third_pane
 
 
-class TestLogDisplay:
-    """Test the three-column display of log command."""
+class TestViewDisplay:
+    """Test the three-column display of view command."""
     
     def test_commits_column_display(self):
         """Test that commits column displays correctly without selection boxes."""
@@ -34,7 +34,7 @@ class TestLogDisplay:
             ]
             create_test_repo(repo_path, commits)
             
-            command = f"uv run tigs --repo {repo_path} log"
+            command = f"uv run tigs --repo {repo_path} view"
             
             with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120)) as tui:
                 try:
@@ -72,12 +72,12 @@ class TestLogDisplay:
                 except Exception as e:
                     print(f"Commits display test failed: {e}")
                     if "not found" in str(e).lower():
-                        pytest.skip("Log command not available")
+                        pytest.skip("View command not available")
                     else:
                         raise
     
     def test_log_commit_prefix_formatting(self):
-        """Test that log mode uses compact formatting with bullet points."""
+        """Test that view mode uses compact formatting with bullet points."""
         
         with tempfile.TemporaryDirectory() as tmpdir:
             repo_path = Path(tmpdir) / "prefix_test_repo"
@@ -89,7 +89,7 @@ class TestLogDisplay:
             ]
             create_test_repo(repo_path, commits)
             
-            command = f"uv run tigs --repo {repo_path} log"
+            command = f"uv run tigs --repo {repo_path} view"
             
             with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120)) as tui:
                 try:
@@ -154,7 +154,7 @@ class TestLogDisplay:
                 except Exception as e:
                     print(f"Log prefix formatting test failed: {e}")
                     if "not found" in str(e).lower():
-                        pytest.skip("Log command not available")
+                        pytest.skip("View command not available")
                     else:
                         raise
     
@@ -189,7 +189,7 @@ comprehensive test coverage.
 """
             subprocess.run(['git', 'commit', '-m', commit_msg], cwd=repo_path, check=True)
             
-            command = f"uv run tigs --repo {repo_path} log"
+            command = f"uv run tigs --repo {repo_path} view"
             
             with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 160)) as tui:
                 try:
@@ -232,7 +232,7 @@ comprehensive test coverage.
                 except Exception as e:
                     print(f"Details display test failed: {e}")
                     if "not found" in str(e).lower():
-                        pytest.skip("Log command not available")
+                        pytest.skip("View command not available")
                     else:
                         raise
     
@@ -245,7 +245,7 @@ comprehensive test coverage.
             commits = ["Commit without chat"]
             create_test_repo(repo_path, commits)
             
-            command = f"uv run tigs --repo {repo_path} log"
+            command = f"uv run tigs --repo {repo_path} view"
             
             with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120)) as tui:
                 try:
@@ -286,14 +286,14 @@ comprehensive test coverage.
                 except Exception as e:
                     print(f"Chat placeholder test failed: {e}")
                     if "not found" in str(e).lower():
-                        pytest.skip("Log command not available")
+                        pytest.skip("View command not available")
                     else:
                         raise
     
     def test_multiline_commit_display(self, extreme_repo):
         """Test display of commits with extreme content."""
         
-        command = f"uv run tigs --repo {extreme_repo} log"
+        command = f"uv run tigs --repo {extreme_repo} view"
         
         with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 140)) as tui:
             try:
@@ -320,7 +320,7 @@ comprehensive test coverage.
             except Exception as e:
                 print(f"Multiline display test failed: {e}")
                 if "not found" in str(e).lower():
-                    pytest.skip("Log command not available")
+                    pytest.skip("View command not available")
                 else:
                     raise
 

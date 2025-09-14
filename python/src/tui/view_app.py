@@ -1,4 +1,4 @@
-"""Main TUI application for tigs log command."""
+"""Main TUI application for tigs view command."""
 
 import curses
 import os
@@ -12,7 +12,7 @@ from .layout_manager import LayoutManager
 from .pane_renderer import PaneRenderer
 
 
-class TigsLogApp:
+class TigsViewApp:
     """Main TUI application for exploring commits and their associated chats."""
     
     MIN_WIDTH = 80

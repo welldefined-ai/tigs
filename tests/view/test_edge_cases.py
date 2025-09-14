@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Test edge cases for tigs log command."""
+"""Test edge cases for tigs view command."""
 
 import subprocess
 import tempfile
@@ -12,11 +12,11 @@ from framework.fixtures import extreme_repo
 from framework.paths import PYTHON_DIR
 
 
-class TestLogEdgeCases:
-    """Test edge cases and error conditions for log command."""
+class TestViewEdgeCases:
+    """Test edge cases and error conditions for view command."""
     
     def test_empty_repository(self):
-        """Test log command with empty repository."""
+        """Test view command with empty repository."""
         
         with tempfile.TemporaryDirectory() as tmpdir:
             repo_path = Path(tmpdir) / "empty_repo"
@@ -25,7 +25,7 @@ class TestLogEdgeCases:
             # Initialize empty repo
             subprocess.run(['git', 'init'], cwd=repo_path, check=True, capture_output=True)
             
-            command = f"uv run tigs --repo {repo_path} log"
+            command = f"uv run tigs --repo {repo_path} view"
             
             with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120)) as tui:
                 try:
@@ -53,13 +53,13 @@ class TestLogEdgeCases:
                 except Exception as e:
                     print(f"Empty repo test failed: {e}")
                     if "not found" in str(e).lower():
-                        pytest.skip("Log command not available")
+                        pytest.skip("View command not available")
                     else:
                         # Empty repo might cause issues, but shouldn't crash
                         print(f"Empty repo caused error (acceptable): {e}")
     
     def test_repository_with_no_chats(self):
-        """Test log command when no commits have chats."""
+        """Test view command when no commits have chats."""
         
         with tempfile.TemporaryDirectory() as tmpdir:
             repo_path = Path(tmpdir) / "no_chats_repo"
@@ -74,7 +74,7 @@ class TestLogEdgeCases:
                 "Commit 5"
             ])
             
-            command = f"uv run tigs --repo {repo_path} log"
+            command = f"uv run tigs --repo {repo_path} view"
             
             with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120)) as tui:
                 try:
@@ -113,14 +113,14 @@ class TestLogEdgeCases:
                 except Exception as e:
                     print(f"No chats test failed: {e}")
                     if "not found" in str(e).lower():
-                        pytest.skip("Log command not available")
+                        pytest.skip("View command not available")
                     else:
                         raise
     
     def test_extreme_commit_content(self, extreme_repo):
-        """Test log command with extreme commit messages."""
+        """Test view command with extreme commit messages."""
         
-        command = f"uv run tigs --repo {extreme_repo} log"
+        command = f"uv run tigs --repo {extreme_repo} view"
         
         with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 140)) as tui:
             try:
@@ -151,12 +151,12 @@ class TestLogEdgeCases:
             except Exception as e:
                 print(f"Extreme content test failed: {e}")
                 if "not found" in str(e).lower():
-                    pytest.skip("Log command not available")
+                    pytest.skip("View command not available")
                 else:
                     raise
     
     def test_terminal_resize(self):
-        """Test log command behavior during terminal resize."""
+        """Test view command behavior during terminal resize."""
         
         with tempfile.TemporaryDirectory() as tmpdir:
             repo_path = Path(tmpdir) / "resize_repo"
@@ -164,7 +164,7 @@ class TestLogEdgeCases:
             from framework.fixtures import create_test_repo
             create_test_repo(repo_path, ["Test commit for resize"])
             
-            command = f"uv run tigs --repo {repo_path} log"
+            command = f"uv run tigs --repo {repo_path} view"
             
             # Start with normal size
             with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120)) as tui:
@@ -199,7 +199,7 @@ class TestLogEdgeCases:
                     print("Terminal resize test skipped (test environment limitation)")
     
     def test_very_narrow_terminal(self):
-        """Test log command with very narrow terminal."""
+        """Test view command with very narrow terminal."""
         
         with tempfile.TemporaryDirectory() as tmpdir:
             repo_path = Path(tmpdir) / "narrow_repo"
@@ -207,7 +207,7 @@ class TestLogEdgeCases:
             from framework.fixtures import create_test_repo
             create_test_repo(repo_path, ["Narrow terminal test"])
             
-            command = f"uv run tigs --repo {repo_path} log"
+            command = f"uv run tigs --repo {repo_path} view"
             
             # Test with very narrow terminal
             with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 60)) as tui:
@@ -234,7 +234,7 @@ class TestLogEdgeCases:
                 except Exception as e:
                     print(f"Narrow terminal test failed: {e}")
                     if "not found" in str(e).lower():
-                        pytest.skip("Log command not available")
+                        pytest.skip("View command not available")
                     else:
                         print(f"Narrow terminal caused error (acceptable): {e}")
 

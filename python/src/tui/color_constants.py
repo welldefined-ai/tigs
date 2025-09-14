@@ -1,7 +1,7 @@
 """Color constants for TUI views following tig's color scheme.
 
 These color pair numbers are defined consistently across all TUI apps
-(store_app.py and log_app.py) and match tig's default color scheme.
+(store_app.py and view_app.py) and match tig's default color scheme.
 """
 
 # Standard tig-inspired color pairs

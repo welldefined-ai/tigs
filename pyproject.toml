@@ -51,8 +51,6 @@ markers = [
     "slow: Slow running tests (>5s)",
     "terminal: Tests that interact with terminal applications",
     "python: Tests for Python implementation",
-    "rust: Tests for Rust implementation", 
-    "go: Tests for Go implementation",
     "cross_lang: Cross-language compatibility tests",
 ]
 
@@ -62,8 +60,6 @@ timeout = 30
 # Test collection - exclude implementation-specific test directories
 norecursedirs = [
     "python",
-    "rust", 
-    "go",
     ".git",
     ".idea",
     "specs",

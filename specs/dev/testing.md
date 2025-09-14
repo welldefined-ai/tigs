@@ -42,7 +42,7 @@ tests/
 
 ## Extension
 
-The structure supports adding new command suites (e.g., `tests/log/`).
+The structure supports adding new command suites (e.g., `tests/view/`).
 
 ## Python Unit Tests
 

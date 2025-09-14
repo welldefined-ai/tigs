@@ -1,4 +1,4 @@
-"""Integration tests for TigsLogApp functionality."""
+"""Integration tests for TigsViewApp functionality."""
 
 import curses
 from unittest.mock import Mock, patch, MagicMock
@@ -6,24 +6,24 @@ from pathlib import Path
 
 import pytest
 
-from src.tui.log_app import TigsLogApp
+from src.tui.view_app import TigsViewApp
 from src.tui.commit_details_view import CommitDetailsView
 from src.tui.chat_view import ChatView
 from src.store import TigsStore
 
 
-class TestLogAppIntegration:
-    """Test TigsLogApp integration with views."""
-    
-    def test_log_app_initialization(self, git_repo):
-        """Test log app initializes with all components."""
+class TestViewAppIntegration:
+    """Test TigsViewApp integration with views."""
+
+    def test_view_app_initialization(self, git_repo):
+        """Test view app initializes with all components."""
         store = TigsStore(git_repo)
         
         with patch('subprocess.run') as mock_run:
             mock_run.return_value.returncode = 0
             mock_run.return_value.stdout = "abc123|Test commit|Author|1234567890"
             
-            app = TigsLogApp(store)
+            app = TigsViewApp(store)
             
             # Verify all components initialized
             assert app.store == store
@@ -37,7 +37,7 @@ class TestLogAppIntegration:
         store = TigsStore(git_repo)
         
         with patch('subprocess.run'):
-            app = TigsLogApp(store)
+            app = TigsViewApp(store)
             
             # Start at pane 0 (commits)
             assert app.focused_pane == 0
@@ -47,7 +47,7 @@ class TestLogAppIntegration:
             mock_stdscr.getmaxyx.return_value = (30, 120)
             
             # Simulate Tab key press
-            with patch('src.tui.log_app.PaneRenderer'):
+            with patch('src.tui.view_app.PaneRenderer'):
                 # Tab should move to pane 1 (details)
                 app.focused_pane = 0
                 key = ord('\t')
@@ -131,7 +131,7 @@ class TestLogAppIntegration:
             mock_run.return_value.returncode = 0
             mock_run.return_value.stdout = "abc123|Test commit|Author|1234567890"
             
-            app = TigsLogApp(store)
+            app = TigsViewApp(store)
             
             # Mock the views
             app.commit_view = Mock()
@@ -176,7 +176,7 @@ class TestLogAppIntegration:
         store = TigsStore(git_repo)
         
         with patch('subprocess.run'):
-            app = TigsLogApp(store)
+            app = TigsViewApp(store)
             
             # Mock stdscr
             mock_stdscr = Mock()

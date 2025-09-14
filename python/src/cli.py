@@ -7,7 +7,7 @@ from typing import Optional
 import click
 
 from .store import TigsStore
-from .tui import TigsStoreApp, TigsLogApp, CURSES_AVAILABLE
+from .tui import TigsStoreApp, TigsViewApp, CURSES_AVAILABLE
 
 
 @click.group()
@@ -161,16 +161,16 @@ def store_command(ctx: click.Context) -> None:
         sys.exit(1)
 
 
-@main.command("log")
+@main.command("view")
 @click.pass_context
-def log_command(ctx: click.Context) -> None:
+def view_command(ctx: click.Context) -> None:
     """Launch interactive TUI for exploring commits and associated chats."""
     if not CURSES_AVAILABLE:
         click.echo("Error: curses library not available", err=True)
         sys.exit(1)
         
     store = ctx.obj["store"]
-    app = TigsLogApp(store)
+    app = TigsViewApp(store)
     try:
         app.run()
     except Exception as e:
