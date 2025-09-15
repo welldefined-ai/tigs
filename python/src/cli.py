@@ -1,5 +1,6 @@
 """Command-line interface for Tigs."""
 
+import subprocess
 import sys
 from pathlib import Path
 from typing import Optional
@@ -116,11 +117,57 @@ def remove_chat(ctx: click.Context, commit: str) -> None:
         sys.exit(1)
 
 
-@main.command("push-chats")
+@main.command("push")
+@click.argument("remote", type=str, default="origin")
+@click.option("--force", "-f", is_flag=True, help="Force push even if commits are not pushed")
+@click.pass_context
+def push(ctx: click.Context, remote: str, force: bool) -> None:
+    """Push chats to remote repository.
+
+    This command ensures all commits with chats are pushed to the remote
+    before pushing the chats themselves, preventing orphaned notes.
+    """
+    store = ctx.obj["store"]
+    try:
+        store.push_chats(remote, force=force)
+        click.echo(f"Successfully pushed chats to '{remote}'")
+    except ValueError as e:
+        click.echo(str(e), err=True)
+        sys.exit(1)
+    except subprocess.CalledProcessError as e:
+        error_msg = e.stderr or str(e)
+        click.echo(f"Error pushing chats: {error_msg}", err=True)
+        sys.exit(1)
+    except Exception as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+
+
+@main.command("fetch")
+@click.argument("remote", type=str, default="origin")
+@click.pass_context
+def fetch(ctx: click.Context, remote: str) -> None:
+    """Fetch chats from remote repository."""
+    store = ctx.obj["store"]
+    try:
+        store._run_git(["fetch", remote, "refs/notes/chats:refs/notes/chats"])
+        click.echo(f"Successfully fetched chats from '{remote}'")
+    except subprocess.CalledProcessError as e:
+        error_msg = e.stderr or str(e)
+        click.echo(f"Error fetching chats: {error_msg}", err=True)
+        sys.exit(1)
+    except Exception as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+
+
+# Keep the old commands for backward compatibility but mark as deprecated
+@main.command("push-chats", hidden=True)
 @click.argument("remote", type=str, default="origin")
 @click.pass_context
 def push_chats(ctx: click.Context, remote: str) -> None:
-    """Push chat notes to remote repository."""
+    """[DEPRECATED] Use 'tigs push' instead."""
+    click.echo("Warning: 'push-chats' is deprecated. Use 'tigs push' instead.", err=True)
     store = ctx.obj["store"]
     try:
         store._run_git(["push", remote, "refs/notes/chats:refs/notes/chats"])
@@ -130,11 +177,12 @@ def push_chats(ctx: click.Context, remote: str) -> None:
         sys.exit(1)
 
 
-@main.command("fetch-chats")
+@main.command("fetch-chats", hidden=True)
 @click.argument("remote", type=str, default="origin")
 @click.pass_context
 def fetch_chats(ctx: click.Context, remote: str) -> None:
-    """Fetch chat notes from remote repository."""
+    """[DEPRECATED] Use 'tigs fetch' instead."""
+    click.echo("Warning: 'fetch-chats' is deprecated. Use 'tigs fetch' instead.", err=True)
     store = ctx.obj["store"]
     try:
         store._run_git(["fetch", remote, "refs/notes/chats:refs/notes/chats"])

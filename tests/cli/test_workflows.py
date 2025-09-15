@@ -308,36 +308,245 @@ messages:
                 if result.returncode == 0 and "Repo2 discussion" in result.stdout:
                     print("✓ Repo2 shows correct content")
 
+    def test_push_unpushed_commits_validation(self):
+        """Test that push command validates unpushed commits."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Create main repo and bare remote
+            repo_path = Path(tmpdir) / "local_repo"
+            remote_path = Path(tmpdir) / "remote_repo.git"
+
+            # Create local repo with initial commit
+            create_test_repo(repo_path, ["Initial commit"])
+
+            # Create bare remote repo
+            subprocess.run(["git", "init", "--bare", str(remote_path)], check=True)
+
+            # Add remote and push initial commit
+            subprocess.run(["git", "remote", "add", "origin", str(remote_path)],
+                         cwd=repo_path, check=True)
+            subprocess.run(["git", "push", "-u", "origin", "main"],
+                         cwd=repo_path, check=True)
+
+            # Create an unpushed commit
+            test_file = repo_path / "test.txt"
+            test_file.write_text("unpushed content")
+            subprocess.run(["git", "add", "test.txt"], cwd=repo_path, check=True)
+            subprocess.run(["git", "commit", "-m", "Unpushed commit"],
+                         cwd=repo_path, check=True)
+
+            # Add chat to the unpushed commit
+            content = "schema: tigs.chat/v1\nmessages:\n- role: user\n  content: Chat on unpushed commit"
+            result = run_tigs(repo_path, "add-chat", "HEAD", "-m", content)
+            assert result.returncode == 0
+
+            # Try to push chats - should fail with helpful error
+            result = run_tigs(repo_path, "push")
+            print(f"Push with unpushed commit: {result.returncode}")
+            assert result.returncode != 0
+            error_output = result.stderr
+
+            # Check for helpful error message
+            assert "cannot push chats" in error_output.lower()
+            assert "unpushed commits" in error_output.lower()
+            assert "git push origin" in error_output.lower()
+            assert "--force" in error_output.lower()
+            print("✓ Push validation detects unpushed commits")
+
+            # Test force flag bypasses validation
+            result = run_tigs(repo_path, "push", "--force")
+            print(f"Force push: {result.returncode}")
+            assert result.returncode == 0
+            assert "successfully pushed" in result.stdout.lower()
+            print("✓ Force flag bypasses validation")
+
+            # Now push the commit and try again
+            subprocess.run(["git", "push", "origin", "main"],
+                         cwd=repo_path, check=True)
+
+            # Add another chat to test normal push
+            test_file2 = repo_path / "test2.txt"
+            test_file2.write_text("pushed content")
+            subprocess.run(["git", "add", "test2.txt"], cwd=repo_path, check=True)
+            subprocess.run(["git", "commit", "-m", "Pushed commit"],
+                         cwd=repo_path, check=True)
+            subprocess.run(["git", "push", "origin", "main"],
+                         cwd=repo_path, check=True)
+
+            content2 = "schema: tigs.chat/v1\nmessages:\n- role: user\n  content: Chat on pushed commit"
+            result = run_tigs(repo_path, "add-chat", "HEAD", "-m", content2)
+            assert result.returncode == 0
+
+            # Now push should succeed
+            result = run_tigs(repo_path, "push")
+            print(f"Push with all commits pushed: {result.returncode}")
+            assert result.returncode == 0
+            assert "successfully pushed" in result.stdout.lower()
+            print("✓ Push succeeds when all commits are pushed")
+
     def test_sync_operations(self):
         """Test push/fetch operations (error handling)."""
         with tempfile.TemporaryDirectory() as tmpdir:
             repo_path = Path(tmpdir) / "sync_repo"
             create_test_repo(repo_path, ["Sync test commit"])
-            
+
             # Add a chat first
             content = "schema: tigs.chat/v1\nmessages:\n- role: user\n  content: Sync test"
             result = run_tigs(repo_path, "add-chat", "-m", content)
-            
+
             if result.returncode != 0:
                 print("Cannot test sync without working add-chat")
                 return
-            
-            # Test push with non-existent remote (should fail gracefully)
-            result = run_tigs(repo_path, "push-chats", "nonexistent")
+
+            # Test new push command with non-existent remote (should fail gracefully)
+            result = run_tigs(repo_path, "push", "nonexistent")
             print(f"Push to nonexistent remote: {result.returncode}")
-            
+
             # Should fail but not crash
             assert result.returncode != 0
             error_output = result.stdout + result.stderr
-            assert any(indicator in error_output.lower() for indicator in 
+            assert any(indicator in error_output.lower() for indicator in
                       ["error", "remote", "not found", "does not exist"])
-            
-            # Test fetch with non-existent remote (should fail gracefully)
-            result = run_tigs(repo_path, "fetch-chats", "nonexistent")
+
+            # Test new fetch command with non-existent remote (should fail gracefully)
+            result = run_tigs(repo_path, "fetch", "nonexistent")
             print(f"Fetch from nonexistent remote: {result.returncode}")
-            
+
             # Should fail but not crash
             assert result.returncode != 0
+
+            # Test deprecated push-chats command (should work with warning)
+            result = run_tigs(repo_path, "push-chats", "nonexistent")
+            print(f"Deprecated push-chats: {result.returncode}")
+            assert result.returncode != 0
+            assert "deprecated" in result.stderr.lower()
+
+            # Test deprecated fetch-chats command (should work with warning)
+            result = run_tigs(repo_path, "fetch-chats", "nonexistent")
+            print(f"Deprecated fetch-chats: {result.returncode}")
+            assert result.returncode != 0
+            assert "deprecated" in result.stderr.lower()
+
+
+    def test_full_e2e_store_push_fetch_view_cycle(self):
+        """Test complete end-to-end workflow: store -> push -> fetch -> view across two repos."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Setup: Create bare remote repository
+            remote_path = Path(tmpdir) / "remote.git"
+            subprocess.run(["git", "init", "--bare", str(remote_path)], check=True)
+
+            # Setup: Create first local repository (producer)
+            repo1_path = Path(tmpdir) / "repo1"
+            create_test_repo(repo1_path, [
+                "Initial commit: Project setup",
+                "Feature: Add authentication module",
+                "Fix: Handle edge cases in auth",
+                "Docs: Update README with auth examples"
+            ])
+
+            # Add remote and push commits to remote
+            subprocess.run(["git", "remote", "add", "origin", str(remote_path)],
+                         cwd=repo1_path, check=True)
+            subprocess.run(["git", "push", "-u", "origin", "main"],
+                         cwd=repo1_path, check=True)
+
+            # Step 1: STORE - Add chats using add-chat commands
+            chat_contents = [
+                """schema: tigs.chat/v1
+messages:
+- role: user
+  content: How should we structure the authentication module?
+- role: assistant
+  content: Use JWT tokens with refresh token rotation for security.""",
+                """schema: tigs.chat/v1
+messages:
+- role: user
+  content: What edge cases need handling?
+- role: assistant
+  content: Consider timeout, invalid tokens, and concurrent sessions."""
+            ]
+
+            # Get commit SHAs for adding chats
+            result = subprocess.run(["git", "log", "--format=%H", "-n", "4"],
+                                  cwd=repo1_path, capture_output=True, text=True)
+            commit_shas = result.stdout.strip().split('\n')
+
+            # Add chats to specific commits
+            for sha, content in zip(commit_shas[2:4], chat_contents):  # Add to 2nd and 3rd commits
+                result = run_tigs(repo1_path, "add-chat", sha, "-m", content)
+                assert result.returncode == 0, f"Failed to add chat to {sha}"
+
+            # Verify chats were added
+            result = run_tigs(repo1_path, "list-chats")
+            assert result.returncode == 0
+            stored_chats = result.stdout.strip().split('\n')
+            assert len(stored_chats) >= 2, "Should have at least 2 chats stored"
+
+            # Step 2: PUSH - Push chats to remote
+            result = run_tigs(repo1_path, "push")
+            assert result.returncode == 0, "Failed to push chats"
+            assert "successfully pushed" in result.stdout.lower()
+
+            # Step 3: Clone repository to second location (consumer)
+            repo2_path = Path(tmpdir) / "repo2"
+            subprocess.run(["git", "clone", str(remote_path), str(repo2_path)],
+                         check=True, capture_output=True)
+
+            # Verify clone has commits but no chats yet
+            result = run_tigs(repo2_path, "list-chats")
+            assert result.returncode == 0
+            assert result.stdout.strip() == "", "Clone should not have chats before fetch"
+
+            # Step 4: FETCH - Fetch chats from remote
+            result = run_tigs(repo2_path, "fetch")
+            assert result.returncode == 0, "Failed to fetch chats"
+            assert "successfully fetched" in result.stdout.lower()
+
+            # Step 5: VERIFY - Check that chats are now available
+            result = run_tigs(repo2_path, "list-chats")
+            assert result.returncode == 0
+            fetched_chats = result.stdout.strip().split('\n')
+            assert len(fetched_chats) >= 2, "Should have fetched at least 2 chats"
+
+            # Verify the fetched chats match what was pushed
+            for sha in commit_shas[2:4]:
+                result = run_tigs(repo2_path, "show-chat", sha)
+                assert result.returncode == 0, f"Failed to show chat for {sha}"
+                assert "schema: tigs.chat/v1" in result.stdout
+                assert validate_yaml_schema(result.stdout)
+
+            # Step 6: Additional verification - Add more chats in repo2 and push back
+            new_chat = """schema: tigs.chat/v1
+messages:
+- role: user
+  content: Should we add rate limiting?
+- role: assistant
+  content: Yes, implement exponential backoff for failed attempts."""
+
+            result = run_tigs(repo2_path, "add-chat", commit_shas[1], "-m", new_chat)
+            assert result.returncode == 0
+
+            result = run_tigs(repo2_path, "push")
+            assert result.returncode == 0
+
+            # Step 7: Original repo fetches the new chat
+            result = run_tigs(repo1_path, "fetch")
+            assert result.returncode == 0
+
+            result = run_tigs(repo1_path, "show-chat", commit_shas[1])
+            assert result.returncode == 0
+            assert "rate limiting" in result.stdout
+
+            # Final verification: Both repos have same chats
+            result1 = run_tigs(repo1_path, "list-chats")
+            result2 = run_tigs(repo2_path, "list-chats")
+            assert result1.returncode == 0 and result2.returncode == 0
+
+            chats1 = set(result1.stdout.strip().split('\n'))
+            chats2 = set(result2.stdout.strip().split('\n'))
+            assert chats1 == chats2, "Both repos should have identical chat lists"
+
+            print("✓ Complete e2e cycle: store -> push -> fetch -> view successful")
+            print(f"✓ Synced {len(chats1)} chats between repositories")
 
 
 if __name__ == "__main__":
