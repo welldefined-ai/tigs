@@ -134,7 +134,7 @@ class TigsStore:
 
     def get_current_commit(self) -> str:
         """Get the current HEAD commit SHA.
-        
+
         Returns:
             Current HEAD commit SHA.
         """
@@ -142,6 +142,75 @@ class TigsStore:
             return self._run_git(["rev-parse", "HEAD"]).stdout.strip()
         except subprocess.CalledProcessError:
             raise ValueError("No commits in repository")
+
+    def get_unpushed_commits_with_chats(self, remote: str = "origin") -> List[str]:
+        """Get list of commits that have chats but are not pushed to remote.
+
+        Args:
+            remote: Remote name to check against.
+
+        Returns:
+            List of unpushed commit SHAs that have chats.
+        """
+        try:
+            # Get all commits with chats
+            commits_with_chats = self.list_chats()
+            if not commits_with_chats:
+                return []
+
+            # Get all commits on remote branches
+            remote_refs_result = self._run_git(["ls-remote", "--heads", remote])
+            remote_shas = set()
+            for line in remote_refs_result.stdout.strip().split("\n"):
+                if line:
+                    sha = line.split()[0]
+                    # Get all commits reachable from this remote ref
+                    try:
+                        ancestors_result = self._run_git(["rev-list", sha])
+                        remote_shas.update(ancestors_result.stdout.strip().split("\n"))
+                    except subprocess.CalledProcessError:
+                        # Remote ref might not be fetched locally
+                        pass
+
+            # Find commits with chats that are not on remote
+            unpushed = []
+            for commit_sha in commits_with_chats:
+                if commit_sha not in remote_shas:
+                    # Verify the commit exists locally
+                    try:
+                        self._run_git(["cat-file", "-e", commit_sha])
+                        unpushed.append(commit_sha)
+                    except subprocess.CalledProcessError:
+                        # Commit doesn't exist locally (orphaned note)
+                        pass
+
+            return unpushed
+        except subprocess.CalledProcessError:
+            return []
+
+    def push_chats(self, remote: str = "origin", force: bool = False) -> None:
+        """Push chat notes to remote repository.
+
+        Args:
+            remote: Remote name to push to.
+            force: Force push even if there are unpushed commits.
+
+        Raises:
+            ValueError: If there are unpushed commits with chats and force is False.
+        """
+        if not force:
+            unpushed = self.get_unpushed_commits_with_chats(remote)
+            if unpushed:
+                raise ValueError(
+                    f"Cannot push chats: {len(unpushed)} commit(s) with chats are not pushed to '{remote}'.\n"
+                    f"Unpushed commits:\n" + "\n".join(f"  - {sha[:8]}" for sha in unpushed) + "\n\n"
+                    f"To fix this:\n"
+                    f"  1. Push your commits first: git push {remote} <branch>\n"
+                    f"  2. Then push the chats: tigs push\n\n"
+                    f"Or use --force to push chats anyway (not recommended)"
+                )
+
+        self._run_git(["push", remote, "refs/notes/chats:refs/notes/chats"])
 
     # Legacy methods for backward compatibility (will be removed)
     def store(self, content: str, object_id: Optional[str] = None) -> str:
