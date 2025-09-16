@@ -1,0 +1,16 @@
+schema: tigs.chat/v1
+messages:
+- role: assistant
+  content: |
+    I've updated the release notes to accurately reflect what v0.1.1 actually contains - it's a massive update from v0.1.0! The release transforms Tigs from a basic CLI into a full-featured TUI application with:
+
+    1. Complete TUI implementation with `tigs store` and `tigs view` commands
+    2. 3-pane/3-column layouts with keyboard navigation
+    3. Tig-style coloring throughout
+    4. Claude logs integration
+    5. Comprehensive E2E testing framework
+    6. Major architectural improvements
+    7. The push/fetch validation improvements
+
+    This is essentially a complete rewrite/major feature release, not just a minor patch.
+  timestamp: '2025-09-16T02:17:14Z'
