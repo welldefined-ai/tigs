@@ -1,0 +1,16 @@
+schema: tigs.chat/v1
+messages:
+- role: assistant
+  content: |
+    Perfect! I've updated the Python README to:
+
+    1. **Focus on TUI commands first** - `tigs store` and `tigs view` are now presented as the primary interface
+    2. **Added detailed TUI descriptions** - Including keyboard shortcuts and layout information
+    3. **Updated sync commands** - Now showing the new `push` and `fetch` commands with validation
+    4. **Repositioned low-level commands** - These are now in a secondary section for automation/scripting
+    5. **Added architecture section** - Explaining the layer separation
+    6. **Updated development section** - Including test suite organization
+    7. **Enhanced Python API examples** - Including the new `push_chats()` method with validation
+
+    The documentation now properly reflects that Tigs is primarily an interactive TUI application, with the low-level commands available for automation when needed.
+  timestamp: '2025-09-16T00:52:22Z'
