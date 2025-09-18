@@ -13,6 +13,7 @@ from .messages_view import MessageView
 from .logs_view import LogsView
 from .layout_manager import LayoutManager
 from .pane_renderer import PaneRenderer
+from .text_utils import clear_iterm2_scrollback
 
 
 class TigsStoreApp:
@@ -59,27 +60,9 @@ class TigsStoreApp:
             log_id = self.log_view.get_selected_log_id()
             if log_id:
                 self.message_view.load_messages(log_id)
-
-    def _is_iterm2(self) -> bool:
-        """Check if running in iTerm2."""
-        import os
-        return os.environ.get('TERM_PROGRAM') == 'iTerm.app'
-
-    def _clear_iterm2_scrollback(self) -> None:
-        """Clear iTerm2 scrollback buffer."""
-        if self._is_iterm2():
-            import sys
-            sys.stdout.write('\033[2J\033[H\033[3J')
-            sys.stdout.flush()
         
     def run(self) -> None:
         """Run the TUI application."""
-        # Force alternate screen buffer for iTerm2 before curses takes control
-        if self._is_iterm2():
-            import sys
-            sys.stdout.write('\033[?1049h\033[?7l')  # Alt screen + disable line wrap
-            sys.stdout.flush()
-
         try:
             curses.wrapper(self._run)
         except KeyboardInterrupt:
@@ -87,15 +70,6 @@ class TigsStoreApp:
         except Exception as e:
             print(f"Error: {e}", file=sys.stderr)
             sys.exit(1)
-        finally:
-            # Restore screen for iTerm2
-            if self._is_iterm2():
-                try:
-                    import sys
-                    sys.stdout.write('\033[?7h\033[?1049l')  # Re-enable wrap + exit alt screen
-                    sys.stdout.flush()
-                except:
-                    pass
     
     def _run(self, stdscr) -> None:
         """Main TUI loop.
@@ -181,7 +155,7 @@ class TigsStoreApp:
             stdscr.timeout(-1)
             
             # Clear iTerm2 scrollback buffer + standard curses clear
-            self._clear_iterm2_scrollback()
+            clear_iterm2_scrollback()
             stdscr.clear()
             
             # Calculate pane dimensions
