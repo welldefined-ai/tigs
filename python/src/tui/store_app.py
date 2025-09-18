@@ -62,6 +62,17 @@ class TigsStoreApp:
         
     def run(self) -> None:
         """Run the TUI application."""
+        import sys
+        import os
+
+        # Force alternate screen buffer for iTerm2 before curses takes control
+        iterm_mode = os.environ.get('TERM_PROGRAM') == 'iTerm.app'
+        if iterm_mode:
+            print(f"DEBUG: iTerm2 detected, entering alternate screen mode", file=sys.stderr)
+            # Enter alternate screen and disable scrolling
+            sys.stdout.write('\033[?1049h\033[?7l')  # Alt screen + disable line wrap
+            sys.stdout.flush()
+
         try:
             curses.wrapper(self._run)
         except KeyboardInterrupt:
@@ -69,6 +80,14 @@ class TigsStoreApp:
         except Exception as e:
             print(f"Error: {e}", file=sys.stderr)
             sys.exit(1)
+        finally:
+            # Restore screen for iTerm2
+            if iterm_mode:
+                try:
+                    sys.stdout.write('\033[?7h\033[?1049l')  # Re-enable wrap + exit alt screen
+                    sys.stdout.flush()
+                except:
+                    pass
     
     def _run(self, stdscr) -> None:
         """Main TUI loop.
@@ -120,7 +139,7 @@ class TigsStoreApp:
             # Check minimum size
             if width < self.MIN_WIDTH or height < self.MIN_HEIGHT:
                 # Don't exit, just show message and wait
-                stdscr.clear()
+                stdscr.erase()
                 
                 # Show size warning
                 try:
@@ -153,8 +172,19 @@ class TigsStoreApp:
             # Reset to blocking input for normal operation
             stdscr.timeout(-1)
             
-            # Clear screen
-            stdscr.clear()
+            # iTerm2 scrollback fix
+            import sys
+            import os
+
+            # Multiple clearing strategies for iTerm2
+            if os.environ.get('TERM_PROGRAM') == 'iTerm.app':
+                # Strategy 1: Direct terminal control - clear screen + scrollback
+                sys.stdout.write('\033[2J\033[H\033[3J')  # The key: \033[3J clears scrollback!
+                sys.stdout.flush()
+
+            # Strategy 2: curses clear
+            stdscr.erase()
+            stdscr.refresh()
             
             # Calculate pane dimensions
             pane_height = height - 1  # Reserve bottom for status bar
@@ -250,7 +280,7 @@ class TigsStoreApp:
                 self.status_message = ""  # Clear old message
                 status_text = "Tab: switch | Enter: store | q: quit"
         else:
-            status_text = "Tab: switch | Enter: store | q: quit"
+            status_text = "Tab: switch | Enter: store | q: quit | [NO-DELAY-v6]"
         
         # Add size warning if getting close to minimum
         height = stdscr.getmaxyx()[0]
@@ -360,7 +390,7 @@ class TigsStoreApp:
             stdscr: The curses screen
         """
         # Clear and refresh to get new dimensions
-        stdscr.clear()
+        stdscr.erase()
         height, width = stdscr.getmaxyx()
         
         # Force recalculation of column widths
