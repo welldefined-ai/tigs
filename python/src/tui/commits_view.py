@@ -109,12 +109,12 @@ class CommitView(VisualSelectionMixin, ScrollableMixin):
     
     def get_display_lines(self, height: int, width: int = 32, colors_enabled: bool = False) -> List[Union[str, List[Tuple[str, int]]]]:
         """Get display lines for commits pane.
-        
+
         Args:
-            height: Available height for content
+            height: Available height for content (includes borders)
             width: Available width for content
             colors_enabled: Whether to return colored output
-            
+
         Returns:
             List of formatted commit lines (strings or color tuple lists)
         """
@@ -130,7 +130,8 @@ class CommitView(VisualSelectionMixin, ScrollableMixin):
         # Calculate commit heights with current width
         commit_heights = self._calculate_commit_heights(self.commits, width)
         
-        # Get visible range using the scrollable mixin's method (now with minimal adjustment)
+        # Get visible range using the scrollable mixin's method
+        # We'll reserve space for the footer later when building display lines
         visible_count, start_idx, end_idx = self.get_visible_range_variable(height, commit_heights)
         
         # Keep legacy scroll alias for callers that still read it
@@ -235,17 +236,42 @@ class CommitView(VisualSelectionMixin, ScrollableMixin):
                 else:
                     lines.append(prefix.rstrip())
         
-        # Add visual mode indicator if active (not in read-only mode)
-        if self.visual_mode and not self.read_only:
-            # Add at bottom if there's room
-            if len(lines) < height - 2:
+        # The pane renderer shows height-2 lines (excluding borders)
+        available_lines = height - 2
+
+        # If we have commits, we want to show a footer
+        if self.commits:
+            # Reserve the last line for the footer
+            content_lines = available_lines - 1
+
+            # Trim content if necessary to fit
+            if len(lines) > content_lines:
+                lines = lines[:content_lines]
+
+            # Pad to put footer at the bottom
+            while len(lines) < content_lines:
                 if colors_enabled:
-                    lines.append([("", COLOR_DEFAULT)])  # Blank line
-                    lines.append([(SelectionIndicators.VISUAL_MODE, COLOR_DEFAULT)])
+                    lines.append([("", COLOR_DEFAULT)])
                 else:
                     lines.append("")
-                    lines.append(SelectionIndicators.VISUAL_MODE)
-        
+
+            # Add status footer at the very bottom
+            status = f"({self.cursor_idx + 1}/{len(self.commits)})"
+            # Right-align the status text
+            padding = max(0, width - len(status) - 4)
+            status_line = " " * padding + status
+
+            if colors_enabled:
+                lines.append([(status_line, COLOR_METADATA)])
+            else:
+                lines.append(status_line)
+
+        # Handle visual mode indicator (only in store mode)
+        if self.visual_mode and not self.read_only and len(lines) >= 2:
+            # Visual mode replaces the footer
+            lines[-2] = "" if not colors_enabled else [("", COLOR_DEFAULT)]
+            lines[-1] = SelectionIndicators.VISUAL_MODE if not colors_enabled else [(SelectionIndicators.VISUAL_MODE, COLOR_DEFAULT)]
+
         return lines
     
     def handle_input(self, key: int, pane_height: int = 30) -> bool:
