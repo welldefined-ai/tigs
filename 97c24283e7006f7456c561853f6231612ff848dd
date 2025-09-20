@@ -1,0 +1,11 @@
+schema: tigs.chat/v1
+messages:
+- role: assistant
+  content: |
+    Now I have a complete understanding of the issue. Based on my research:
+
+    1. **The issue**: Users don't know how to select items in `tigs store` because there's no instruction shown
+    2. **The functionality exists**: Space key already toggles selection (line 156 in selection_mixin.py)
+    3. **The problem**: The status bar only shows "Tab: switch | Enter: store | q: quit" but doesn't mention Space for selection
+    4. **The solution**: Add Space key instruction to the status bar
+  timestamp: '2025-09-20T03:07:23Z'
