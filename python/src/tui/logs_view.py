@@ -1,8 +1,10 @@
 """Logs view management for TUI."""
 
 import curses
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Union
 from datetime import datetime, timedelta
+
+from .color_constants import COLOR_METADATA
 
 
 class LogsView:
@@ -35,44 +37,72 @@ class LogsView:
         except Exception:
             self.logs = []
     
-    def get_display_lines(self, height: int) -> List[str]:
+    def get_display_lines(self, height: int, width: int = 17, colors_enabled: bool = False) -> List[Union[str, List[Tuple[str, int]]]]:
         """Get display lines for logs pane.
-        
+
         Args:
             height: Available height for content
-            
+            width: Available width for content (default 17 for logs pane)
+            colors_enabled: Whether to return colored output
+
         Returns:
-            List of formatted log lines
+            List of formatted log lines (strings or color tuple lists)
         """
         lines = []
-        
+
         if not self.logs:
             if self.chat_parser:
                 lines.append("No logs found")
             else:
                 lines.append("Cligent not available")
             return lines
-        
+
+        # Reserve space for footer
+        available_lines = height - 3  # -2 for borders, -1 for footer
+
         # Calculate visible range with scrolling
-        visible_count = min(height - 2, len(self.logs))  # -2 for borders
-        
+        visible_count = min(available_lines, len(self.logs))
+
         # Adjust scroll offset if needed
         if self.selected_log_idx < self.log_scroll_offset:
             self.log_scroll_offset = self.selected_log_idx
         elif self.selected_log_idx >= self.log_scroll_offset + visible_count:
             self.log_scroll_offset = self.selected_log_idx - visible_count + 1
-        
+
         # Build display lines
         for i in range(self.log_scroll_offset, min(self.log_scroll_offset + visible_count, len(self.logs))):
             log_id, metadata = self.logs[i]
             timestamp = self._format_timestamp(metadata.get('modified', ''))
-            
+
             # Format: "• timestamp" for selected, "  timestamp" for others
             if i == self.selected_log_idx:
                 lines.append(f"• {timestamp}")
             else:
                 lines.append(f"  {timestamp}")
-        
+
+        # Pad to put footer at the bottom
+        while len(lines) < available_lines:
+            lines.append("")
+
+        # Add status footer showing current position
+        status = f"({self.selected_log_idx + 1}/{len(self.logs)})"
+        # The width passed is the pane width, but content is drawn with width - 4
+        # (2 for borders, 2 for padding), so the actual usable width is width - 4
+        actual_width = max(1, width - 4)
+
+        # If status is too long for the width, truncate it
+        if len(status) > actual_width:
+            status = status[:actual_width]
+
+        # Right-align with padding
+        padding = max(0, actual_width - len(status))
+        status_line = " " * padding + status
+
+        if colors_enabled:
+            lines.append([(status_line, COLOR_METADATA)])
+        else:
+            lines.append(status_line)
+
         return lines
     
     def handle_input(self, key: int) -> bool:

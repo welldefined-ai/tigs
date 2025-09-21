@@ -199,7 +199,7 @@ class TigsStoreApp:
             
             # Get log display lines and draw logs pane only if wide enough
             if log_pane_width >= 2:
-                log_lines = self.log_view.get_display_lines(pane_height)
+                log_lines = self.log_view.get_display_lines(pane_height, log_pane_width, self._colors_enabled)
                 PaneRenderer.draw_pane(stdscr, 0, commit_width + message_width, pane_height, log_pane_width,
                                       "Logs", self.focused_pane == 2,
                                       log_lines, self._colors_enabled)
