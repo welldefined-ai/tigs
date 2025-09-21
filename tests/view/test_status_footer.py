@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Test status footer display in commits view for view command."""
 
+import subprocess
 import tempfile
 from pathlib import Path
 
@@ -145,3 +146,163 @@ class TestViewStatusFooter:
                         break
 
                 assert footer_found, "Status footer should be present in read-only mode"
+
+
+class TestViewMessagesStatusFooter:
+    """Test the status footer display in view command's messages pane."""
+
+    def test_messages_status_footer_display(self):
+        """Test that status footer shows in messages pane."""
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo_path = Path(tmpdir) / "view_messages_repo"
+
+            # Create test repo with a commit
+            create_test_repo(repo_path, ["Chat commit"])
+
+            # Get the commit SHA
+            result = subprocess.run(
+                ["git", "rev-parse", "HEAD"],
+                cwd=repo_path,
+                capture_output=True,
+                text=True
+            )
+            sha = result.stdout.strip()
+
+            # Add chat to the commit
+            chat = """schema: tigs.chat/v1
+messages:
+- role: user
+  content: Question 1
+- role: assistant
+  content: Answer 1
+- role: user
+  content: Question 2
+- role: assistant
+  content: Answer 2
+"""
+            subprocess.run(
+                ["git", "notes", "--ref=refs/notes/chats", "add", "-m", chat, sha],
+                cwd=repo_path,
+                check=True
+            )
+
+            command = f"uv run tigs --repo {repo_path} view"
+
+            with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120)) as tui:
+                # Wait for UI to load
+                tui.wait_for("Chat commit")
+
+                # Select the commit to view messages
+                tui.send(" ")
+
+                # Wait for messages to appear
+                tui.wait_for("Question 1")
+
+                # Capture display
+                lines = tui.capture()
+
+                # Look for status footer in messages pane (second column)
+                from framework.tui import get_middle_pane
+                footer_found = False
+                for line in lines[-10:]:
+                    second_pane = get_middle_pane(line)
+                    if "(" in second_pane and "/" in second_pane and ")" in second_pane:
+                        footer_found = True
+                        # Should show (1/4) for first message
+                        assert "(1/4)" in second_pane, f"Expected (1/4), got: {second_pane}"
+                        break
+
+                assert footer_found, "Status footer not found in messages pane"
+
+    def test_messages_footer_navigation(self):
+        """Test that messages footer updates on navigation."""
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo_path = Path(tmpdir) / "view_msg_nav_repo"
+
+            create_test_repo(repo_path, ["Discussion"])
+
+            # Get the commit SHA
+            result = subprocess.run(
+                ["git", "rev-parse", "HEAD"],
+                cwd=repo_path,
+                capture_output=True,
+                text=True
+            )
+            sha = result.stdout.strip()
+
+            # Add chat to the commit
+            chat = """schema: tigs.chat/v1
+messages:
+- role: user
+  content: First
+- role: assistant
+  content: Second
+- role: user
+  content: Third
+"""
+            subprocess.run(
+                ["git", "notes", "--ref=refs/notes/chats", "add", "-m", chat, sha],
+                cwd=repo_path,
+                check=True
+            )
+
+            command = f"uv run tigs --repo {repo_path} view"
+
+            with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120)) as tui:
+                # Wait for UI to load
+                tui.wait_for("Discussion")
+
+                # Select the commit
+                tui.send(" ")
+
+                # Wait for messages
+                tui.wait_for("First")
+
+                from framework.tui import get_middle_pane
+
+                # Check initial position
+                initial_lines = tui.capture()
+                initial_footer = None
+                for line in initial_lines[-10:]:
+                    second_pane = get_middle_pane(line)
+                    if "(" in second_pane and "/" in second_pane and ")" in second_pane:
+                        initial_footer = second_pane.strip()
+                        break
+
+                assert initial_footer, "Initial footer not found"
+                assert "(1/3)" in initial_footer
+
+                # Tab to messages pane
+                tui.send("\t")
+
+                # Move cursor down
+                tui.send_arrow("down")
+
+                # Check updated position
+                new_lines = tui.capture()
+                new_footer = None
+                for line in new_lines[-10:]:
+                    second_pane = get_middle_pane(line)
+                    if "(" in second_pane and "/" in second_pane and ")" in second_pane:
+                        new_footer = second_pane.strip()
+                        break
+
+                assert new_footer, "Updated footer not found"
+                assert "(2/3)" in new_footer, f"Expected (2/3), got: {new_footer}"
+
+                # Move to last message
+                tui.send_arrow("down")
+
+                # Check final position
+                final_lines = tui.capture()
+                final_footer = None
+                for line in final_lines[-10:]:
+                    second_pane = get_middle_pane(line)
+                    if "(" in second_pane and "/" in second_pane and ")" in second_pane:
+                        final_footer = second_pane.strip()
+                        break
+
+                assert final_footer, "Final footer not found"
+                assert "(3/3)" in final_footer, f"Expected (3/3), got: {final_footer}"

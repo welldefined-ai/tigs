@@ -142,11 +142,17 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
             self._init_message_view(height)
             self._needs_message_view_init = False
         
+        # The pane renderer shows height-2 lines (excluding borders)
+        available_lines = height - 2
+
+        # Reserve the last line for footer
+        content_height = height - 1  # -1 for footer
+
         # Calculate message heights with current width
         message_heights = self._calculate_message_heights(self.messages, width)
-        
+
         # Get visible messages using variable heights
-        visible_count, start_idx, end_idx = self._get_visible_messages_variable(height, message_heights)
+        visible_count, start_idx, end_idx = self._get_visible_messages_variable(content_height, message_heights)
 
         # Build display lines
         for i in range(start_idx, end_idx):
@@ -210,15 +216,35 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
                 else:
                     lines.append("")
         
-        # Add status line if in visual mode
-        if self.visual_mode:
+        # Trim lines if they exceed content area
+        max_content_lines = available_lines - 1  # -1 for footer
+        if len(lines) > max_content_lines:
+            lines = lines[:max_content_lines]
+
+        # Pad to put footer at the bottom
+        while len(lines) < max_content_lines:
             if colors_enabled:
                 lines.append([("", COLOR_DEFAULT)])
-                lines.append([(SelectionIndicators.VISUAL_MODE, COLOR_DEFAULT)])
             else:
                 lines.append("")
-                lines.append(SelectionIndicators.VISUAL_MODE)
-        
+
+        # Add status footer showing current position
+        if self.messages:
+            status = f"({self.cursor_idx + 1}/{len(self.messages)})"
+            # Right-align the status text
+            padding = max(0, width - len(status) - 4)
+            status_line = " " * padding + status
+
+            if colors_enabled:
+                lines.append([(status_line, COLOR_METADATA)])
+            else:
+                lines.append(status_line)
+
+        # Add status line if in visual mode (replaces footer)
+        if self.visual_mode and len(lines) >= 2:
+            lines[-2] = "" if not colors_enabled else [("", COLOR_DEFAULT)]
+            lines[-1] = SelectionIndicators.VISUAL_MODE if not colors_enabled else [(SelectionIndicators.VISUAL_MODE, COLOR_DEFAULT)]
+
         return lines
     
     def handle_input(self, stdscr, key: int, pane_height: int) -> None:
@@ -419,7 +445,7 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
             return
         
         visible_items = self._visible_message_items(height)
-        
+
         # Show last visible_items messages, with cursor at bottom of visible area
         self.message_scroll_offset = max(0, len(self.messages) - visible_items)
         # Position cursor at bottom of visible area, ensuring room to scroll down
