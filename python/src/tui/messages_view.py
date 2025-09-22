@@ -14,10 +14,10 @@ from .color_constants import get_role_color, COLOR_METADATA, COLOR_DEFAULT
 
 class MessageView(VisualSelectionMixin, ScrollableMixin):
     """Manages message display and interaction."""
-    
+
     def __init__(self, chat_parser):
         """Initialize message view.
-        
+
         Args:
             chat_parser: ChatParser instance for loading messages
         """
@@ -32,6 +32,7 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
         self.selected_messages: Set[int] = set()  # Legacy alias
         self.selected_items = self.selected_messages  # Point to same set for mixin
         self._needs_message_view_init = True
+        self._internal_scroll_offset = 0  # Internal scroll within a long message
     
     def get_selected_messages_content(self) -> str:
         """Get the exported chat content from cligent.
@@ -92,10 +93,11 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
             self.cursor_idx = 0
             self.message_cursor_idx = self.cursor_idx  # Keep legacy alias in sync
             self.message_scroll_offset = 0
+            self._internal_scroll_offset = 0  # Reset internal scroll
             self.selected_messages.clear()
             # Update items reference for mixin
             self.items = self.messages
-            
+
             # Defer cursor positioning until first draw when we have screen height
             self._needs_message_view_init = True
         except Exception:
@@ -119,48 +121,56 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
     
     def get_display_lines(self, height: int, width: int = 40, colors_enabled: bool = False) -> List[Union[str, List[Tuple[str, int]]]]:
         """Get display lines for messages pane with bottom-anchored display.
-        
+
         Args:
             height: Available height for content
             width: Available width for content
             colors_enabled: Whether to return colored output
-            
+
         Returns:
             List of formatted message lines (strings or color tuple lists)
         """
         lines = []
-        
+
         if not self.messages:
             if colors_enabled:
                 lines.append([("(No messages to display)", COLOR_DEFAULT)])
             else:
                 lines.append("(No messages to display)")
             return lines
-        
+
         # Initialize message view on first draw when we have screen height
         if self._needs_message_view_init:
             self._init_message_view(height)
             self._needs_message_view_init = False
-        
+
         # Calculate message heights with current width
         message_heights = self._calculate_message_heights(self.messages, width)
-        
+
         # Get visible messages using variable heights
         visible_count, start_idx, end_idx = self._get_visible_messages_variable(height, message_heights)
 
-        # Build display lines
+        # Check if we're in single message mode (message too long for window)
+        is_single_message_mode = (visible_count == 1 and
+                                  start_idx == self.message_cursor_idx and
+                                  message_heights[self.message_cursor_idx] >= height - 2)
+
+        if is_single_message_mode:
+            return self._get_single_message_display_lines(height, width, colors_enabled)
+
+        # Build display lines for multi-message view
         for i in range(start_idx, end_idx):
             role, content, timestamp = self.messages[i]
-            
+
             # Check if selected using mixin method
             is_selected = self.is_item_selected(i)
-            
+
             # Format selection and cursor indicators using the indicators module
             selection_indicator = SelectionIndicators.format_selection_box(is_selected)
             cursor_indicator = SelectionIndicators.format_cursor(
                 i == self.message_cursor_idx, style="triangle"
             )
-            
+
             # Format message header
             if role == 'user':
                 role_text = "User"
@@ -171,7 +181,7 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
             else:
                 role_text = role.capitalize()
             timestamp_text = self._format_timestamp(timestamp)
-            
+
             if colors_enabled:
                 # Build colored header parts
                 header_parts = []
@@ -189,7 +199,7 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
             else:
                 header = f"{cursor_indicator}{selection_indicator} {role_text}{timestamp_text}:"
                 lines.append(header)
-            
+
             # Add wrapped content lines
             content_width = max(10, width - 6)  # Account for borders and indentation
             for line in content.split('\n'):
@@ -202,14 +212,14 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
                                 lines.append([("    ", COLOR_DEFAULT), (wrapped, COLOR_DEFAULT)])
                             else:
                                 lines.append(f"    {wrapped}")
-            
+
             # Add separator between messages if not the last
             if i < end_idx - 1 and len(lines) < height - 2:
                 if colors_enabled:
                     lines.append([("", COLOR_DEFAULT)])
                 else:
                     lines.append("")
-        
+
         # Add status line if in visual mode
         if self.visual_mode:
             if colors_enabled:
@@ -218,12 +228,131 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
             else:
                 lines.append("")
                 lines.append(SelectionIndicators.VISUAL_MODE)
-        
+
         return lines
-    
+
+    def _get_single_message_display_lines(self, height: int, width: int, colors_enabled: bool = False) -> List[Union[str, List[Tuple[str, int]]]]:
+        """Get display lines for single message mode with gradual scrolling.
+
+        Args:
+            height: Available height for content
+            width: Available width for content
+            colors_enabled: Whether to return colored output
+
+        Returns:
+            List of formatted message lines (strings or color tuple lists)
+        """
+        lines = []
+        available_height = height - 2  # Account for borders
+
+        if self.visual_mode:
+            available_height -= 2  # Leave room for visual mode indicator
+
+        if self.message_cursor_idx >= len(self.messages):
+            return lines
+
+        role, content, timestamp = self.messages[self.message_cursor_idx]
+
+        # Check if selected using mixin method
+        is_selected = self.is_item_selected(self.message_cursor_idx)
+
+        # Format selection and cursor indicators using the indicators module
+        selection_indicator = SelectionIndicators.format_selection_box(is_selected)
+        cursor_indicator = SelectionIndicators.format_cursor(True, style="triangle")
+
+        # Format message header
+        if role == 'user':
+            role_text = "User"
+        elif role == 'assistant':
+            role_text = "Assistant"
+        elif role == 'system':
+            role_text = "System"
+        else:
+            role_text = role.capitalize()
+        timestamp_text = self._format_timestamp(timestamp)
+
+        # Generate all lines for this message first
+        all_lines = []
+
+        # Add header
+        if colors_enabled:
+            header_parts = []
+            header_parts.append((f"{cursor_indicator}{selection_indicator} ", COLOR_DEFAULT))
+            role_color = get_role_color(role)
+            header_parts.append((role_text, role_color))
+            if timestamp_text:
+                header_parts.append((timestamp_text, COLOR_METADATA))
+            header_parts.append((":", COLOR_DEFAULT))
+            all_lines.append(header_parts)
+        else:
+            header = f"{cursor_indicator}{selection_indicator} {role_text}{timestamp_text}:"
+            all_lines.append(header)
+
+        # Add wrapped content lines
+        content_width = max(10, width - 8)  # Account for borders, indentation, and scroll indicator
+        for line in content.split('\n'):
+            wrapped_lines = self._word_wrap(line, content_width)
+            for wrapped in wrapped_lines:
+                if colors_enabled:
+                    all_lines.append([("    ", COLOR_DEFAULT), (wrapped, COLOR_DEFAULT)])
+                else:
+                    all_lines.append(f"    {wrapped}")
+
+        # Calculate scroll indicators
+        start_line = max(0, self._internal_scroll_offset)
+        end_line = min(len(all_lines), start_line + available_height)
+
+        can_scroll_up = start_line > 0
+        can_scroll_down = end_line < len(all_lines)
+
+        # Add lines with scroll indicators
+        display_lines = all_lines[start_line:end_line]
+        for i, line in enumerate(display_lines):
+            # Calculate scroll indicator for this line
+            scroll_indicator = ""
+            if i == 0 and can_scroll_up:
+                scroll_indicator = "↑"
+            elif i == len(display_lines) - 1 and can_scroll_down:
+                scroll_indicator = "↓"
+            elif can_scroll_up or can_scroll_down:
+                scroll_indicator = "│"
+
+            if colors_enabled and isinstance(line, list):
+                # Add scroll indicator to colored line
+                line_with_scroll = line.copy()
+                if scroll_indicator:
+                    # Pad to right edge and add scroll indicator
+                    line_content_width = sum(len(part[0]) for part in line)
+                    padding_needed = max(0, width - 4 - line_content_width - 1)  # -4 for borders, -1 for indicator
+                    if padding_needed > 0:
+                        line_with_scroll.append((" " * padding_needed, COLOR_DEFAULT))
+                    line_with_scroll.append((scroll_indicator, COLOR_METADATA))
+                lines.append(line_with_scroll)
+            else:
+                # Add scroll indicator to plain text line
+                if scroll_indicator:
+                    line_str = str(line)
+                    line_content_width = len(line_str)
+                    padding_needed = max(0, width - 4 - line_content_width - 1)  # -4 for borders, -1 for indicator
+                    padded_line = line_str + " " * padding_needed + scroll_indicator
+                    lines.append(padded_line)
+                else:
+                    lines.append(line)
+
+        # Add status line if in visual mode
+        if self.visual_mode and len(lines) < available_height:
+            if colors_enabled:
+                lines.append([("", COLOR_DEFAULT)])
+                lines.append([(SelectionIndicators.VISUAL_MODE, COLOR_DEFAULT)])
+            else:
+                lines.append("")
+                lines.append(SelectionIndicators.VISUAL_MODE)
+
+        return lines
+
     def handle_input(self, stdscr, key: int, pane_height: int) -> None:
         """Handle input when messages pane is focused.
-        
+
         Args:
             stdscr: The curses screen (unused but kept for consistency)
             key: The key pressed
@@ -231,33 +360,77 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
         """
         if not self.messages:
             return
-            
-        # Use pane height for scrolling calculations, not full screen height
-        visible_items = self._visible_message_items(pane_height)
-        
-        # Navigation with Up/Down arrows - move cursor and adjust scroll immediately
+
+        # Check if we're in single message mode
+        # We'll use a reasonable default width for detection, actual width will be used in display
+        message_heights = self._calculate_message_heights(self.messages, 80)  # Use reasonable default width
+        is_single_message_mode = (self.message_cursor_idx < len(message_heights) and
+                                  message_heights[self.message_cursor_idx] >= pane_height - 2)
+
+        # Navigation with Up/Down arrows
         if key == curses.KEY_UP:
-            if self.cursor_idx > 0:
-                self.cursor_idx -= 1
-                self.message_cursor_idx = self.cursor_idx  # Keep legacy alias in sync
-                # If cursor moved above visible area, scroll up
-                if self.cursor_idx < self.message_scroll_offset:
-                    self.message_scroll_offset = self.cursor_idx
-                    
+            if is_single_message_mode:
+                # Scroll within the current message
+                if self._internal_scroll_offset > 0:
+                    self._internal_scroll_offset -= 1
+                elif self.cursor_idx > 0:
+                    # Move to previous message and reset internal scroll
+                    self.cursor_idx -= 1
+                    self.message_cursor_idx = self.cursor_idx
+                    self._internal_scroll_offset = 0
+                    # Calculate scroll to end of previous message if it's also long
+                    if self.cursor_idx < len(message_heights):
+                        prev_msg_height = message_heights[self.cursor_idx]
+                        if prev_msg_height >= pane_height - 2:
+                            # Position at end of previous message
+                            self._internal_scroll_offset = max(0, prev_msg_height - (pane_height - 2))
+            else:
+                # Standard multi-message navigation
+                if self.cursor_idx > 0:
+                    self.cursor_idx -= 1
+                    self.message_cursor_idx = self.cursor_idx
+                    self._internal_scroll_offset = 0  # Reset internal scroll
+                    # If cursor moved above visible area, scroll up
+                    if self.cursor_idx < self.message_scroll_offset:
+                        self.message_scroll_offset = self.cursor_idx
+
         elif key == curses.KEY_DOWN:
-            if self.cursor_idx < len(self.messages) - 1:
-                self.cursor_idx += 1
-                self.message_cursor_idx = self.cursor_idx  # Keep legacy alias in sync
-                # If cursor moved below visible area, scroll down to keep cursor visible
-                if self.cursor_idx >= self.message_scroll_offset + visible_items:
-                    # Calculate new scroll to keep cursor visible
-                    # The cursor should remain at its new position, we just adjust scroll
-                    self.message_scroll_offset = self.cursor_idx - visible_items + 1
-                    
-                    # Ensure scroll doesn't go beyond the last page
-                    max_scroll = max(0, len(self.messages) - visible_items)
-                    self.message_scroll_offset = min(self.message_scroll_offset, max_scroll)
-        
+            if is_single_message_mode:
+                # Calculate total lines for current message
+                role, content, timestamp = self.messages[self.message_cursor_idx]
+                content_width = max(10, 80 - 6)  # Use reasonable default width calculation
+                all_lines = 1  # Header
+                for line in content.split('\n'):
+                    wrapped_lines = self._word_wrap(line, content_width)
+                    all_lines += len(wrapped_lines)
+
+                available_height = pane_height - 2
+                if self.visual_mode:
+                    available_height -= 2
+
+                # Scroll within the current message
+                if self._internal_scroll_offset + available_height < all_lines:
+                    self._internal_scroll_offset += 1
+                elif self.cursor_idx < len(self.messages) - 1:
+                    # Move to next message and reset internal scroll
+                    self.cursor_idx += 1
+                    self.message_cursor_idx = self.cursor_idx
+                    self._internal_scroll_offset = 0
+            else:
+                # Standard multi-message navigation
+                if self.cursor_idx < len(self.messages) - 1:
+                    self.cursor_idx += 1
+                    self.message_cursor_idx = self.cursor_idx
+                    self._internal_scroll_offset = 0  # Reset internal scroll
+                    # Use pane height for scrolling calculations
+                    visible_items = self._visible_message_items(pane_height)
+                    # If cursor moved below visible area, scroll down to keep cursor visible
+                    if self.cursor_idx >= self.message_scroll_offset + visible_items:
+                        self.message_scroll_offset = self.cursor_idx - visible_items + 1
+                        # Ensure scroll doesn't go beyond the last page
+                        max_scroll = max(0, len(self.messages) - visible_items)
+                        self.message_scroll_offset = min(self.message_scroll_offset, max_scroll)
+
         # Delegate selection operations to mixin
         else:
             self.handle_selection_input(key)
@@ -409,17 +582,18 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
     
     def _init_message_view(self, height: int) -> None:
         """Initialize cursor and scroll position based on actual screen height.
-        
+
         Args:
             height: Screen height
         """
         if not self.messages:
             self.message_cursor_idx = 0
             self.message_scroll_offset = 0
+            self._internal_scroll_offset = 0
             return
-        
+
         visible_items = self._visible_message_items(height)
-        
+
         # Show last visible_items messages, with cursor at bottom of visible area
         self.message_scroll_offset = max(0, len(self.messages) - visible_items)
         # Position cursor at bottom of visible area, ensuring room to scroll down
@@ -428,6 +602,7 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
             self.message_scroll_offset + visible_items - 1
         )
         self.cursor_idx = self.message_cursor_idx  # Keep mixin alias in sync
+        self._internal_scroll_offset = 0  # Reset internal scroll
     
     def scroll_to_cursor(self, viewport_height: int, border_size: int = 2) -> None:
         """Ensure cursor is visible in viewport with variable message heights.
