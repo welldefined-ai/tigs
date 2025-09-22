@@ -5,11 +5,11 @@ from pathlib import Path
 from typing import List, Optional
 
 
-class TigsStore:
-    """Store and retrieve chat content using Git notes."""
+class TigsRepo:
+    """Git notes manager for storing and retrieving chat content."""
 
     def __init__(self, repo_path: Optional[Path] = None):
-        """Initialize TigsStore.
+        """Initialize TigsRepo.
 
         Args:
             repo_path: Path to Git repository. Defaults to current directory.
@@ -104,7 +104,7 @@ class TigsStore:
             result = self._run_git(["notes", "--ref=refs/notes/chats", "list"])
             if not result.stdout.strip():
                 return []
-            
+
             # Parse output: each line is "note_blob_sha commit_sha"
             lines = result.stdout.strip().split("\n")
             return [line.split()[1] for line in lines if line.strip()]

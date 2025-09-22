@@ -23,7 +23,7 @@ class TigsViewApp:
         """Initialize the TUI application.
         
         Args:
-            store: TigsStore instance for Git operations
+            store: TigsRepo instance for Git operations
         """
         self.store = store
         self.running = True

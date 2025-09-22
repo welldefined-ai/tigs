@@ -13,7 +13,7 @@ class ChatView(ViewScrollMixin):
         """Initialize chat view.
         
         Args:
-            store: TigsStore instance for Git operations
+            store: TigsRepo instance for Git operations
         """
         ViewScrollMixin.__init__(self)
         self.store = store
