@@ -20,7 +20,7 @@ class CommitView(VisualSelectionMixin, ScrollableMixin):
         """Initialize commit view.
         
         Args:
-            store: TigsStore instance for Git operations
+            store: TigsRepo instance for Git operations
             read_only: If True, disable selection functionality (for log view)
         """
         VisualSelectionMixin.__init__(self)  # Initialize selection mixin

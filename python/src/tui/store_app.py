@@ -26,7 +26,7 @@ class TigsStoreApp:
         """Initialize the TUI application.
         
         Args:
-            store: TigsStore instance for Git operations
+            store: TigsRepo instance for Git operations
         """
         self.store = store
         self.focused_pane = 0  # 0=commits, 1=messages, 2=logs
