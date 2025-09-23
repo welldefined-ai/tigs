@@ -8,6 +8,7 @@ import pytest
 
 from framework.tui import TUI
 from framework.fixtures import create_test_repo
+from framework.mock_claude_logs import create_mock_claude_home
 from framework.paths import PYTHON_DIR
 
 
@@ -30,21 +31,23 @@ def large_repo():
 
 
 @pytest.fixture
-def claude_logs_dir():
+def claude_logs_dir(monkeypatch):
     """Create logs directory for testing."""
     with tempfile.TemporaryDirectory() as tmpdir:
-        logs_path = Path(tmpdir) / "claude_logs"
-        logs_path.mkdir(parents=True, exist_ok=True)
-        
-        # Create a test log file
-        log_file = logs_path / "log_20250107_141500.jsonl"
-        messages = [
-            '{"role": "user", "content": "Test message"}',
-            '{"role": "assistant", "content": "Test response"}'
-        ]
-        log_file.write_text('\n'.join(messages))
-        
-        yield logs_path
+        mock_home = Path(tmpdir) / "mock_home"
+        mock_home.mkdir()
+
+        # Mock HOME environment variable
+        monkeypatch.setenv("HOME", str(mock_home))
+
+        # Create mock Claude logs
+        sessions_data = [[
+            ("user", "Test message"),
+            ("assistant", "Test response")
+        ]]
+        create_mock_claude_home(mock_home, sessions_data)
+
+        yield mock_home
 
 
 class TestStoreBoot:
@@ -53,14 +56,11 @@ class TestStoreBoot:
     def test_boot_with_three_panes(self, large_repo, claude_logs_dir):
         """Test tigs store launches with proper 3-pane layout."""
         
-        # Set environment variable for logs directory
-        import os
-        env = os.environ.copy()
-        env['TIGS_LOGS_DIR'] = str(claude_logs_dir)
-        
+        # Pass the mocked HOME to the subprocess
+
         command = f"uv run tigs --repo {large_repo} store"
-        
-        with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120), env=env) as tui:
+
+        with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120), env={"HOME": str(claude_logs_dir)}) as tui:
             # Wait for UI to load - look for any pane headers
             try:
                 tui.wait_for("Commits", timeout=5.0)

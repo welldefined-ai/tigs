@@ -10,34 +10,34 @@ import pytest
 
 from framework.tui import TUI
 from framework.fixtures import create_test_repo
+from framework.mock_claude_logs import create_mock_claude_home
 from framework.paths import PYTHON_DIR
 
 
 @pytest.fixture
-def validation_setup():
+def validation_setup(monkeypatch):
     """Create repo and messages for validation testing."""
     with tempfile.TemporaryDirectory() as tmpdir:
         repo_path = Path(tmpdir) / "repo"
-        logs_path = Path(tmpdir) / "logs"
-        
+        mock_home = Path(tmpdir) / "mock_home"
+        mock_home.mkdir()
+
+        # Mock HOME environment variable
+        monkeypatch.setenv("HOME", str(mock_home))
+
         # Create repo
         commits = [f"Validation test commit {i+1}" for i in range(5)]
         create_test_repo(repo_path, commits)
-        
-        # Create log with messages
-        logs_path.mkdir(parents=True, exist_ok=True)
 
-        log_file = logs_path / "log_20250107_143000.jsonl"
-        log_content = """\
-{"role": "user", "content": "Validation test message 1"}
-{"role": "assistant", "content": "Validation test response 1"}
-{"role": "user", "content": "Validation test message 2"}
-"""
-        log_file.write_text(log_content)
-        log_file.touch()
-        os.utime(log_file, times=(time.time(), time.time()))
-        
-        yield repo_path, logs_path
+        # Create mock Claude logs
+        sessions_data = [[
+            ("user", "Validation test message 1"),
+            ("assistant", "Validation test response 1"),
+            ("user", "Validation test message 2")
+        ]]
+        create_mock_claude_home(mock_home, sessions_data)
+
+        yield repo_path, mock_home
 
 
 class TestValidation:
@@ -45,15 +45,11 @@ class TestValidation:
     
     def test_no_commits_selected(self, validation_setup):
         """Test Enter with no commits selected shows error."""
-        repo_path, logs_path = validation_setup
-        
-        import os
-        env = os.environ.copy()
-        env['TIGS_LOGS_DIR'] = str(logs_path)
-        
+        repo_path, mock_home = validation_setup
+
         command = f"uv run tigs --repo {repo_path} store"
-        
-        with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120), env=env) as tui:
+
+        with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120), env={"HOME": str(mock_home)}) as tui:
             try:
                 tui.wait_for("commit", timeout=5.0)
                 
@@ -110,15 +106,11 @@ class TestValidation:
     
     def test_no_messages_selected(self, validation_setup):
         """Test Enter with no messages selected shows error."""
-        repo_path, logs_path = validation_setup
-        
-        import os
-        env = os.environ.copy()
-        env['TIGS_LOGS_DIR'] = str(logs_path)
-        
+        repo_path, mock_home = validation_setup
+
         command = f"uv run tigs --repo {repo_path} store"
-        
-        with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120), env=env) as tui:
+
+        with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120), env={"HOME": str(mock_home)}) as tui:
             try:
                 tui.wait_for("commit", timeout=5.0)
                 
@@ -175,15 +167,11 @@ class TestValidation:
     
     def test_nothing_selected(self, validation_setup):
         """Test Enter with nothing selected shows error."""
-        repo_path, logs_path = validation_setup
-        
-        import os
-        env = os.environ.copy()
-        env['TIGS_LOGS_DIR'] = str(logs_path)
-        
+        repo_path, mock_home = validation_setup
+
         command = f"uv run tigs --repo {repo_path} store"
-        
-        with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120), env=env) as tui:
+
+        with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120), env={"HOME": str(mock_home)}) as tui:
             try:
                 tui.wait_for("commit", timeout=5.0)
                 
@@ -241,15 +229,11 @@ class TestValidation:
     
     def test_validation_preserves_state(self, validation_setup):
         """Test validation errors don't clear existing selections."""
-        repo_path, logs_path = validation_setup
-        
-        import os
-        env = os.environ.copy()
-        env['TIGS_LOGS_DIR'] = str(logs_path)
-        
+        repo_path, mock_home = validation_setup
+
         command = f"uv run tigs --repo {repo_path} store"
-        
-        with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120), env=env) as tui:
+
+        with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120), env={"HOME": str(mock_home)}) as tui:
             try:
                 tui.wait_for("commit", timeout=5.0)
                 

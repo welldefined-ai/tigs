@@ -124,20 +124,23 @@ class TestMessagesViewColors:
     def test_message_content_default_color(self):
         """Test that message content has default color."""
         lines = self.view.get_display_lines(height=30, width=60, colors_enabled=True)
-        
+
         # Find content lines
         content_found = False
         for line in lines:
             if isinstance(line, list):
                 text_combined = "".join(t for t, _ in line)
-                # Content lines are indented
+                # Skip the status footer (it contains parentheses with numbers)
+                if "(" in text_combined and "/" in text_combined and ")" in text_combined:
+                    continue
+                # Content lines are indented (4 spaces)
                 if text_combined.startswith("    ") and text_combined.strip():
                     content_found = True
                     # Check content has default color
                     for text, color in line:
                         if text.strip() and not text.isspace():
                             assert color == COLOR_DEFAULT, f"Content should be default: '{text}'"
-        
+
         assert content_found, "No content lines found"
     
     def test_multiline_message_coloring(self):

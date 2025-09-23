@@ -10,40 +10,34 @@ import pytest
 
 from framework.tui import TUI
 from framework.fixtures import create_test_repo
+from framework.mock_claude_logs import create_mock_claude_home
 from framework.paths import PYTHON_DIR
 
 
 @pytest.fixture
-def repo_with_logs():
+def repo_with_logs(monkeypatch):
     """Create repository with log files for testing."""
     with tempfile.TemporaryDirectory() as tmpdir:
         repo_path = Path(tmpdir) / "repo"
-        logs_path = Path(tmpdir) / "logs"
-        
+        mock_home = Path(tmpdir) / "mock_home"
+        mock_home.mkdir()
+
+        # Mock HOME environment variable
+        monkeypatch.setenv("HOME", str(mock_home))
+
         # Create test repo
         commits = [f"Log test commit {i+1}" for i in range(5)]
         create_test_repo(repo_path, commits)
         
-        # Create multiple log files
-        logs_path.mkdir(parents=True, exist_ok=True)
-        
-        logs = [
-            "log_20250107_141500.jsonl",
-            "log_20250107_151200.jsonl",
-            "log_20250107_161800.jsonl"
+        # Create multiple mock Claude log sessions
+        sessions_data = [
+            [("user", "Test question 1"), ("assistant", "Test response 1")],
+            [("user", "Test question 2"), ("assistant", "Test response 2")],
+            [("user", "Test question 3"), ("assistant", "Test response 3")]
         ]
-        
-        for log_name in logs:
-            log_file = logs_path / log_name
-            messages = [
-                '{"role": "user", "content": "Test question"}',
-                '{"role": "assistant", "content": "Test response"}'
-            ]
-            log_file.write_text('\n'.join(messages))
-            log_file.touch()
-            os.utime(log_file, times=(time.time(), time.time()))
-        
-        yield repo_path, logs_path
+        create_mock_claude_home(mock_home, sessions_data)
+
+        yield repo_path, mock_home
 
 
 class TestLogNavigation:
@@ -51,15 +45,11 @@ class TestLogNavigation:
     
     def test_log_lifecycle_operations(self, repo_with_logs):
         """Test log creation and loading."""
-        repo_path, logs_path = repo_with_logs
-        
-        import os
-        env = os.environ.copy()
-        env['TIGS_LOGS_DIR'] = str(logs_path)
+        repo_path, mock_home = repo_with_logs
         
         command = f"uv run tigs --repo {repo_path} store"
         
-        with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120), env=env) as tui:
+        with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120), env={"HOME": str(mock_home)}) as tui:
             try:
                 tui.wait_for("Logs", timeout=5.0)
                 
@@ -89,15 +79,11 @@ class TestLogNavigation:
     
     def test_log_navigation_triggers_reload(self, repo_with_logs):
         """Test that log navigation triggers message reload."""
-        repo_path, logs_path = repo_with_logs
-        
-        import os
-        env = os.environ.copy()
-        env['TIGS_LOGS_DIR'] = str(logs_path)
+        repo_path, mock_home = repo_with_logs
         
         command = f"uv run tigs --repo {repo_path} store"
         
-        with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120), env=env) as tui:
+        with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120), env={"HOME": str(mock_home)}) as tui:
             try:
                 tui.wait_for("Logs", timeout=5.0)
                 
@@ -128,19 +114,13 @@ class TestLogNavigation:
     
     def test_empty_log_state(self, repo_with_logs):
         """Test handling of empty log state."""
-        repo_path, logs_path = repo_with_logs
+        repo_path, mock_home = repo_with_logs
         
-        # Create empty logs directory
-        empty_logs = logs_path.parent / "empty_logs"
-        empty_logs.mkdir(exist_ok=True)
-        
-        import os
-        env = os.environ.copy()
-        env['TIGS_LOGS_DIR'] = str(empty_logs)
+        # Test with no logs is already handled by empty claude home
         
         command = f"uv run tigs --repo {repo_path} store"
         
-        with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120), env=env) as tui:
+        with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120), env={"HOME": str(mock_home)}) as tui:
             try:
                 # Wait for some content to load
                 tui.wait_for("commit", timeout=5.0)

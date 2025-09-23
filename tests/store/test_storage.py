@@ -11,35 +11,35 @@ import pytest
 
 from framework.tui import TUI
 from framework.fixtures import create_test_repo
+from framework.mock_claude_logs import create_mock_claude_home
 from framework.paths import PYTHON_DIR
 
 
 @pytest.fixture
-def storage_setup():
+def storage_setup(monkeypatch):
     """Create repo and messages for storage testing."""
     with tempfile.TemporaryDirectory() as tmpdir:
         repo_path = Path(tmpdir) / "repo"
-        logs_path = Path(tmpdir) / "logs"
-        
+        mock_home = Path(tmpdir) / "mock_home"
+        mock_home.mkdir()
+
+        # Mock HOME environment variable
+        monkeypatch.setenv("HOME", str(mock_home))
+
         # Create repo with commits
         commits = [f"Storage test commit {i+1}" for i in range(8)]
         create_test_repo(repo_path, commits)
         
-        # Create log with messages
-        logs_path.mkdir(parents=True, exist_ok=True)
+        # Create mock Claude logs
+        sessions_data = [[
+            ("user", "First message for storage"),
+            ("assistant", "First response for storage"),
+            ("user", "Second message for storage"),
+            ("assistant", "Second response for storage")
+        ]]
+        create_mock_claude_home(mock_home, sessions_data)
 
-        log_file = logs_path / "log_20250107_142000.jsonl"
-        log_content = """\
-{"role": "user", "content": "First message for storage"}
-{"role": "assistant", "content": "First response for storage"}
-{"role": "user", "content": "Second message for storage"}
-{"role": "assistant", "content": "Second response for storage"}
-"""
-        log_file.write_text(log_content)
-        log_file.touch()
-        os.utime(log_file, times=(time.time(), time.time()))
-        
-        yield repo_path, logs_path
+        yield repo_path, mock_home
 
 
 def check_git_notes(repo_path, ref="refs/notes/chats"):
@@ -81,15 +81,11 @@ class TestStorage:
     
     def test_store_creates_notes(self, storage_setup):
         """Test 2 messages → 3 commits creates Git notes."""
-        repo_path, logs_path = storage_setup
-        
-        import os
-        env = os.environ.copy()
-        env['TIGS_LOGS_DIR'] = str(logs_path)
+        repo_path, mock_home = storage_setup
         
         command = f"uv run tigs --repo {repo_path} store"
         
-        with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120), env=env) as tui:
+        with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120), env={"HOME": str(mock_home)}) as tui:
             try:
                 tui.wait_for("commit", timeout=5.0)
                 
@@ -183,15 +179,11 @@ class TestStorage:
     
     def test_confirmation_message(self, storage_setup):
         """Test confirmation shows 'Stored X messages → Y commits'."""
-        repo_path, logs_path = storage_setup
-        
-        import os
-        env = os.environ.copy()
-        env['TIGS_LOGS_DIR'] = str(logs_path)
+        repo_path, mock_home = storage_setup
         
         command = f"uv run tigs --repo {repo_path} store"
         
-        with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120), env=env) as tui:
+        with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120), env={"HOME": str(mock_home)}) as tui:
             try:
                 tui.wait_for("commit", timeout=5.0)
                 
@@ -244,15 +236,11 @@ class TestStorage:
     
     def test_selections_cleared(self, storage_setup):
         """Test all selections cleared after successful storage."""
-        repo_path, logs_path = storage_setup
-        
-        import os
-        env = os.environ.copy()
-        env['TIGS_LOGS_DIR'] = str(logs_path)
+        repo_path, mock_home = storage_setup
         
         command = f"uv run tigs --repo {repo_path} store"
         
-        with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120), env=env) as tui:
+        with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120), env={"HOME": str(mock_home)}) as tui:
             try:
                 tui.wait_for("commit", timeout=5.0)
                 
