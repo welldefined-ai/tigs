@@ -33,6 +33,7 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
         self.selected_items = self.selected_messages  # Point to same set for mixin
         self._needs_message_view_init = True
         self._internal_scroll_offset = 0  # Internal scroll within a long message
+        self.read_only = False  # Flag for read-only mode
     
     def get_selected_messages_content(self) -> str:
         """Get the exported chat content from cligent.
@@ -162,14 +163,19 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
         for i in range(start_idx, end_idx):
             role, content, timestamp = self.messages[i]
 
-            # Check if selected using mixin method
-            is_selected = self.is_item_selected(i)
+            # Check if selected using mixin method (only if not read-only)
+            is_selected = self.is_item_selected(i) if not self.read_only else False
 
             # Format selection and cursor indicators using the indicators module
-            selection_indicator = SelectionIndicators.format_selection_box(is_selected)
-            cursor_indicator = SelectionIndicators.format_cursor(
-                i == self.message_cursor_idx, style="triangle"
-            )
+            if self.read_only:
+                # In read-only mode, show minimal indicators
+                selection_indicator = ""
+                cursor_indicator = "• " if i == self.message_cursor_idx else "  "
+            else:
+                selection_indicator = SelectionIndicators.format_selection_box(is_selected)
+                cursor_indicator = SelectionIndicators.format_cursor(
+                    i == self.message_cursor_idx, style="triangle"
+                )
 
             # Format message header
             if role == 'user':
@@ -220,8 +226,8 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
                 else:
                     lines.append("")
 
-        # Add status line if in visual mode
-        if self.visual_mode:
+        # Add status line if in visual mode (only if not read-only)
+        if self.visual_mode and not self.read_only:
             if colors_enabled:
                 lines.append([("", COLOR_DEFAULT)])
                 lines.append([(SelectionIndicators.VISUAL_MODE, COLOR_DEFAULT)])
@@ -253,12 +259,17 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
 
         role, content, timestamp = self.messages[self.message_cursor_idx]
 
-        # Check if selected using mixin method
-        is_selected = self.is_item_selected(self.message_cursor_idx)
+        # Check if selected using mixin method (only if not read-only)
+        is_selected = self.is_item_selected(self.message_cursor_idx) if not self.read_only else False
 
         # Format selection and cursor indicators using the indicators module
-        selection_indicator = SelectionIndicators.format_selection_box(is_selected)
-        cursor_indicator = SelectionIndicators.format_cursor(True, style="triangle")
+        if self.read_only:
+            # In read-only mode, show minimal indicators
+            selection_indicator = ""
+            cursor_indicator = "• "
+        else:
+            selection_indicator = SelectionIndicators.format_selection_box(is_selected)
+            cursor_indicator = SelectionIndicators.format_cursor(True, style="triangle")
 
         # Format message header
         if role == 'user':
@@ -339,8 +350,8 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
                 else:
                     lines.append(line)
 
-        # Add status line if in visual mode
-        if self.visual_mode and len(lines) < available_height:
+        # Add status line if in visual mode (only if not read-only)
+        if self.visual_mode and not self.read_only and len(lines) < available_height:
             if colors_enabled:
                 lines.append([("", COLOR_DEFAULT)])
                 lines.append([(SelectionIndicators.VISUAL_MODE, COLOR_DEFAULT)])
@@ -431,8 +442,8 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
                         max_scroll = max(0, len(self.messages) - visible_items)
                         self.message_scroll_offset = min(self.message_scroll_offset, max_scroll)
 
-        # Delegate selection operations to mixin
-        else:
+        # Delegate selection operations to mixin (only if not read-only)
+        elif not self.read_only:
             self.handle_selection_input(key)
     
     def _visible_message_items(self, height: int) -> int:
