@@ -7,7 +7,7 @@ from typing import Optional
 
 from .commits_view import CommitView
 from .commit_details_view import CommitDetailsView
-from .chat_view import ChatView
+from .messages_view import MessageView
 from .layout_manager import LayoutManager
 from .pane_renderer import PaneRenderer
 from .text_utils import clear_iterm2_scrollback
@@ -33,10 +33,18 @@ class TigsViewApp:
         # Initialize layout manager
         self.layout_manager = LayoutManager()
         
+        # Initialize chat parser like store_app does
+        try:
+            from cligent import ChatParser
+            self.chat_parser = ChatParser('claude-code')
+        except Exception:
+            self.chat_parser = None
+
         # Initialize view components
         self.commit_view = CommitView(self.store, read_only=True)
         self.commit_details_view = CommitDetailsView(self.store)
-        self.chat_display_view = ChatView(self.store)
+        self.message_view = MessageView(self.chat_parser)
+        self.message_view.read_only = True  # Make it read-only for view mode
         
         # Give layout manager to commit view for horizontal scrolling
         self.commit_view.layout_manager = self.layout_manager
@@ -49,8 +57,70 @@ class TigsViewApp:
             sha = self.commit_view.get_cursor_sha()
             if sha:
                 self.commit_details_view.load_commit_details(sha)
-                self.chat_display_view.load_chat(sha)
-    
+                self._load_chat_for_commit(sha)
+
+    def _load_chat_for_commit(self, sha: str) -> None:
+        """Load chat content for a commit directly into MessageView."""
+        try:
+            # Get raw chat content from git notes
+            content = self.store.show_chat(sha)
+
+            if content and self.chat_parser:
+                # Use the new decompose() method to parse YAML directly
+                try:
+                    chat = self.chat_parser.decompose(content)
+
+                    # Load parsed messages into MessageView
+                    self.message_view.messages = []
+                    for msg in chat.messages:
+                        # Handle role conversion
+                        if hasattr(msg, 'role'):
+                            role = msg.role
+                            if hasattr(role, 'value'):
+                                role = role.value
+                            else:
+                                role = str(role).lower()
+                        else:
+                            role = 'unknown'
+
+                        content_text = msg.content if hasattr(msg, 'content') else str(msg)
+                        timestamp = msg.timestamp if hasattr(msg, 'timestamp') else None
+                        self.message_view.messages.append((role, content_text, timestamp))
+
+                    # Update MessageView state
+                    self.message_view.items = self.message_view.messages
+                    self.message_view.cursor_idx = 0
+                    self.message_view.message_cursor_idx = 0
+                    self.message_view._internal_scroll_offset = 0
+                    self.message_view._needs_message_view_init = True
+
+                except Exception as parse_error:
+                    # Show parsing error as a system message
+                    self.message_view.messages = [("system", f"Failed to parse chat: {str(parse_error)}\n\nRaw content:\n{content}", None)]
+                    self.message_view.items = self.message_view.messages
+                    self.message_view.cursor_idx = 0
+                    self.message_view.message_cursor_idx = 0
+                    self.message_view._internal_scroll_offset = 0
+                    self.message_view._needs_message_view_init = True
+
+            else:
+                # No chat content - clear messages
+                self.message_view.messages = []
+                self.message_view.items = []
+
+        except KeyError:
+            # No chat for this commit
+            self.message_view.messages = []
+            self.message_view.items = []
+        except Exception as e:
+            # Show error as a system message
+            self.message_view.messages = [("system", f"Error loading chat: {str(e)}", None)]
+            self.message_view.items = self.message_view.messages
+            self.message_view.cursor_idx = 0
+            self.message_view.message_cursor_idx = 0
+            self.message_view._internal_scroll_offset = 0
+            self.message_view._needs_message_view_init = True
+
     def run(self) -> None:
         """Run the TUI application."""
         try:
@@ -146,7 +216,7 @@ class TigsViewApp:
             # Get display lines from each view
             commit_lines = self.commit_view.get_display_lines(pane_height, commit_width, self._colors_enabled)
             details_lines = self.commit_details_view.get_display_lines(pane_height, details_width, self._colors_enabled)
-            chat_lines = self.chat_display_view.get_display_lines(pane_height, chat_width)
+            chat_lines = self.message_view.get_display_lines(pane_height, chat_width, self._colors_enabled)
             
             # Draw panes with focus state using PaneRenderer
             PaneRenderer.draw_pane(stdscr, 0, 0, pane_height, commit_width,
@@ -184,13 +254,13 @@ class TigsViewApp:
                         sha = self.commit_view.get_cursor_sha()
                         if sha:
                             self.commit_details_view.load_commit_details(sha)
-                            self.chat_display_view.load_chat(sha)
+                            self._load_chat_for_commit(sha)
                 elif self.focused_pane == 1:
                     # Details pane - view scrolling
                     self.commit_details_view.handle_input(key, pane_height)
                 elif self.focused_pane == 2:
                     # Chat pane - view scrolling
-                    self.chat_display_view.handle_input(key, pane_height)
+                    self.message_view.handle_input(None, key, pane_height)
     
     
     def _draw_status_bar(self, stdscr, y: int, width: int) -> None:
@@ -203,9 +273,9 @@ class TigsViewApp:
         """
         # Context-sensitive status based on focused pane
         if self.focused_pane == 0:
-            status_text = "↑/↓: navigate commits | Tab: switch pane | q: quit"
+            status_text = "↑/↓: navigate commits | Tab: switch pane | q: quit | <FORMATTED CHAT VIEW>"
         else:
-            status_text = "↑/↓: scroll | Tab: switch pane | q: quit"
+            status_text = "↑/↓: scroll | Tab: switch pane | q: quit | <FORMATTED CHAT VIEW>"
         
         # Use reverse video for status bar
         if self._colors_enabled:

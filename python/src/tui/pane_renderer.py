@@ -61,11 +61,18 @@ class PaneRenderer:
                 stdscr.addch(y + i, x, vt)
                 stdscr.addch(y + i, x + width - 1, vt)
             
-            # Draw title (still with bold if focused)
-            if title and len(title) + 4 < width:
-                title_text = f" {title} "
-                title_x = x + (width - len(title_text)) // 2
-                stdscr.addstr(y, title_x, title_text)
+            # Draw title with arrow indicators for focused panel
+            if title:
+                if focused:
+                    # Add arrow indicators for active panel
+                    title_text = f" ► {title} ◄ "
+                else:
+                    title_text = f" {title} "
+
+                # Only draw if it fits
+                if len(title_text) < width:
+                    title_x = x + (width - len(title_text)) // 2
+                    stdscr.addstr(y, title_x, title_text)
             
             # Turn off bold/color before drawing content
             if focused:

@@ -33,6 +33,7 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
         self.selected_items = self.selected_messages  # Point to same set for mixin
         self._needs_message_view_init = True
         self._internal_scroll_offset = 0  # Internal scroll within a long message
+        self.read_only = False  # Flag for read-only mode
     
     def get_selected_messages_content(self) -> str:
         """Get the exported chat content from cligent.
@@ -130,6 +131,9 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
         Returns:
             List of formatted message lines (strings or color tuple lists)
         """
+        # Store width for use in handle_input
+        self._last_width = width
+
         lines = []
 
         if not self.messages:
@@ -162,14 +166,19 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
         for i in range(start_idx, end_idx):
             role, content, timestamp = self.messages[i]
 
-            # Check if selected using mixin method
-            is_selected = self.is_item_selected(i)
+            # Check if selected using mixin method (only if not read-only)
+            is_selected = self.is_item_selected(i) if not self.read_only else False
 
             # Format selection and cursor indicators using the indicators module
-            selection_indicator = SelectionIndicators.format_selection_box(is_selected)
-            cursor_indicator = SelectionIndicators.format_cursor(
-                i == self.message_cursor_idx, style="triangle"
-            )
+            if self.read_only:
+                # In read-only mode, show minimal indicators
+                selection_indicator = ""
+                cursor_indicator = "• " if i == self.message_cursor_idx else "  "
+            else:
+                selection_indicator = SelectionIndicators.format_selection_box(is_selected)
+                cursor_indicator = SelectionIndicators.format_cursor(
+                    i == self.message_cursor_idx, style="triangle"
+                )
 
             # Format message header
             if role == 'user':
@@ -220,8 +229,8 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
                 else:
                     lines.append("")
 
-        # Add status line if in visual mode
-        if self.visual_mode:
+        # Add status line if in visual mode (only if not read-only)
+        if self.visual_mode and not self.read_only:
             if colors_enabled:
                 lines.append([("", COLOR_DEFAULT)])
                 lines.append([(SelectionIndicators.VISUAL_MODE, COLOR_DEFAULT)])
@@ -253,12 +262,17 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
 
         role, content, timestamp = self.messages[self.message_cursor_idx]
 
-        # Check if selected using mixin method
-        is_selected = self.is_item_selected(self.message_cursor_idx)
+        # Check if selected using mixin method (only if not read-only)
+        is_selected = self.is_item_selected(self.message_cursor_idx) if not self.read_only else False
 
         # Format selection and cursor indicators using the indicators module
-        selection_indicator = SelectionIndicators.format_selection_box(is_selected)
-        cursor_indicator = SelectionIndicators.format_cursor(True, style="triangle")
+        if self.read_only:
+            # In read-only mode, show minimal indicators
+            selection_indicator = ""
+            cursor_indicator = "• "
+        else:
+            selection_indicator = SelectionIndicators.format_selection_box(is_selected)
+            cursor_indicator = SelectionIndicators.format_cursor(True, style="triangle")
 
         # Format message header
         if role == 'user':
@@ -307,6 +321,7 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
 
         # Add lines with scroll indicators
         display_lines = all_lines[start_line:end_line]
+
         for i, line in enumerate(display_lines):
             # Calculate scroll indicator for this line
             scroll_indicator = ""
@@ -339,8 +354,8 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
                 else:
                     lines.append(line)
 
-        # Add status line if in visual mode
-        if self.visual_mode and len(lines) < available_height:
+        # Add status line if in visual mode (only if not read-only)
+        if self.visual_mode and not self.read_only and len(lines) < available_height:
             if colors_enabled:
                 lines.append([("", COLOR_DEFAULT)])
                 lines.append([(SelectionIndicators.VISUAL_MODE, COLOR_DEFAULT)])
@@ -361,9 +376,9 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
         if not self.messages:
             return
 
-        # Check if we're in single message mode
-        # We'll use a reasonable default width for detection, actual width will be used in display
-        message_heights = self._calculate_message_heights(self.messages, 80)  # Use reasonable default width
+        # Use last known width for single message mode detection, or reasonable default
+        width = getattr(self, '_last_width', 80)
+        message_heights = self._calculate_message_heights(self.messages, width)
         is_single_message_mode = (self.message_cursor_idx < len(message_heights) and
                                   message_heights[self.message_cursor_idx] >= pane_height - 2)
 
@@ -396,10 +411,14 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
 
         elif key == curses.KEY_DOWN:
             if is_single_message_mode:
-                # Calculate total lines for current message
+                # Calculate total lines for current message using exact same logic as display method
                 role, content, timestamp = self.messages[self.message_cursor_idx]
-                content_width = max(10, 80 - 6)  # Use reasonable default width calculation
-                all_lines = 1  # Header
+
+                # Use the same width calculation as in _get_single_message_display_lines
+                content_width = max(10, width - 8)  # Account for borders, indentation, and scroll indicator
+
+                # Count lines exactly as in display method
+                all_lines = 1  # Header line
                 for line in content.split('\n'):
                     wrapped_lines = self._word_wrap(line, content_width)
                     all_lines += len(wrapped_lines)
@@ -409,7 +428,10 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
                     available_height -= 2
 
                 # Scroll within the current message
-                if self._internal_scroll_offset + available_height < all_lines:
+                # Allow scrolling until we can see all lines
+                # We should be able to scroll until the last line is visible
+                max_scroll = max(0, all_lines - available_height)
+                if self._internal_scroll_offset < max_scroll:
                     self._internal_scroll_offset += 1
                 elif self.cursor_idx < len(self.messages) - 1:
                     # Move to next message and reset internal scroll
@@ -431,8 +453,8 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
                         max_scroll = max(0, len(self.messages) - visible_items)
                         self.message_scroll_offset = min(self.message_scroll_offset, max_scroll)
 
-        # Delegate selection operations to mixin
-        else:
+        # Delegate selection operations to mixin (only if not read-only)
+        elif not self.read_only:
             self.handle_selection_input(key)
     
     def _visible_message_items(self, height: int) -> int:
