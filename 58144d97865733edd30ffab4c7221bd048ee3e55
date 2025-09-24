@@ -1,0 +1,72 @@
+schema: tigs.chat/v1
+messages:
+- role: user
+  content: |
+    another issue. When user types 'tig store', the message panel should point to the first message, not the last message
+  timestamp: '2025-09-24T05:18:34Z'
+- role: assistant
+  content: |
+    You're right! When users first open `tig store`, they should see the beginning of the conversation, not the end. Let me find where the initial positioning is set and fix it.
+  timestamp: '2025-09-24T05:18:39Z'
+- role: assistant
+  content: |
+    Let me find where the initial cursor and scroll positioning is set:
+  timestamp: '2025-09-24T05:18:44Z'
+- role: assistant
+  content: |
+    Let me look at the `_init_message_view` method:
+  timestamp: '2025-09-24T05:18:50Z'
+- role: assistant
+  content: |
+    Found it! The issue is in lines 488-494 of the `_init_message_view` method. It's explicitly positioning to show the last messages and putting the cursor at the bottom. Let me fix this to start at the beginning:
+  timestamp: '2025-09-24T05:18:56Z'
+- role: assistant
+  content: |
+    I should also check the other places where cursor is initialized to make sure they start at the beginning. Let me check the `load_messages` method:
+  timestamp: '2025-09-24T05:19:03Z'
+- role: assistant
+  content: |
+    Good! The `load_messages` method is already setting the cursor to 0. Now let me update the debug info and reinstall:
+  timestamp: '2025-09-24T05:19:08Z'
+- role: assistant
+  content: |
+    Perfect! I've fixed the initial positioning issue. Here's what I changed:
+
+    **The Problem:** The `_init_message_view()` method was explicitly positioning to show the **last** messages and putting the cursor at the bottom of the visible area.
+
+    **The Solution:** Modified the initialization logic in `/Users/yihaojiang/Downloads/tig/python/src/tui/messages_view.py:488-491` to:
+    - Set `cursor_idx = 0` (first message)
+    - Set `message_cursor_idx = 0` (keep legacy alias in sync)
+    - Set `_scroll_offset = 0` (no initial scrolling)
+
+    **Key changes:**
+    - **Removed the "show last messages" logic** that was calculating `max(0, len(messages) - visible_items)`
+    - **Removed the "cursor at bottom" logic** that was positioning the cursor at the end
+    - **Simplified to start at the beginning** - cursor on first message, no scrolling offset
+
+    **Debug info updated** to `v2024-09-24-start-first` so you can verify you're running the latest version.
+
+    Now when you run `tig store`, the message panel will start at the first message of the conversation, which is much more intuitive for reviewing the chat history from the beginning!
+  timestamp: '2025-09-24T05:19:36Z'
+- role: user
+  content: |
+    create a commit msg
+  timestamp: '2025-09-24T05:20:03Z'
+- role: assistant
+  content: |
+    Perfect! I've successfully created a commit for the initial positioning fix:
+
+    **Commit Summary:**
+    - **Type**: `feat:` - New feature that improves user experience
+    - **Scope**: Message panel initial positioning behavior
+    - **Files changed**: 2 files (messages_view.py and store_app.py)
+    - **Stats**: 6 insertions, 10 deletions (net simplification)
+
+    **Key improvements documented:**
+    - **UX improvement**: Start at beginning of conversations instead of end
+    - **User benefit**: More intuitive experience when opening `tig store`
+    - **Technical change**: Replace complex "show last messages" logic with simple initialization
+    - **Simplification**: Reduced code complexity by removing positioning calculations
+
+    The commit clearly explains both the user-facing benefit (better UX) and the technical implementation (simpler initialization logic). The changes are now committed to the `fix-scrolling` branch with a clean working tree.
+  timestamp: '2025-09-24T05:20:55Z'
