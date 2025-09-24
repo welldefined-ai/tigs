@@ -9,7 +9,7 @@ import pytest
 from src.tui.view_app import TigsViewApp
 from src.tui.commit_details_view import CommitDetailsView
 from src.tui.chat_view import ChatView
-from src.store import TigsStore
+from src.storage import TigsRepo
 
 
 class TestViewAppIntegration:
@@ -17,7 +17,7 @@ class TestViewAppIntegration:
 
     def test_view_app_initialization(self, git_repo):
         """Test view app initializes with all components."""
-        store = TigsStore(git_repo)
+        store = TigsRepo(git_repo)
         
         with patch('subprocess.run') as mock_run:
             mock_run.return_value.returncode = 0
@@ -34,7 +34,7 @@ class TestViewAppIntegration:
     
     def test_tab_navigation(self, git_repo):
         """Test Tab/Shift-Tab cycles through panes."""
-        store = TigsStore(git_repo)
+        store = TigsRepo(git_repo)
         
         with patch('subprocess.run'):
             app = TigsViewApp(store)
@@ -71,7 +71,7 @@ class TestViewAppIntegration:
     
     def test_details_view_scrolling(self, git_repo):
         """Test scrolling in commit details view."""
-        store = TigsStore(git_repo)
+        store = TigsRepo(git_repo)
         
         # Create details view
         details_view = CommitDetailsView(store)
@@ -100,7 +100,7 @@ class TestViewAppIntegration:
     
     def test_chat_view_scrolling(self, git_repo):
         """Test scrolling in chat view."""
-        store = TigsStore(git_repo)
+        store = TigsRepo(git_repo)
         
         # Create chat view
         chat_view = ChatView(store)
@@ -125,7 +125,7 @@ class TestViewAppIntegration:
     
     def test_pane_focus_affects_input_routing(self, git_repo):
         """Test that input is routed to the focused pane."""
-        store = TigsStore(git_repo)
+        store = TigsRepo(git_repo)
         
         with patch('subprocess.run') as mock_run:
             mock_run.return_value.returncode = 0
@@ -173,7 +173,7 @@ class TestViewAppIntegration:
     
     def test_status_bar_context_sensitive(self, git_repo):
         """Test that status bar changes based on focused pane."""
-        store = TigsStore(git_repo)
+        store = TigsRepo(git_repo)
         
         with patch('subprocess.run'):
             app = TigsViewApp(store)

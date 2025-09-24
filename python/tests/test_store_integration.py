@@ -12,7 +12,7 @@ import yaml
 
 from src.tui.store_app import TigsStoreApp
 from src.tui.commits_view import CommitView
-from src.store import TigsStore
+from src.storage import TigsRepo
 
 
 class TestTUIStoreEndToEnd:
@@ -20,7 +20,7 @@ class TestTUIStoreEndToEnd:
     
     def test_tui_store_app_initialization_with_real_cligent(self, git_repo):
         """Test TUI app initialization with real cligent data."""
-        store = TigsStore(git_repo)
+        store = TigsRepo(git_repo)
         
         # Create app with real store
         app = TigsStoreApp(store)
@@ -43,7 +43,7 @@ class TestTUIStoreEndToEnd:
     def test_tui_commit_loading_with_real_git(self, multi_commit_repo):
         """Test commit loading with real Git repository."""
         git_repo, commits = multi_commit_repo
-        store = TigsStore(git_repo)
+        store = TigsRepo(git_repo)
         
         app = TigsStoreApp(store)
         
@@ -67,7 +67,7 @@ class TestTUIStoreEndToEnd:
     
     def test_store_operation_error_handling_real_git(self, git_repo, sample_yaml_content):
         """Test store operation error handling with real Git operations."""
-        store = TigsStore(git_repo)
+        store = TigsRepo(git_repo)
         app = TigsStoreApp(store)
         
         # Mock views
@@ -91,7 +91,7 @@ class TestTUIStoreEndToEnd:
     
     def test_store_with_existing_notes_overwrite(self, git_repo, sample_yaml_content, git_notes_helper):
         """Test store operation with existing notes (overwrite scenario)."""
-        store = TigsStore(git_repo)
+        store = TigsRepo(git_repo)
         
         # First, manually add a note using tigs CLI
         from tigs.cli import main
@@ -133,7 +133,7 @@ class TestTUIStoreEndToEnd:
         if not claude_logs:
             pytest.skip("No Claude Code logs available")
             
-        store = TigsStore(git_repo)
+        store = TigsRepo(git_repo)
         app = TigsStoreApp(store)
         
         # Load real log
@@ -171,7 +171,7 @@ class TestTUIStoreEndToEnd:
             pytest.skip("No Claude Code logs available")
             
         git_repo, commits = multi_commit_repo
-        store = TigsStore(git_repo)
+        store = TigsRepo(git_repo)
         app = TigsStoreApp(store)
         
         # Step 1: Load commits (real Git operation)
@@ -240,7 +240,7 @@ class TestTUIStoreEndToEnd:
         subprocess.run(["git", "config", "user.name", "Test User"], cwd=empty_repo, check=True)
         subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=empty_repo, check=True)
         
-        store = TigsStore(empty_repo)
+        store = TigsRepo(empty_repo)
         app = TigsStoreApp(store)
         
         # Should handle empty repo gracefully
