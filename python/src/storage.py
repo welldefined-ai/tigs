@@ -23,7 +23,7 @@ class TigsRepo:
             ["git", "rev-parse", "--git-dir"],
             cwd=self.repo_path,
             capture_output=True,
-            text=True
+            text=True,
         )
         if result.returncode != 0:
             raise ValueError(f"Not a Git repository: {self.repo_path}")
@@ -35,7 +35,7 @@ class TigsRepo:
             cwd=self.repo_path,
             capture_output=True,
             text=True,
-            check=True
+            check=True,
         )
 
     def add_chat(self, commit_sha: str, content: str) -> str:
@@ -56,12 +56,17 @@ class TigsRepo:
 
         # Add note using Git notes
         try:
-            self._run_git(["notes", "--ref=refs/notes/chats", "add", "-m", content, resolved_sha])
+            self._run_git(
+                ["notes", "--ref=refs/notes/chats", "add", "-m", content, resolved_sha]
+            )
             return resolved_sha
         except subprocess.CalledProcessError as e:
             # Check both stdout and stderr for the "existing notes" message
             error_output = (e.stderr or "") + (e.stdout or "")
-            if "found existing notes" in error_output.lower() or "already has a note" in error_output.lower():
+            if (
+                "found existing notes" in error_output.lower()
+                or "already has a note" in error_output.lower()
+            ):
                 raise ValueError(f"Commit {resolved_sha} already has a chat")
             else:
                 raise ValueError(f"Failed to add chat: {error_output.strip()}")
@@ -86,9 +91,11 @@ class TigsRepo:
 
         # Get note content
         try:
-            result = self._run_git(["notes", "--ref=refs/notes/chats", "show", resolved_sha])
+            result = self._run_git(
+                ["notes", "--ref=refs/notes/chats", "show", resolved_sha]
+            )
             # Git notes adds exactly one trailing newline, remove only that one
-            if result.stdout.endswith('\n'):
+            if result.stdout.endswith("\n"):
                 return result.stdout[:-1]
             return result.stdout
         except subprocess.CalledProcessError:
@@ -203,7 +210,9 @@ class TigsRepo:
             if unpushed:
                 raise ValueError(
                     f"Cannot push chats: {len(unpushed)} commit(s) with chats are not pushed to '{remote}'.\n"
-                    f"Unpushed commits:\n" + "\n".join(f"  - {sha[:8]}" for sha in unpushed) + "\n\n"
+                    f"Unpushed commits:\n"
+                    + "\n".join(f"  - {sha[:8]}" for sha in unpushed)
+                    + "\n\n"
                     f"To fix this:\n"
                     f"  1. Push your commits first: git push {remote} <branch>\n"
                     f"  2. Then push the chats: tigs push\n\n"

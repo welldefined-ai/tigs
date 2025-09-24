@@ -20,7 +20,7 @@ class ChatView:
 
         # Initialize chat parser
         try:
-            self.chat_parser = ChatParser('claude-code')
+            self.chat_parser = ChatParser("claude-code")
         except Exception:
             # Handle cligent initialization errors gracefully
             self.chat_parser = None
@@ -49,18 +49,17 @@ class ChatView:
                     # Create a temporary directory and file that cligent can work with
                     import tempfile
                     import os
-                    import json
 
                     # Create temp directory structure that cligent expects
                     with tempfile.TemporaryDirectory() as temp_dir:
                         # Write the chat content to a temporary log file
                         log_file = os.path.join(temp_dir, f"{sha}.yaml")
-                        with open(log_file, 'w') as f:
+                        with open(log_file, "w") as f:
                             f.write(content)
 
                         # Create a temporary cligent config that points to this directory
                         # Use a different instance to avoid interfering with the main one
-                        temp_parser = ChatParser('claude-code')
+                        temp_parser = ChatParser("claude-code")
 
                         # Parse the file directly using parse_file method
                         chat = temp_parser.parse_file(log_file)
@@ -69,27 +68,34 @@ class ChatView:
                         self.message_view.messages = []
                         for msg in chat.messages:
                             # Handle cligent Role enum or string exactly like in messages_view.py
-                            if hasattr(msg, 'role'):
+                            if hasattr(msg, "role"):
                                 role = msg.role
                                 # Convert Role enum to string if needed
-                                if hasattr(role, 'value'):
+                                if hasattr(role, "value"):
                                     role = role.value
-                                elif hasattr(role, 'USER'):  # Check for Role enum
+                                elif hasattr(role, "USER"):  # Check for Role enum
                                     from cligent import Role
+
                                     if role == Role.USER:
-                                        role = 'user'
+                                        role = "user"
                                     elif role == Role.ASSISTANT:
-                                        role = 'assistant'
+                                        role = "assistant"
                                     else:
                                         role = str(role).lower()
                                 else:
                                     role = str(role).lower()
                             else:
-                                role = 'unknown'
+                                role = "unknown"
 
-                            content_text = msg.content if hasattr(msg, 'content') else str(msg)
-                            timestamp = msg.timestamp if hasattr(msg, 'timestamp') else None
-                            self.message_view.messages.append((role, content_text, timestamp))
+                            content_text = (
+                                msg.content if hasattr(msg, "content") else str(msg)
+                            )
+                            timestamp = (
+                                msg.timestamp if hasattr(msg, "timestamp") else None
+                            )
+                            self.message_view.messages.append(
+                                (role, content_text, timestamp)
+                            )
 
                         # Update items reference and reset cursor
                         self.message_view.items = self.message_view.messages
@@ -101,7 +107,13 @@ class ChatView:
                 except Exception as e:
                     # If parsing fails, fall back to raw content display
                     # Create a debug message to show the error
-                    self.message_view.messages = [("system", f"PARSING ERROR: {str(e)}\n\nRAW CONTENT:\n{content}", None)]
+                    self.message_view.messages = [
+                        (
+                            "system",
+                            f"PARSING ERROR: {str(e)}\n\nRAW CONTENT:\n{content}",
+                            None,
+                        )
+                    ]
                     self.message_view.items = self.message_view.messages
                     self.message_view.cursor_idx = 0
                     self.message_view.message_cursor_idx = 0
@@ -157,7 +169,9 @@ class ChatView:
             return True
         return False
 
-    def get_display_lines(self, height: int, width: int, colors_enabled: bool = False) -> List[Union[str, List[Tuple[str, int]]]]:
+    def get_display_lines(
+        self, height: int, width: int, colors_enabled: bool = False
+    ) -> List[Union[str, List[Tuple[str, int]]]]:
         """Get display lines for the chat pane.
 
         Args:
@@ -171,12 +185,14 @@ class ChatView:
         if not self.current_sha:
             if colors_enabled:
                 from .color_constants import COLOR_DEFAULT
+
                 return [[("No commit selected", COLOR_DEFAULT)]]
             return ["No commit selected"]
 
         if not self.message_view.messages:
             if colors_enabled:
                 from .color_constants import COLOR_DEFAULT
+
                 return [[("(No chat for this commit)", COLOR_DEFAULT)]]
             return ["(No chat for this commit)"]
 

@@ -1,8 +1,7 @@
 """Message view management for TUI."""
 
 import curses
-from typing import List, Tuple, Optional, Set, Union
-from datetime import datetime
+from typing import List, Tuple, Set, Union
 
 from cligent import Role
 from .selection_mixin import VisualSelectionMixin
@@ -27,33 +26,35 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
         self.messages = []
         self.items = self.messages  # Alias for mixin compatibility
         self.cursor_idx = 0  # Primary cursor index
-        self.message_cursor_idx = self.cursor_idx  # Legacy alias for backward compatibility
+        self.message_cursor_idx = (
+            self.cursor_idx
+        )  # Legacy alias for backward compatibility
         self.message_scroll_offset = 0  # Will be replaced with scroll_offset gradually
         self.selected_messages: Set[int] = set()  # Legacy alias
         self.selected_items = self.selected_messages  # Point to same set for mixin
         self._needs_message_view_init = True
         self._scroll_offset = 0  # Simple line-based scrolling offset
         self.read_only = False  # Flag for read-only mode
-    
+
     def get_selected_messages_content(self) -> str:
         """Get the exported chat content from cligent.
-        
+
         Returns:
             The exported chat content from cligent
         """
-        if not self.chat_parser or not hasattr(self, 'current_log_id'):
+        if not self.chat_parser or not hasattr(self, "current_log_id"):
             raise ValueError("No chat loaded")
-        
+
         # Clear any previous selections
         self.chat_parser.clear_selection()
-        
+
         # Select the messages we want
         selected_indices = sorted(self.selected_messages)
         self.chat_parser.select(self.current_log_id, selected_indices)
-        
+
         # Compose returns the exported text directly
         return self.chat_parser.compose()
-    
+
     def load_messages(self, log_id: str) -> None:
         """Load messages for a specific log.
 
@@ -63,33 +64,33 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
         if not self.chat_parser:
             self.messages = []
             return
-            
+
         try:
             chat = self.chat_parser.parse(log_id)
             self.current_log_id = log_id  # Store log ID for compose()
-            
+
             # Extract messages from the chat
             self.messages = []
             for msg in chat.messages:
                 # Handle cligent Role enum or string
-                if hasattr(msg, 'role'):
+                if hasattr(msg, "role"):
                     role = msg.role
                     # Convert Role enum to string if needed
-                    if hasattr(role, 'value'):
+                    if hasattr(role, "value"):
                         role = role.value
                     elif role == Role.USER:
-                        role = 'user'
+                        role = "user"
                     elif role == Role.ASSISTANT:
-                        role = 'assistant'
+                        role = "assistant"
                     else:
                         role = str(role).lower()
                 else:
-                    role = 'unknown'
-                    
-                content = msg.content if hasattr(msg, 'content') else str(msg)
-                timestamp = msg.timestamp if hasattr(msg, 'timestamp') else None
+                    role = "unknown"
+
+                content = msg.content if hasattr(msg, "content") else str(msg)
+                timestamp = msg.timestamp if hasattr(msg, "timestamp") else None
                 self.messages.append((role, content, timestamp))
-            
+
             # Reset cursor and scroll position for new messages
             self.cursor_idx = 0
             self.message_cursor_idx = self.cursor_idx  # Keep legacy alias in sync
@@ -103,13 +104,13 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
             self._needs_message_view_init = True
         except Exception:
             self.messages = []
-    
+
     def _format_timestamp(self, timestamp) -> str:
         """Format timestamp with space separator for readability.
-        
+
         Args:
             timestamp: Optional datetime object
-            
+
         Returns:
             Formatted string like " 09-08 03:05" or empty string
         """
@@ -117,10 +118,12 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
             return ""
         try:
             return f" {timestamp.strftime('%m-%d %H:%M')}"
-        except:
+        except (ValueError, AttributeError, TypeError):
             return ""
-    
-    def get_display_lines(self, height: int, width: int = 40, colors_enabled: bool = False) -> List[Union[str, List[Tuple[str, int]]]]:
+
+    def get_display_lines(
+        self, height: int, width: int = 40, colors_enabled: bool = False
+    ) -> List[Union[str, List[Tuple[str, int]]]]:
         """Get display lines for messages pane with bottom-anchored display.
 
         Args:
@@ -151,7 +154,7 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
         content_height = height - 1  # -1 for footer
 
         # Calculate message heights with current width
-        message_heights = self._calculate_message_heights(self.messages, width)
+        self._calculate_message_heights(self.messages, width)
 
         # Build ALL display lines for ALL messages first
         all_lines = []
@@ -167,17 +170,19 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
                 selection_indicator = ""
                 cursor_indicator = "• " if i == self.message_cursor_idx else "  "
             else:
-                selection_indicator = SelectionIndicators.format_selection_box(is_selected)
+                selection_indicator = SelectionIndicators.format_selection_box(
+                    is_selected
+                )
                 cursor_indicator = SelectionIndicators.format_cursor(
                     i == self.message_cursor_idx, style="triangle"
                 )
 
             # Format message header
-            if role == 'user':
+            if role == "user":
                 role_text = "User"
-            elif role == 'assistant':
+            elif role == "assistant":
                 role_text = "Assistant"
-            elif role == 'system':
+            elif role == "system":
                 role_text = "System"
             else:
                 role_text = role.capitalize()
@@ -187,7 +192,9 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
                 # Build colored header parts
                 header_parts = []
                 # Selection and cursor indicators - default color
-                header_parts.append((f"{cursor_indicator}{selection_indicator} ", COLOR_DEFAULT))
+                header_parts.append(
+                    (f"{cursor_indicator}{selection_indicator} ", COLOR_DEFAULT)
+                )
                 # Role with appropriate color
                 role_color = get_role_color(role)
                 header_parts.append((role_text, role_color))
@@ -203,12 +210,14 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
 
             # Add wrapped content lines
             content_width = max(10, width - 6)  # Account for borders and indentation
-            for line in content.split('\n'):
+            for line in content.split("\n"):
                 wrapped_lines = self._word_wrap(line, content_width)
                 for wrapped in wrapped_lines:
                     if colors_enabled:
                         # Indented content with default color
-                        all_lines.append([("    ", COLOR_DEFAULT), (wrapped, COLOR_DEFAULT)])
+                        all_lines.append(
+                            [("    ", COLOR_DEFAULT), (wrapped, COLOR_DEFAULT)]
+                        )
                     else:
                         all_lines.append(f"    {wrapped}")
 
@@ -274,7 +283,6 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
 
         return lines
 
-
     def handle_input(self, stdscr, key: int, pane_height: int) -> None:
         """Handle input when messages pane is focused.
 
@@ -294,7 +302,7 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
 
         elif key == curses.KEY_DOWN:
             # Scroll down by one line, but check if there's more content below
-            if hasattr(self, '_last_width'):
+            if hasattr(self, "_last_width"):
                 total_lines = self._calculate_total_content_lines(self._last_width)
                 content_height = pane_height - 3  # Account for borders and footer
 
@@ -303,7 +311,7 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
                     self._scroll_offset += 1
 
         # Vim-like navigation: j/k keys for message navigation
-        elif key == ord('j'):
+        elif key == ord("j"):
             # Move to next message (down)
             if self.cursor_idx < len(self.messages) - 1:
                 self.cursor_idx += 1
@@ -311,7 +319,7 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
                 # Scroll to show the new current message
                 self._scroll_to_message(self.cursor_idx, pane_height)
 
-        elif key == ord('k'):
+        elif key == ord("k"):
             # Move to previous message (up)
             if self.cursor_idx > 0:
                 self.cursor_idx -= 1
@@ -322,45 +330,47 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
         # Delegate selection operations to mixin (only if not read-only)
         elif not self.read_only:
             self.handle_selection_input(key)
-    
+
     def _visible_message_items(self, height: int) -> int:
         """Calculate how many message items can fit in the given height.
-        
+
         Args:
             height: Screen height
-            
+
         Returns:
             Number of message items that can be displayed
         """
         # Rows available for content between borders
         rows = max(0, height - 2)
-        
+
         # Reserve rows for any status footer we append
         if self.visual_mode:
             rows = max(0, rows - 2)  # One blank + "-- VISUAL MODE --"
-        
+
         LINES_PER_MESSAGE = 2  # Header + first content line
         return max(1, rows // LINES_PER_MESSAGE)
-    
-    def _calculate_message_heights(self, messages: List[Tuple[str, str, any]], width: int) -> List[int]:
+
+    def _calculate_message_heights(
+        self, messages: List[Tuple[str, str, any]], width: int
+    ) -> List[int]:
         """Calculate height needed for each message with word wrapping.
-        
+
         Args:
             messages: List of (role, content, timestamp) tuples
             width: Available width for display
-        
+
         Returns:
             List of heights for each message
         """
         heights = []
         content_width = max(10, width - 6)  # Account for borders and indentation
-        
+
         for role, content, timestamp in messages:
             # Header line
             height = 1
-            
+
             # Content lines with word wrapping
-            content_lines = content.split('\n')
+            content_lines = content.split("\n")
             for line in content_lines:
                 if len(line) <= content_width:
                     height += 1
@@ -368,30 +378,28 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
                     # Word wrap long lines
                     wrapped = self._word_wrap(line, content_width)
                     height += len(wrapped)
-            
+
             # Add separator line (except for last message)
             height += 1
-            
+
             heights.append(height)
-        
+
         return heights
-    
+
     def _word_wrap(self, text: str, width: int) -> List[str]:
         """Word wrap text to specified width.
-        
+
         Args:
             text: Text to wrap
             width: Maximum width per line
-            
+
         Returns:
             List of wrapped lines
         """
         return word_wrap(text, width)
-    
+
     def _get_visible_messages_variable(
-        self,
-        height: int,
-        message_heights: List[int]
+        self, height: int, message_heights: List[int]
     ) -> Tuple[int, int, int]:
         """Calculate visible messages with variable heights.
 
@@ -442,7 +450,11 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
             # Scroll down to show cursor
             # Calculate new start to fit cursor
             new_start = self.message_cursor_idx
-            test_height = message_heights[self.message_cursor_idx] if self.message_cursor_idx < len(message_heights) else 3
+            test_height = (
+                message_heights[self.message_cursor_idx]
+                if self.message_cursor_idx < len(message_heights)
+                else 3
+            )
 
             while new_start > 0 and test_height < available_height:
                 new_start -= 1
@@ -456,13 +468,13 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
             return self._get_visible_messages_variable(height, message_heights)
 
         return end_idx - start_idx, start_idx, end_idx
-    
+
     def _message_view(self, height: int) -> Tuple[int, int, int]:
         """Get message view parameters - single source of truth.
-        
+
         Args:
             height: Screen height
-            
+
         Returns:
             Tuple of (visible_items, start_idx, end_idx)
         """
@@ -470,7 +482,7 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
         start_idx = self.message_scroll_offset
         end_idx = min(start_idx + visible_items, len(self.messages))
         return visible_items, start_idx, end_idx
-    
+
     def _init_message_view(self, height: int) -> None:
         """Initialize cursor and scroll position based on actual screen height.
 
@@ -483,13 +495,13 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
             self._line_scroll_offset = 0
             return
 
-        visible_items = self._visible_message_items(height)
+        self._visible_message_items(height)
 
         # Start at the beginning of the conversation
         self.cursor_idx = 0
         self.message_cursor_idx = self.cursor_idx
         self._scroll_offset = 0  # Start with no scrolling offset
-    
+
     def _calculate_total_content_lines(self, width: int) -> int:
         """Calculate the total number of lines that would be generated for all content.
 
@@ -510,7 +522,7 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
             total_lines += 1
 
             # Add lines for content
-            for line in content.split('\n'):
+            for line in content.split("\n"):
                 wrapped_lines = self._word_wrap(line, content_width)
                 total_lines += len(wrapped_lines)
 
@@ -531,7 +543,7 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
             message_idx: Index of the message to scroll to
             pane_height: Height of the pane
         """
-        if not self.messages or not hasattr(self, '_last_width'):
+        if not self.messages or not hasattr(self, "_last_width"):
             return
 
         # Calculate which line the message header starts at
@@ -544,7 +556,7 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
 
             # Add lines for content
             role, content, timestamp = self.messages[i]
-            for line in content.split('\n'):
+            for line in content.split("\n"):
                 wrapped_lines = self._word_wrap(line, content_width)
                 line_offset += len(wrapped_lines)
 
@@ -553,8 +565,6 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
                 line_offset += 1
 
         # Scroll to show this message near the top of the viewport
-        content_height = pane_height - 3  # Account for borders and footer
-
         # Position the message header a few lines from the top for better visibility
         target_offset = max(0, line_offset - 2)
         self._scroll_offset = target_offset
@@ -566,7 +576,7 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
             viewport_height: Total height available for display
             border_size: Size of borders to subtract from height
         """
-        if not self.messages or not hasattr(self, 'cursor_idx'):
+        if not self.messages or not hasattr(self, "cursor_idx"):
             return
 
         # Use the new scroll method

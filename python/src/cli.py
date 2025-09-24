@@ -12,8 +12,12 @@ from .tui import TigsStoreApp, TigsViewApp, CURSES_AVAILABLE
 
 
 @click.group()
-@click.option("--repo", "-r", type=click.Path(exists=True, path_type=Path),
-              help="Path to Git repository (defaults to current directory)")
+@click.option(
+    "--repo",
+    "-r",
+    type=click.Path(exists=True, path_type=Path),
+    help="Path to Git repository (defaults to current directory)",
+)
 @click.pass_context
 def main(ctx: click.Context, repo: Optional[Path]) -> None:
     """Tigs - Talks in Git → Specs.
@@ -35,7 +39,7 @@ def main(ctx: click.Context, repo: Optional[Path]) -> None:
 def add_chat(ctx: click.Context, commit: str, message: Optional[str]) -> None:
     """Add chat content to a commit."""
     store = ctx.obj["store"]
-    
+
     # Get chat content
     if message is None:
         message = click.edit("# Enter your chat content here\n")
@@ -43,15 +47,16 @@ def add_chat(ctx: click.Context, commit: str, message: Optional[str]) -> None:
             click.echo("Aborted: No content provided", err=True)
             sys.exit(1)
         # Remove the comment line
-        message = "\n".join(line for line in message.split("\n") 
-                           if not line.strip().startswith("#")).strip()
+        message = "\n".join(
+            line for line in message.split("\n") if not line.strip().startswith("#")
+        ).strip()
         if not message:
             click.echo("Aborted: No content provided", err=True)
             sys.exit(1)
     elif not message.strip():
         click.echo("Error: No content provided", err=True)
         sys.exit(1)
-    
+
     try:
         resolved_sha = store.add_chat(commit, message)
         click.echo(f"Added chat to commit: {resolved_sha}")
@@ -119,7 +124,9 @@ def remove_chat(ctx: click.Context, commit: str) -> None:
 
 @main.command("push")
 @click.argument("remote", type=str, default="origin")
-@click.option("--force", "-f", is_flag=True, help="Force push even if commits are not pushed")
+@click.option(
+    "--force", "-f", is_flag=True, help="Force push even if commits are not pushed"
+)
 @click.pass_context
 def push(ctx: click.Context, remote: str, force: bool) -> None:
     """Push chats to remote repository.
@@ -167,7 +174,9 @@ def fetch(ctx: click.Context, remote: str) -> None:
 @click.pass_context
 def push_chats(ctx: click.Context, remote: str) -> None:
     """[DEPRECATED] Use 'tigs push' instead."""
-    click.echo("Warning: 'push-chats' is deprecated. Use 'tigs push' instead.", err=True)
+    click.echo(
+        "Warning: 'push-chats' is deprecated. Use 'tigs push' instead.", err=True
+    )
     store = ctx.obj["store"]
     try:
         store._run_git(["push", remote, "refs/notes/chats:refs/notes/chats"])
@@ -182,7 +191,9 @@ def push_chats(ctx: click.Context, remote: str) -> None:
 @click.pass_context
 def fetch_chats(ctx: click.Context, remote: str) -> None:
     """[DEPRECATED] Use 'tigs fetch' instead."""
-    click.echo("Warning: 'fetch-chats' is deprecated. Use 'tigs fetch' instead.", err=True)
+    click.echo(
+        "Warning: 'fetch-chats' is deprecated. Use 'tigs fetch' instead.", err=True
+    )
     store = ctx.obj["store"]
     try:
         store._run_git(["fetch", remote, "refs/notes/chats:refs/notes/chats"])
@@ -199,7 +210,7 @@ def store_command(ctx: click.Context) -> None:
     if not CURSES_AVAILABLE:
         click.echo("Error: curses library not available", err=True)
         sys.exit(1)
-        
+
     store = ctx.obj["store"]
     app = TigsStoreApp(store)
     try:
@@ -216,7 +227,7 @@ def view_command(ctx: click.Context) -> None:
     if not CURSES_AVAILABLE:
         click.echo("Error: curses library not available", err=True)
         sys.exit(1)
-        
+
     store = ctx.obj["store"]
     app = TigsViewApp(store)
     try:
