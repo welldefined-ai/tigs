@@ -485,14 +485,10 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
 
         visible_items = self._visible_message_items(height)
 
-        # Show last visible_items messages, with cursor at bottom of visible area
-        self.message_scroll_offset = max(0, len(self.messages) - visible_items)
-        # Position cursor at bottom of visible area, ensuring room to scroll down
-        self.message_cursor_idx = min(
-            len(self.messages) - 1,
-            self.message_scroll_offset + visible_items - 1
-        )
-        self.cursor_idx = self.message_cursor_idx  # Keep mixin alias in sync
+        # Start at the beginning of the conversation
+        self.cursor_idx = 0
+        self.message_cursor_idx = self.cursor_idx
+        self._scroll_offset = 0  # Start with no scrolling offset
     
     def _calculate_total_content_lines(self, width: int) -> int:
         """Calculate the total number of lines that would be generated for all content.

@@ -250,9 +250,9 @@ class TigsStoreApp:
                 status_text = self.status_message
             else:
                 self.status_message = ""  # Clear old message
-                status_text = "Tab: switch | Space: select | Enter: store | q: quit | v2024-09-24-scroll-limit"
+                status_text = "Tab: switch | Space: select | Enter: store | q: quit | v2024-09-24-start-first"
         else:
-            status_text = "Tab: switch | Space: select | Enter: store | q: quit | v2024-09-24-scroll-limit"
+            status_text = "Tab: switch | Space: select | Enter: store | q: quit | v2024-09-24-start-first"
         
         # Add size warning if getting close to minimum
         height = stdscr.getmaxyx()[0]
