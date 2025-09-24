@@ -32,7 +32,7 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
         self.selected_messages: Set[int] = set()  # Legacy alias
         self.selected_items = self.selected_messages  # Point to same set for mixin
         self._needs_message_view_init = True
-        self._internal_scroll_offset = 0  # Internal scroll within a long message
+        self._line_scroll_offset = 0  # Fine-grained scrolling offset for long messages
         self.read_only = False  # Flag for read-only mode
     
     def get_selected_messages_content(self) -> str:
@@ -94,7 +94,7 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
             self.cursor_idx = 0
             self.message_cursor_idx = self.cursor_idx  # Keep legacy alias in sync
             self.message_scroll_offset = 0
-            self._internal_scroll_offset = 0  # Reset internal scroll
+            self._line_scroll_offset = 0  # Reset line scroll
             self.selected_messages.clear()
             # Update items reference for mixin
             self.items = self.messages
@@ -154,14 +154,6 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
         # Get visible messages using variable heights
         visible_count, start_idx, end_idx = self._get_visible_messages_variable(height, message_heights)
 
-        # Check if we're in single message mode (message too long for window)
-        is_single_message_mode = (visible_count == 1 and
-                                  start_idx == self.message_cursor_idx and
-                                  message_heights[self.message_cursor_idx] >= height - 2)
-
-        if is_single_message_mode:
-            return self._get_single_message_display_lines(height, width, colors_enabled)
-
         # Build display lines for multi-message view
         for i in range(start_idx, end_idx):
             role, content, timestamp = self.messages[i]
@@ -211,19 +203,25 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
 
             # Add wrapped content lines
             content_width = max(10, width - 6)  # Account for borders and indentation
+            # Allow more content to be generated if we have line scroll offset
+            effective_height = height + self._line_scroll_offset
             for line in content.split('\n'):
-                if len(lines) < height - 2:  # Leave room for borders
+                if len(lines) < effective_height - 2:  # Leave room for borders
                     wrapped_lines = self._word_wrap(line, content_width)
                     for wrapped in wrapped_lines:
-                        if len(lines) < height - 2:
+                        if len(lines) < effective_height - 2:
                             if colors_enabled:
                                 # Indented content with default color
                                 lines.append([("    ", COLOR_DEFAULT), (wrapped, COLOR_DEFAULT)])
                             else:
                                 lines.append(f"    {wrapped}")
+                        else:
+                            break  # Stop adding lines when screen is full
+                else:
+                    break  # Stop processing lines when screen is full
 
             # Add separator between messages if not the last
-            if i < end_idx - 1 and len(lines) < height - 2:
+            if i < end_idx - 1 and len(lines) < effective_height - 2:
                 if colors_enabled:
                     lines.append([("", COLOR_DEFAULT)])
                 else:
@@ -238,132 +236,22 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
                 lines.append("")
                 lines.append(SelectionIndicators.VISUAL_MODE)
 
-        return lines
+        # Apply line-level scrolling if needed
+        if self._line_scroll_offset > 0 and lines:
+            # Skip the first _line_scroll_offset lines to scroll down
+            scroll_amount = min(self._line_scroll_offset, len(lines))
+            lines = lines[scroll_amount:]
 
-    def _get_single_message_display_lines(self, height: int, width: int, colors_enabled: bool = False) -> List[Union[str, List[Tuple[str, int]]]]:
-        """Get display lines for single message mode with gradual scrolling.
+            # Ensure we don't exceed the available height after scrolling
+            max_lines = height - 2  # Account for borders
+            if self.visual_mode and not self.read_only:
+                max_lines -= 2  # Visual mode indicator
 
-        Args:
-            height: Available height for content
-            width: Available width for content
-            colors_enabled: Whether to return colored output
-
-        Returns:
-            List of formatted message lines (strings or color tuple lists)
-        """
-        lines = []
-        available_height = height - 2  # Account for borders
-
-        if self.visual_mode:
-            available_height -= 2  # Leave room for visual mode indicator
-
-        if self.message_cursor_idx >= len(self.messages):
-            return lines
-
-        role, content, timestamp = self.messages[self.message_cursor_idx]
-
-        # Check if selected using mixin method (only if not read-only)
-        is_selected = self.is_item_selected(self.message_cursor_idx) if not self.read_only else False
-
-        # Format selection and cursor indicators using the indicators module
-        if self.read_only:
-            # In read-only mode, show minimal indicators
-            selection_indicator = ""
-            cursor_indicator = "• "
-        else:
-            selection_indicator = SelectionIndicators.format_selection_box(is_selected)
-            cursor_indicator = SelectionIndicators.format_cursor(True, style="triangle")
-
-        # Format message header
-        if role == 'user':
-            role_text = "User"
-        elif role == 'assistant':
-            role_text = "Assistant"
-        elif role == 'system':
-            role_text = "System"
-        else:
-            role_text = role.capitalize()
-        timestamp_text = self._format_timestamp(timestamp)
-
-        # Generate all lines for this message first
-        all_lines = []
-
-        # Add header
-        if colors_enabled:
-            header_parts = []
-            header_parts.append((f"{cursor_indicator}{selection_indicator} ", COLOR_DEFAULT))
-            role_color = get_role_color(role)
-            header_parts.append((role_text, role_color))
-            if timestamp_text:
-                header_parts.append((timestamp_text, COLOR_METADATA))
-            header_parts.append((":", COLOR_DEFAULT))
-            all_lines.append(header_parts)
-        else:
-            header = f"{cursor_indicator}{selection_indicator} {role_text}{timestamp_text}:"
-            all_lines.append(header)
-
-        # Add wrapped content lines
-        content_width = max(10, width - 8)  # Account for borders, indentation, and scroll indicator
-        for line in content.split('\n'):
-            wrapped_lines = self._word_wrap(line, content_width)
-            for wrapped in wrapped_lines:
-                if colors_enabled:
-                    all_lines.append([("    ", COLOR_DEFAULT), (wrapped, COLOR_DEFAULT)])
-                else:
-                    all_lines.append(f"    {wrapped}")
-
-        # Calculate scroll indicators
-        start_line = max(0, self._internal_scroll_offset)
-        end_line = min(len(all_lines), start_line + available_height)
-
-        can_scroll_up = start_line > 0
-        can_scroll_down = end_line < len(all_lines)
-
-        # Add lines with scroll indicators
-        display_lines = all_lines[start_line:end_line]
-
-        for i, line in enumerate(display_lines):
-            # Calculate scroll indicator for this line
-            scroll_indicator = ""
-            if i == 0 and can_scroll_up:
-                scroll_indicator = "↑"
-            elif i == len(display_lines) - 1 and can_scroll_down:
-                scroll_indicator = "↓"
-            elif can_scroll_up or can_scroll_down:
-                scroll_indicator = "│"
-
-            if colors_enabled and isinstance(line, list):
-                # Add scroll indicator to colored line
-                line_with_scroll = line.copy()
-                if scroll_indicator:
-                    # Pad to right edge and add scroll indicator
-                    line_content_width = sum(len(part[0]) for part in line)
-                    padding_needed = max(0, width - 4 - line_content_width - 1)  # -4 for borders, -1 for indicator
-                    if padding_needed > 0:
-                        line_with_scroll.append((" " * padding_needed, COLOR_DEFAULT))
-                    line_with_scroll.append((scroll_indicator, COLOR_METADATA))
-                lines.append(line_with_scroll)
-            else:
-                # Add scroll indicator to plain text line
-                if scroll_indicator:
-                    line_str = str(line)
-                    line_content_width = len(line_str)
-                    padding_needed = max(0, width - 4 - line_content_width - 1)  # -4 for borders, -1 for indicator
-                    padded_line = line_str + " " * padding_needed + scroll_indicator
-                    lines.append(padded_line)
-                else:
-                    lines.append(line)
-
-        # Add status line if in visual mode (only if not read-only)
-        if self.visual_mode and not self.read_only and len(lines) < available_height:
-            if colors_enabled:
-                lines.append([("", COLOR_DEFAULT)])
-                lines.append([(SelectionIndicators.VISUAL_MODE, COLOR_DEFAULT)])
-            else:
-                lines.append("")
-                lines.append(SelectionIndicators.VISUAL_MODE)
+            if len(lines) > max_lines:
+                lines = lines[:max_lines]
 
         return lines
+
 
     def handle_input(self, stdscr, key: int, pane_height: int) -> None:
         """Handle input when messages pane is focused.
@@ -376,82 +264,36 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
         if not self.messages:
             return
 
-        # Use last known width for single message mode detection, or reasonable default
-        width = getattr(self, '_last_width', 80)
-        message_heights = self._calculate_message_heights(self.messages, width)
-        is_single_message_mode = (self.message_cursor_idx < len(message_heights) and
-                                  message_heights[self.message_cursor_idx] >= pane_height - 2)
-
-        # Navigation with Up/Down arrows
+        # Navigation with Up/Down arrows - simplified without single message mode
         if key == curses.KEY_UP:
-            if is_single_message_mode:
-                # Scroll within the current message
-                if self._internal_scroll_offset > 0:
-                    self._internal_scroll_offset -= 1
-                elif self.cursor_idx > 0:
-                    # Move to previous message and reset internal scroll
-                    self.cursor_idx -= 1
-                    self.message_cursor_idx = self.cursor_idx
-                    self._internal_scroll_offset = 0
-                    # Calculate scroll to end of previous message if it's also long
-                    if self.cursor_idx < len(message_heights):
-                        prev_msg_height = message_heights[self.cursor_idx]
-                        if prev_msg_height >= pane_height - 2:
-                            # Position at end of previous message
-                            self._internal_scroll_offset = max(0, prev_msg_height - (pane_height - 2))
+            if self.cursor_idx > 0:
+                self.cursor_idx -= 1
+                self.message_cursor_idx = self.cursor_idx
+                self._line_scroll_offset = 0  # Reset line scroll when changing messages
+                # If cursor moved above visible area, scroll up
+                if self.cursor_idx < self.message_scroll_offset:
+                    self.message_scroll_offset = self.cursor_idx
             else:
-                # Standard multi-message navigation
-                if self.cursor_idx > 0:
-                    self.cursor_idx -= 1
-                    self.message_cursor_idx = self.cursor_idx
-                    self._internal_scroll_offset = 0  # Reset internal scroll
-                    # If cursor moved above visible area, scroll up
-                    if self.cursor_idx < self.message_scroll_offset:
-                        self.message_scroll_offset = self.cursor_idx
+                # At the first message, try to scroll up within the view
+                if self._line_scroll_offset > 0:
+                    self._line_scroll_offset -= 1
 
         elif key == curses.KEY_DOWN:
-            if is_single_message_mode:
-                # Calculate total lines for current message using exact same logic as display method
-                role, content, timestamp = self.messages[self.message_cursor_idx]
-
-                # Use the same width calculation as in _get_single_message_display_lines
-                content_width = max(10, width - 8)  # Account for borders, indentation, and scroll indicator
-
-                # Count lines exactly as in display method
-                all_lines = 1  # Header line
-                for line in content.split('\n'):
-                    wrapped_lines = self._word_wrap(line, content_width)
-                    all_lines += len(wrapped_lines)
-
-                available_height = pane_height - 2
-                if self.visual_mode:
-                    available_height -= 2
-
-                # Scroll within the current message
-                # Allow scrolling until we can see all lines
-                # We should be able to scroll until the last line is visible
-                max_scroll = max(0, all_lines - available_height)
-                if self._internal_scroll_offset < max_scroll:
-                    self._internal_scroll_offset += 1
-                elif self.cursor_idx < len(self.messages) - 1:
-                    # Move to next message and reset internal scroll
-                    self.cursor_idx += 1
-                    self.message_cursor_idx = self.cursor_idx
-                    self._internal_scroll_offset = 0
+            if self.cursor_idx < len(self.messages) - 1:
+                self.cursor_idx += 1
+                self.message_cursor_idx = self.cursor_idx
+                self._line_scroll_offset = 0  # Reset line scroll when changing messages
+                # Use pane height for scrolling calculations
+                visible_items = self._visible_message_items(pane_height)
+                # If cursor moved below visible area, scroll down to keep cursor visible
+                if self.cursor_idx >= self.message_scroll_offset + visible_items:
+                    self.message_scroll_offset = self.cursor_idx - visible_items + 1
+                    # Ensure scroll doesn't go beyond the last page
+                    max_scroll = max(0, len(self.messages) - visible_items)
+                    self.message_scroll_offset = min(self.message_scroll_offset, max_scroll)
             else:
-                # Standard multi-message navigation
-                if self.cursor_idx < len(self.messages) - 1:
-                    self.cursor_idx += 1
-                    self.message_cursor_idx = self.cursor_idx
-                    self._internal_scroll_offset = 0  # Reset internal scroll
-                    # Use pane height for scrolling calculations
-                    visible_items = self._visible_message_items(pane_height)
-                    # If cursor moved below visible area, scroll down to keep cursor visible
-                    if self.cursor_idx >= self.message_scroll_offset + visible_items:
-                        self.message_scroll_offset = self.cursor_idx - visible_items + 1
-                        # Ensure scroll doesn't go beyond the last page
-                        max_scroll = max(0, len(self.messages) - visible_items)
-                        self.message_scroll_offset = min(self.message_scroll_offset, max_scroll)
+                # We're on the last message - use fine-grained line scrolling
+                self._line_scroll_offset += 1
 
         # Delegate selection operations to mixin (only if not read-only)
         elif not self.read_only:
@@ -523,47 +365,50 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
         return word_wrap(text, width)
     
     def _get_visible_messages_variable(
-        self, 
-        height: int, 
+        self,
+        height: int,
         message_heights: List[int]
     ) -> Tuple[int, int, int]:
         """Calculate visible messages with variable heights.
-        
+
         Args:
             height: Available screen height
             message_heights: Heights for each message
-        
+
         Returns:
             Tuple of (visible_count, start_idx, end_idx)
         """
         if not self.messages:
             return 0, 0, 0
-        
+
         available_height = height - 2  # Borders
         if self.visual_mode:
             available_height -= 2  # Visual mode indicator
-        
-        # Handle extremely large single message
-        if self.message_cursor_idx < len(message_heights):
-            cursor_height = message_heights[self.message_cursor_idx]
-            if cursor_height >= available_height:
-                # Show only the cursor message with scrolling
-                return 1, self.message_cursor_idx, self.message_cursor_idx + 1
-        
+
         # Calculate visible range based on scroll offset and heights
+        # Always try to fill the available space, allowing partial message display
         current_height = 0
         start_idx = self.message_scroll_offset
         end_idx = start_idx
-        
+
         for i in range(start_idx, len(self.messages)):
             if i < len(message_heights):
                 msg_height = message_heights[i]
+                # Include message if it fits completely OR if we have space and it's the next message
                 if current_height + msg_height <= available_height:
                     current_height += msg_height
                     end_idx = i + 1
-                else:
+                elif current_height == 0:
+                    # Always include at least one message, even if it's too tall
+                    end_idx = i + 1
                     break
-        
+                else:
+                    # If there's remaining space, include this message for partial display
+                    remaining_space = available_height - current_height
+                    if remaining_space > 2:  # Need at least header + one line
+                        end_idx = i + 1
+                    break
+
         # Ensure cursor is visible
         if self.message_cursor_idx < start_idx:
             # Scroll up to show cursor
@@ -574,7 +419,7 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
             # Calculate new start to fit cursor
             new_start = self.message_cursor_idx
             test_height = message_heights[self.message_cursor_idx] if self.message_cursor_idx < len(message_heights) else 3
-            
+
             while new_start > 0 and test_height < available_height:
                 new_start -= 1
                 if new_start < len(message_heights):
@@ -582,10 +427,10 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
                     if test_height > available_height:
                         new_start += 1
                         break
-            
+
             self.message_scroll_offset = new_start
             return self._get_visible_messages_variable(height, message_heights)
-        
+
         return end_idx - start_idx, start_idx, end_idx
     
     def _message_view(self, height: int) -> Tuple[int, int, int]:
@@ -611,7 +456,7 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
         if not self.messages:
             self.message_cursor_idx = 0
             self.message_scroll_offset = 0
-            self._internal_scroll_offset = 0
+            self._line_scroll_offset = 0
             return
 
         visible_items = self._visible_message_items(height)
@@ -624,7 +469,6 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
             self.message_scroll_offset + visible_items - 1
         )
         self.cursor_idx = self.message_cursor_idx  # Keep mixin alias in sync
-        self._internal_scroll_offset = 0  # Reset internal scroll
     
     def scroll_to_cursor(self, viewport_height: int, border_size: int = 2) -> None:
         """Ensure cursor is visible in viewport with variable message heights.
