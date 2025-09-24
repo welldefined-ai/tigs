@@ -115,20 +115,23 @@ class TestCommitsViewColors:
         """Test that wrapped commit lines maintain consistent colors."""
         # Use narrow width to force wrapping
         lines = self.view.get_display_lines(height=20, width=40, colors_enabled=True)
-        
+
         # Find wrapped lines (indented continuation lines)
         wrapped_found = False
         for i, line in enumerate(lines):
             if isinstance(line, list):
                 text_parts = "".join(t for t, _ in line)
-                # Wrapped lines typically start with spaces
+                # Skip the status footer (it contains parentheses with numbers)
+                if "(" in text_parts and "/" in text_parts and ")" in text_parts:
+                    continue
+                # Wrapped lines typically start with spaces (4 spaces for continuation)
                 if text_parts.startswith("    "):
                     wrapped_found = True
                     # Check that wrapped content has consistent color
                     for text, color in line:
                         if text.strip():  # Non-whitespace content
                             assert color == COLOR_DEFAULT, f"Wrapped content should be default: {text}"
-        
+
         assert wrapped_found, "No wrapped lines found with narrow width"
     
     def test_long_author_name_coloring(self):

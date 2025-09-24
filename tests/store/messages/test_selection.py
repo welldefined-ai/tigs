@@ -10,34 +10,34 @@ import pytest
 
 from framework.tui import TUI
 from framework.fixtures import create_test_repo
+from framework.mock_claude_logs import create_mock_claude_home
 from framework.paths import PYTHON_DIR
 
 
 @pytest.fixture
-def messages_setup():
+def messages_setup(monkeypatch):
     """Create repo and messages for selection testing."""
     with tempfile.TemporaryDirectory() as tmpdir:
         repo_path = Path(tmpdir) / "repo"
-        logs_path = Path(tmpdir) / "logs"
-        
+        mock_home = Path(tmpdir) / "mock_home"
+        mock_home.mkdir()
+
+        # Mock HOME environment variable
+        monkeypatch.setenv("HOME", str(mock_home))
+
         # Create repo with minimal commits
         commits = [f"Test commit {i+1}" for i in range(5)]
         create_test_repo(repo_path, commits)
         
-        # Create log with several messages
-        logs_path.mkdir(parents=True, exist_ok=True)
-
-        log_file = logs_path / "log_20250107_141500.jsonl"
-        messages = []
+        # Create mock Claude logs with several messages
+        sessions_data = [[]]
         for i in range(8):
-            messages.append(f'{{"role": "user", "content": "User message {i+1}: Question about the code"}}')
-            messages.append(f'{{"role": "assistant", "content": "Assistant message {i+1}: Here is the answer"}}')
+            sessions_data[0].append(("user", f"User message {i+1}: Question about the code"))
+            sessions_data[0].append(("assistant", f"Assistant message {i+1}: Here is the answer"))
 
-        log_file.write_text('\n'.join(messages))
-        log_file.touch()
-        os.utime(log_file, times=(time.time(), time.time()))
-        
-        yield repo_path, logs_path
+        create_mock_claude_home(mock_home, sessions_data)
+
+        yield repo_path, mock_home
 
 
 class TestMessageSelection:
@@ -45,15 +45,11 @@ class TestMessageSelection:
     
     def test_message_selection_operations(self, messages_setup):
         """Test message selection with space/v/c/a keys."""
-        repo_path, logs_path = messages_setup
-        
-        import os
-        env = os.environ.copy()
-        env['TIGS_LOGS_DIR'] = str(logs_path)
+        repo_path, mock_home = messages_setup
         
         command = f"uv run tigs --repo {repo_path} store"
         
-        with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120), env=env) as tui:
+        with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120), env={"HOME": str(mock_home)}) as tui:
             try:
                 tui.wait_for("Messages", timeout=5.0)
                 

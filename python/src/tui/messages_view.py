@@ -147,12 +147,14 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
         if self._needs_message_view_init:
             self._init_message_view(height)
             self._needs_message_view_init = False
+        # Reserve space for footer
+        content_height = height - 1  # -1 for footer
 
         # Calculate message heights with current width
         message_heights = self._calculate_message_heights(self.messages, width)
 
         # Get visible messages using variable heights
-        visible_count, start_idx, end_idx = self._get_visible_messages_variable(height, message_heights)
+        visible_count, start_idx, end_idx = self._get_visible_messages_variable(content_height, message_heights)
 
         # Build display lines for multi-message view
         for i in range(start_idx, end_idx):
@@ -226,14 +228,15 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
                     lines.append([("", COLOR_DEFAULT)])
                 else:
                     lines.append("")
-
         # Add status line if in visual mode (only if not read-only)
         if self.visual_mode and not self.read_only:
             if colors_enabled:
                 lines.append([("", COLOR_DEFAULT)])
-                lines.append([(SelectionIndicators.VISUAL_MODE, COLOR_DEFAULT)])
             else:
                 lines.append("")
+            if colors_enabled:
+                lines.append([(SelectionIndicators.VISUAL_MODE, COLOR_DEFAULT)])
+            else:
                 lines.append(SelectionIndicators.VISUAL_MODE)
 
         # Apply line-level scrolling if needed
@@ -249,6 +252,36 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
 
             if len(lines) > max_lines:
                 lines = lines[:max_lines]
+
+        # Add status footer showing current position (after scrolling adjustments)
+        if self.messages:
+            # Calculate how many lines we have for content (excluding footer)
+            available_lines = height - 2  # Account for borders
+            if self.visual_mode and not self.read_only:
+                available_lines -= 2  # Visual mode takes 2 lines
+            available_lines -= 1  # Reserve 1 line for footer
+
+            # Trim lines if needed to make room for footer
+            if len(lines) > available_lines:
+                lines = lines[:available_lines]
+
+            # Pad to push footer to bottom
+            while len(lines) < available_lines:
+                if colors_enabled:
+                    lines.append([("", COLOR_DEFAULT)])
+                else:
+                    lines.append("")
+
+            # Add the status footer
+            status = f"({self.cursor_idx + 1}/{len(self.messages)})"
+            # Right-align the status text
+            padding = max(0, width - len(status) - 4)
+            status_line = " " * padding + status
+
+            if colors_enabled:
+                lines.append([(status_line, COLOR_METADATA)])
+            else:
+                lines.append(status_line)
 
         return lines
 

@@ -11,31 +11,31 @@ import pytest
 
 from framework.tui import TUI
 from framework.fixtures import create_test_repo
+from framework.mock_claude_logs import create_mock_claude_home
 from framework.paths import PYTHON_DIR
 
 
 @pytest.fixture
-def overwrite_setup():
+def overwrite_setup(monkeypatch):
     """Create repo with existing Git notes for overwrite testing."""
     with tempfile.TemporaryDirectory() as tmpdir:
         repo_path = Path(tmpdir) / "repo"
-        logs_path = Path(tmpdir) / "logs"
-        
+        mock_home = Path(tmpdir) / "mock_home"
+        mock_home.mkdir()
+
+        # Mock HOME environment variable
+        monkeypatch.setenv("HOME", str(mock_home))
+
         # Create repo
         commits = [f"Overwrite test commit {i+1}" for i in range(5)]
         create_test_repo(repo_path, commits)
         
-        # Create log with messages
-        logs_path.mkdir(parents=True, exist_ok=True)
-        
-        log_file = logs_path / "log_20250107_144000.jsonl"
-        log_content = """\
-{"role": "user", "content": "New message for overwrite test"}
-{"role": "assistant", "content": "New response for overwrite test"}
-"""
-        log_file.write_text(log_content)
-        log_file.touch()
-        os.utime(log_file, times=(time.time(), time.time()))
+        # Create mock Claude logs
+        sessions_data = [[
+            ("user", "New message for overwrite test"),
+            ("assistant", "New response for overwrite test")
+        ]]
+        create_mock_claude_home(mock_home, sessions_data)
         
         # Add existing Git note to HEAD commit
         try:
@@ -68,7 +68,7 @@ def overwrite_setup():
         except subprocess.CalledProcessError as e:
             print(f"Warning: Could not create existing note: {e}")
         
-        yield repo_path, logs_path
+        yield repo_path, mock_home
 
 
 def check_note_content(repo_path, commit_sha=None):
@@ -108,15 +108,11 @@ class TestOverwrite:
     
     def test_overwrite_prompt(self, overwrite_setup):
         """Test existing note triggers overwrite confirmation."""
-        repo_path, logs_path = overwrite_setup
-        
-        import os
-        env = os.environ.copy()
-        env['TIGS_LOGS_DIR'] = str(logs_path)
+        repo_path, mock_home = overwrite_setup
         
         command = f"uv run tigs --repo {repo_path} store"
         
-        with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120), env=env) as tui:
+        with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120), env={"HOME": str(mock_home)}) as tui:
             try:
                 tui.wait_for("commit", timeout=5.0)
                 
@@ -202,19 +198,15 @@ class TestOverwrite:
     
     def test_overwrite_success(self, overwrite_setup):
         """Test confirming overwrite replaces note content."""
-        repo_path, logs_path = overwrite_setup
+        repo_path, mock_home = overwrite_setup
         
         # Check original content first
         original_content = check_note_content(repo_path)
         print(f"Original note content: {original_content[:100] if original_content else 'None'}...")
         
-        import os
-        env = os.environ.copy()
-        env['TIGS_LOGS_DIR'] = str(logs_path)
-        
         command = f"uv run tigs --repo {repo_path} store"
-        
-        with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120), env=env) as tui:
+
+        with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120), env={"HOME": str(mock_home)}) as tui:
             try:
                 tui.wait_for("commit", timeout=5.0)
                 
@@ -265,19 +257,15 @@ class TestOverwrite:
     
     def test_overwrite_cancel(self, overwrite_setup):
         """Test canceling overwrite preserves original note."""
-        repo_path, logs_path = overwrite_setup
+        repo_path, mock_home = overwrite_setup
         
         # Get original content
         original_content = check_note_content(repo_path)
         print(f"Original content to preserve: {original_content[:100] if original_content else 'None'}...")
         
-        import os
-        env = os.environ.copy()
-        env['TIGS_LOGS_DIR'] = str(logs_path)
-        
         command = f"uv run tigs --repo {repo_path} store"
-        
-        with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120), env=env) as tui:
+
+        with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120), env={"HOME": str(mock_home)}) as tui:
             try:
                 tui.wait_for("commit", timeout=5.0)
                 
