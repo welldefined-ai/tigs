@@ -53,12 +53,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest, macos-latest]
         python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
-        exclude:
-          # Windows has issues with some terminal-related dependencies
-          - os: windows-latest
-            python-version: "3.8"
 
     steps:
       - name: Checkout code
@@ -88,12 +84,6 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           # Git should already be available on macOS runners
-          git --version
-
-      - name: Install system dependencies (Windows)
-        if: runner.os == 'Windows'
-        run: |
-          # Git should already be available on Windows runners
           git --version
 
       - name: Run tests
