@@ -11,6 +11,9 @@ jobs:
   lint-and-format:
     name: Lint and Format Check
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: python
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -44,6 +47,9 @@ jobs:
   test:
     name: Test Python ${{ matrix.python-version }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: python
     strategy:
       fail-fast: false
       matrix:
@@ -110,6 +116,9 @@ jobs:
   integration-test:
     name: Integration Tests
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: python
     needs: [lint-and-format, test]
     steps:
       - name: Checkout code
@@ -141,8 +150,8 @@ jobs:
         run: |
           git config --global user.name "CI Test"
           git config --global user.email "test@example.com"
-          mkdir test-repo
-          cd test-repo
+          mkdir ../test-repo
+          cd ../test-repo
           git init
           echo "# Test Repo" > README.md
           git add README.md
@@ -150,14 +159,17 @@ jobs:
 
       - name: Test basic tigs functionality
         run: |
-          cd test-repo
+          cd ../test-repo
           # Test that tigs commands don't crash
-          uv run tigs --help
+          uv run --directory ../python tigs --help
           # Add more integration tests as the project grows
 
   build:
     name: Build Package
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: python
     needs: [lint-and-format, test]
     steps:
       - name: Checkout code
