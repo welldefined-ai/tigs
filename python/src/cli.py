@@ -7,7 +7,7 @@ from typing import Optional
 
 import click
 
-from .store import TigsStore
+from .storage import TigsRepo
 from .tui import TigsStoreApp, TigsViewApp, CURSES_AVAILABLE
 
 
@@ -22,7 +22,7 @@ def main(ctx: click.Context, repo: Optional[Path]) -> None:
     """
     ctx.ensure_object(dict)
     try:
-        ctx.obj["store"] = TigsStore(repo)
+        ctx.obj["store"] = TigsRepo(repo)
     except ValueError as e:
         click.echo(f"Error: {e}", err=True)
         sys.exit(1)

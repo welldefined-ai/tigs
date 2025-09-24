@@ -5,7 +5,7 @@ A Git-based system for storing and managing text objects in Git repositories.
 
 __version__ = "0.1.0"
 
-from .store import TigsStore
+from .storage import TigsRepo
 
-__all__ = ["TigsStore"]
+__all__ = ["TigsRepo"]
 
