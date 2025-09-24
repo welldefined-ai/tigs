@@ -1,6 +1,5 @@
 """Unit tests for PaneRenderer class."""
 
-import pytest
 from unittest.mock import MagicMock, patch
 
 from src.tui.pane_renderer import PaneRenderer

@@ -1,7 +1,6 @@
 """Tests for YAML schema validation and format compliance."""
 
 import yaml
-import pytest
 
 from tigs.cli import main
 

@@ -1,14 +1,11 @@
 """Integration tests for TigsViewApp functionality."""
 
 import curses
-from unittest.mock import Mock, patch, MagicMock
-from pathlib import Path
+from unittest.mock import Mock, patch
 
-import pytest
 
 from src.tui.view_app import TigsViewApp
 from src.tui.commit_details_view import CommitDetailsView
-from src.tui.chat_view import ChatView
 from src.storage import TigsRepo
 
 
@@ -50,7 +47,6 @@ class TestViewAppIntegration:
             with patch('src.tui.view_app.PaneRenderer'):
                 # Tab should move to pane 1 (details)
                 app.focused_pane = 0
-                key = ord('\t')
                 # Simulate the Tab handling logic
                 app.focused_pane = (app.focused_pane + 1) % 3
                 assert app.focused_pane == 1

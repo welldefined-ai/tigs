@@ -1,7 +1,5 @@
 """Tests for message display with variable heights."""
 
-import pytest
-from unittest.mock import Mock
 from src.tui.messages_view import MessageView
 
 

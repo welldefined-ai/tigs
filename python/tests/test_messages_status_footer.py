@@ -1,11 +1,10 @@
 """Tests for status footer in messages view."""
 
-import pytest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 from datetime import datetime
 
 from src.tui.messages_view import MessageView
-from src.tui.color_constants import COLOR_METADATA, COLOR_DEFAULT
+from src.tui.color_constants import COLOR_METADATA
 
 
 class TestMessagesStatusFooter:
@@ -162,8 +161,4 @@ class TestMessagesStatusFooter:
         assert len(lines) <= 8, f"Lines should fit within height limit, got {len(lines)} lines"
 
         # Footer should still appear if there's room
-        footer_found = any(
-            isinstance(line, str) and "(" in line and "/" in line and ")" in line
-            for line in lines
-        )
         # Footer is optional if no space, so we don't assert it must be there

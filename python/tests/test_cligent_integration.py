@@ -1,7 +1,5 @@
 """Integration tests using real Claude Code logs via cligent."""
 
-import subprocess
-from pathlib import Path
 
 import pytest
 import yaml

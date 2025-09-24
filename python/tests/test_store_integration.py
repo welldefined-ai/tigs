@@ -1,11 +1,8 @@
 """End-to-end tests for TUI store command functionality."""
 
 import subprocess
-import threading
-import time
 import curses
-from unittest.mock import Mock, patch, MagicMock
-from pathlib import Path
+from unittest.mock import Mock, patch
 
 import pytest
 import yaml
@@ -294,7 +291,7 @@ class TestTUIDynamicLayout:
                 assert app.layout_manager.cached_widths is None
                 
                 # Should reset message view init
-                assert app.message_view._needs_message_view_init == True
+                assert app.message_view._needs_message_view_init
     
     def test_commit_title_soft_wrap(self):
         """Test soft wrapping of long commit titles."""
@@ -322,8 +319,8 @@ class TestTUIDynamicLayout:
             assert "02-14" in first_line  # Timestamp 1234567890 = 02-14 07:31 (MM-DD format)
             
             # Navigation should still work (up/down, not left/right for scrolling)
-            result = view.handle_input(curses.KEY_DOWN)
-            # Result depends on if there are more commits, but shouldn't crash
+            view.handle_input(curses.KEY_DOWN)
+            # Navigation depends on if there are more commits, but shouldn't crash
     
     def test_commit_title_format_spacing(self):
         """Test that commit title format has exactly one space between [] and datetime."""

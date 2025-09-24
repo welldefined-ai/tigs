@@ -44,7 +44,7 @@ AuthorDate: Mon Sep 10 14:30:00 2025 +0800
                     text = "".join(t for t, _ in line)
                     # File stats lines should be multi-colored
                     if "file1.txt" in text or "file2.py" in text:
-                        assert line[0][1] == 7, f"File stats should have blue filename"
+                        assert line[0][1] == 7, "File stats should have blue filename"
                     else:
                         # Commit message lines with | should NOT be multi-colored
                         assert False, f"Line {i} should not be multi-colored: {text}"
@@ -97,7 +97,7 @@ AuthorDate: Mon Sep 10 14:30:00 2025 +0800
                 assert color == 0, f"Message line should not be colored: {text}"
             
             # File stats should be found and multi-colored
-            assert len(file_stats_lines) == 1, f"Should find 1 file stats line"
+            assert len(file_stats_lines) == 1, "Should find 1 file stats line"
 
 
 if __name__ == "__main__":

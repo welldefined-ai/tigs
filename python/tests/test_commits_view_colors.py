@@ -1,6 +1,5 @@
 """Tests for commit view coloring following tig's color scheme."""
 
-import pytest
 from unittest.mock import Mock, patch
 from datetime import datetime
 

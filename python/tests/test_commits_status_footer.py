@@ -1,11 +1,10 @@
 """Tests for status footer in commits view."""
 
-import pytest
 from unittest.mock import Mock, patch
 from datetime import datetime
 
 from src.tui.commits_view import CommitView
-from src.tui.color_constants import COLOR_METADATA, COLOR_DEFAULT
+from src.tui.color_constants import COLOR_METADATA
 
 
 class TestCommitsStatusFooter:
@@ -194,5 +193,4 @@ class TestCommitsStatusFooter:
         assert len(lines) <= 5, f"Lines should fit within height limit, got {len(lines)} lines"
 
         # Footer might not appear if no room, or might appear if there's space
-        footer_found = any("(" in line and "/" in line and ")" in line for line in lines)
         # Either case is acceptable - footer is optional if no space

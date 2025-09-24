@@ -1,6 +1,5 @@
 """Tests for status footer in logs view."""
 
-import pytest
 from unittest.mock import Mock
 from datetime import datetime, timedelta
 
@@ -202,7 +201,7 @@ class TestLogsStatusFooter:
         footer = lines[-1] if lines else ""
         # Width 12 - 4 (borders+padding) = 8 usable, "(1/5)" is 5 chars, should fit with padding
         assert "(1/5)" in footer, f"Footer should show at width 12, got: '{footer}'"
-        assert len(footer) <= 8, f"Footer should not exceed usable width"
+        assert len(footer) <= 8, "Footer should not exceed usable width"
 
         # Test with very narrow width (9)
         lines = self.view.get_display_lines(height=20, width=9)

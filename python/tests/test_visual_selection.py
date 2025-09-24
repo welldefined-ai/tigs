@@ -1,8 +1,7 @@
 """Tests for visual selection functionality."""
 
-import pytest
 import curses
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import Mock, patch
 
 from src.tui.selection_mixin import VisualSelectionMixin
 from src.tui.commits_view import CommitView

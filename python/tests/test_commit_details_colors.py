@@ -2,7 +2,6 @@
 
 import pytest
 from unittest.mock import Mock, patch
-import subprocess
 
 from src.tui.commit_details_view import CommitDetailsView
 

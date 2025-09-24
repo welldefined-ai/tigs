@@ -2,9 +2,8 @@
 
 import subprocess
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import List
 import yaml
-import os
 
 import pytest
 from click.testing import CliRunner
@@ -155,7 +154,7 @@ def multi_commit_repo(git_repo):
         file_path = git_repo / f"file{i}.py"
         file_path.write_text(f"# File {i}\nprint('Hello from file {i}')")
         subprocess.run(["git", "add", f"file{i}.py"], cwd=git_repo, check=True)
-        result = subprocess.run(
+        subprocess.run(
             ["git", "commit", "-m", f"Add file{i}.py"],
             cwd=git_repo,
             check=True,

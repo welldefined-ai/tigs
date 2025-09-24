@@ -1,11 +1,9 @@
 """Tests for commit view coloring in view app following tig's color scheme."""
 
-import pytest
 from unittest.mock import Mock, patch
 from datetime import datetime
 
 from src.tui.view_app import TigsViewApp
-from src.tui.commits_view import CommitView
 from src.tui.color_constants import COLOR_AUTHOR, COLOR_METADATA, COLOR_DEFAULT
 
 

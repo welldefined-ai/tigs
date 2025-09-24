@@ -1,6 +1,5 @@
 """Tests for ViewScrollMixin functionality."""
 
-import pytest
 from src.tui.view_scroll_mixin import ViewScrollMixin
 
 

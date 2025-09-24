@@ -2,7 +2,6 @@
 
 import pytest
 from unittest.mock import Mock, patch
-import subprocess
 
 from src.tui.commit_details_view import CommitDetailsView
 
@@ -38,7 +37,6 @@ AuthorDate: Mon Sep 10 14:30:00 2025 +0800
             
             # Find all lines related to the long filename
             long_file_lines = []
-            found_long_file = False
             in_long_file = False
             for i, line in enumerate(lines):
                 if isinstance(line, list):
@@ -49,7 +47,7 @@ AuthorDate: Mon Sep 10 14:30:00 2025 +0800
                         # Check if the line ends with all the pluses
                         if not full_text.rstrip().endswith("+"):
                             # Line continues
-                            found_long_file = True
+                            pass
                     elif in_long_file and "+" in full_text and "another_file" not in full_text and "files changed" not in full_text:
                         # This is a continuation of the long file's changes
                         long_file_lines.append(line)
@@ -370,7 +368,7 @@ AuthorDate: Mon Sep 10 14:30:00 2025 +0800
                     if char == '+':
                         total_plus_count += 1
                         # Since + chars are grouped, the color should be green
-                        assert color == 3, f"Plus signs should be green even in wrapped lines"
+                        assert color == 3, "Plus signs should be green even in wrapped lines"
             
             assert total_plus_count == 200, f"Should have all 200 + symbols colored, got {total_plus_count}"
     
@@ -403,7 +401,7 @@ AuthorDate: Mon Sep 10 14:30:00 2025 +0800
                         for text, color in line:
                             colors_found.add(color)
                             if ".txt" in text or ".py" in text:
-                                assert color == 7 or color == 0, f"Filename should be blue or default"
+                                assert color == 7 or color == 0, "Filename should be blue or default"
                             elif "+" in text:
                                 for char in text:
                                     if char == '+':

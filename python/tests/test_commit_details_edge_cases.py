@@ -89,7 +89,7 @@ AuthorDate: Mon Sep 10 14:30:00 2025 +0800
                     text = "".join(t for t, _ in line)
                     if " | " in text and "file" in text:
                         # Should be blue
-                        assert line[0][1] == 7, f"File at bottom should have blue filename"
+                        assert line[0][1] == 7, "File at bottom should have blue filename"
     
     def test_wrapped_filename_maintains_color(self):
         """Test that wrapped long filenames maintain blue color on all parts.
@@ -125,7 +125,7 @@ AuthorDate: Mon Sep 10 14:30:00 2025 +0800
             # All parts should have blue first element
             assert len(filename_parts) > 1, "Long filename should wrap"
             for part in filename_parts:
-                assert part[0][1] == 7, f"All wrapped filename parts should be blue"
+                assert part[0][1] == 7, "All wrapped filename parts should be blue"
     
     def test_cursor_movement_refreshes_wrapping(self):
         """Test that moving cursor between commits properly refreshes line wrapping.

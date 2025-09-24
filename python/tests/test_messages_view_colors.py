@@ -1,6 +1,5 @@
 """Tests for message view coloring with role-based colors."""
 
-import pytest
 from unittest.mock import Mock
 from datetime import datetime
 
@@ -66,7 +65,7 @@ class TestMessagesViewColors:
                     # Check User label color
                     for text, color in line:
                         if text == "User":
-                            assert color == COLOR_DEFAULT, f"User role should be default color"
+                            assert color == COLOR_DEFAULT, "User role should be default color"
                             break
     
     def test_assistant_role_cyan_color(self):
