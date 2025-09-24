@@ -250,9 +250,9 @@ class TigsStoreApp:
                 status_text = self.status_message
             else:
                 self.status_message = ""  # Clear old message
-                status_text = "Tab: switch | Space: select | Enter: store | q: quit | v2024-09-24-start-first"
+                status_text = self._get_contextual_help()
         else:
-            status_text = "Tab: switch | Space: select | Enter: store | q: quit | v2024-09-24-start-first"
+            status_text = self._get_contextual_help()
         
         # Add size warning if getting close to minimum
         height = stdscr.getmaxyx()[0]
@@ -376,9 +376,26 @@ class TigsStoreApp:
         self.commit_view.scroll_to_cursor(pane_height)
         self.message_view.scroll_to_cursor(pane_height)
     
+    def _get_contextual_help(self) -> str:
+        """Get contextual help text based on focused pane.
+
+        Returns:
+            Help text appropriate for the currently focused pane
+        """
+        base_help = "Tab: switch | Enter: store | q: quit | v2024-09-24-help"
+
+        if self.focused_pane == 0:  # Commits pane
+            return f"Space: select | {base_help}"
+        elif self.focused_pane == 1:  # Messages pane
+            return f"Space: select | j/k: jump messages | ↑/↓: scroll | {base_help}"
+        elif self.focused_pane == 2:  # Logs pane
+            return f"↑/↓: navigate | {base_help}"
+        else:
+            return base_help
+
     def _no_color(self) -> bool:
         """Check if colors should be disabled via NO_COLOR environment variable.
-        
+
         Returns:
             True if NO_COLOR is set and non-empty
         """
