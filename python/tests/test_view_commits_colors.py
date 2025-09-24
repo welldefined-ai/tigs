@@ -134,7 +134,7 @@ class TestViewCommitsViewColors:
         with patch('src.tui.view_app.PaneRenderer'):
             with patch.object(self.app.commit_view, 'get_display_lines') as mock_get_lines:
                 with patch.object(self.app.commit_details_view, 'get_display_lines'):
-                    with patch.object(self.app.chat_display_view, 'get_display_lines'):
+                    with patch.object(self.app.message_view, 'get_display_lines'):
                         # Mock stdscr
                         mock_stdscr = Mock()
                         mock_stdscr.getmaxyx.return_value = (30, 120)

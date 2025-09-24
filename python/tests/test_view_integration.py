@@ -29,7 +29,7 @@ class TestViewAppIntegration:
             assert app.store == store
             assert hasattr(app, 'commit_view')
             assert hasattr(app, 'commit_details_view')
-            assert hasattr(app, 'chat_display_view')
+            assert hasattr(app, 'message_view')
             assert app.focused_pane == 0  # Starts on commits pane
     
     def test_tab_navigation(self, git_repo):
@@ -98,30 +98,6 @@ class TestViewAppIntegration:
         assert result is False
         assert details_view.view_offset == 0
     
-    def test_chat_view_scrolling(self, git_repo):
-        """Test scrolling in chat view."""
-        store = TigsRepo(git_repo)
-        
-        # Create chat view
-        chat_view = ChatView(store)
-        
-        # Load test content
-        chat_view.total_lines = [f"Chat line {i}" for i in range(30)]
-        chat_view.reset_view()
-        
-        # Test initial state
-        assert chat_view.view_offset == 0
-        
-        # Scroll down multiple times
-        for i in range(5):
-            result = chat_view.handle_input(curses.KEY_DOWN, pane_height=15)
-            assert result is True
-            assert chat_view.view_offset == i + 1
-        
-        # Get visible lines
-        visible = chat_view.get_visible_lines(viewport_height=15)
-        assert len(visible) == 13  # 15 - 2 borders
-        assert visible[0] == "Chat line 5"
     
     def test_pane_focus_affects_input_routing(self, git_repo):
         """Test that input is routed to the focused pane."""

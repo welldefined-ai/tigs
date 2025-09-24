@@ -314,13 +314,13 @@ class TestMessageViewSelection:
         ]
         self.view.items = self.view.messages
         
-        # Test down arrow with pane height
-        self.view.handle_input(None, curses.KEY_DOWN, 20)
+        # Test j key for next message navigation
+        self.view.handle_input(None, ord('j'), 20)
         assert self.view.message_cursor_idx == 1
         assert self.view.cursor_idx == 1
-        
-        # Test up arrow
-        self.view.handle_input(None, curses.KEY_UP, 20)
+
+        # Test k key for previous message navigation
+        self.view.handle_input(None, ord('k'), 20)
         assert self.view.message_cursor_idx == 0
         assert self.view.cursor_idx == 0
     
@@ -337,8 +337,8 @@ class TestMessageViewSelection:
         self.view.handle_input(None, ord('v'), 20)
         assert self.view.visual_mode is True
         
-        # Move cursor
-        self.view.handle_input(None, curses.KEY_DOWN, 20)
+        # Move cursor with j key
+        self.view.handle_input(None, ord('j'), 20)
         
         # Exit visual mode
         self.view.handle_input(None, ord('v'), 20)
