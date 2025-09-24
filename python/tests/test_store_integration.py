@@ -316,7 +316,10 @@ class TestTUIDynamicLayout:
             
             # First line should contain cursor, selection, and datetime
             first_line = display_lines[0]
-            assert "02-14" in first_line  # Timestamp 1234567890 = 02-14 07:31 (MM-DD format)
+            # Check for date format MM-DD HH:MM (timezone-agnostic)
+            import re
+            date_pattern = r'\d{2}-\d{2} \d{2}:\d{2}'
+            assert re.search(date_pattern, first_line), f"Expected MM-DD HH:MM pattern in: {first_line}"
             
             # Navigation should still work (up/down, not left/right for scrolling)
             view.handle_input(curses.KEY_DOWN)
