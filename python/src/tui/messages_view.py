@@ -293,8 +293,14 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
                 self._scroll_offset -= 1
 
         elif key == curses.KEY_DOWN:
-            # Scroll down by one line (no upper limit check - let display method handle it)
-            self._scroll_offset += 1
+            # Scroll down by one line, but check if there's more content below
+            if hasattr(self, '_last_width'):
+                total_lines = self._calculate_total_content_lines(self._last_width)
+                content_height = pane_height - 3  # Account for borders and footer
+
+                # Only scroll if there's content below the current viewport
+                if self._scroll_offset + content_height < total_lines:
+                    self._scroll_offset += 1
 
         # Vim-like navigation: j/k keys for message navigation
         elif key == ord('j'):
@@ -488,6 +494,40 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
         )
         self.cursor_idx = self.message_cursor_idx  # Keep mixin alias in sync
     
+    def _calculate_total_content_lines(self, width: int) -> int:
+        """Calculate the total number of lines that would be generated for all content.
+
+        Args:
+            width: Available width for display
+
+        Returns:
+            Total number of content lines
+        """
+        if not self.messages:
+            return 1  # "(No messages to display)"
+
+        total_lines = 0
+        content_width = max(10, width - 6)
+
+        for i, (role, content, timestamp) in enumerate(self.messages):
+            # Add 1 line for header
+            total_lines += 1
+
+            # Add lines for content
+            for line in content.split('\n'):
+                wrapped_lines = self._word_wrap(line, content_width)
+                total_lines += len(wrapped_lines)
+
+            # Add separator line (except for last message)
+            if i < len(self.messages) - 1:
+                total_lines += 1
+
+        # Add visual mode lines if applicable
+        if self.visual_mode and not self.read_only:
+            total_lines += 2  # blank line + visual mode indicator
+
+        return total_lines
+
     def _scroll_to_message(self, message_idx: int, pane_height: int) -> None:
         """Scroll to make a specific message visible.
 
