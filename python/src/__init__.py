@@ -8,4 +8,3 @@ __version__ = "0.1.0"
 from .storage import TigsRepo
 
 __all__ = ["TigsRepo"]
-

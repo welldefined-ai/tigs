@@ -1,14 +1,13 @@
 """Tests for YAML schema validation and format compliance."""
 
 import yaml
-import pytest
 
 from tigs.cli import main
 
 
 class TestYAMLSchemaValidation:
     """Test YAML schema validation for tigs.chat/v1 format."""
-    
+
     def test_valid_minimal_schema(self, git_notes_helper):
         """Test minimal valid schema."""
         minimal_yaml = """schema: tigs.chat/v1
@@ -17,13 +16,13 @@ messages:
   content: Hello
 """
         assert git_notes_helper.validate_yaml_schema(minimal_yaml)
-        
+
         data = yaml.safe_load(minimal_yaml)
-        assert data['schema'] == 'tigs.chat/v1'
-        assert len(data['messages']) == 1
-        assert data['messages'][0]['role'] == 'user'
-        assert data['messages'][0]['content'] == 'Hello'
-    
+        assert data["schema"] == "tigs.chat/v1"
+        assert len(data["messages"]) == 1
+        assert data["messages"][0]["role"] == "user"
+        assert data["messages"][0]["content"] == "Hello"
+
     def test_valid_complex_schema(self, git_notes_helper):
         """Test complex valid schema with multiple messages."""
         complex_yaml = """schema: tigs.chat/v1
@@ -59,13 +58,13 @@ messages:
     ```
 """
         assert git_notes_helper.validate_yaml_schema(complex_yaml)
-        
+
         data = yaml.safe_load(complex_yaml)
-        assert len(data['messages']) == 4
-        assert all(msg['role'] in ['user', 'assistant'] for msg in data['messages'])
-        assert all(isinstance(msg['content'], str) for msg in data['messages'])
-        assert all(len(msg['content']) > 0 for msg in data['messages'])
-    
+        assert len(data["messages"]) == 4
+        assert all(msg["role"] in ["user", "assistant"] for msg in data["messages"])
+        assert all(isinstance(msg["content"], str) for msg in data["messages"])
+        assert all(len(msg["content"]) > 0 for msg in data["messages"])
+
     def test_invalid_schema_missing_schema_field(self, git_notes_helper):
         """Test invalid schema missing schema field."""
         invalid_yaml = """messages:
@@ -73,7 +72,7 @@ messages:
   content: Hello
 """
         assert not git_notes_helper.validate_yaml_schema(invalid_yaml)
-    
+
     def test_invalid_schema_wrong_schema_version(self, git_notes_helper):
         """Test invalid schema with wrong version."""
         invalid_yaml = """schema: tigs.chat/v2
@@ -82,7 +81,7 @@ messages:
   content: Hello
 """
         assert not git_notes_helper.validate_yaml_schema(invalid_yaml)
-    
+
     def test_invalid_schema_missing_messages(self, git_notes_helper):
         """Test invalid schema missing messages field."""
         invalid_yaml = """schema: tigs.chat/v1
@@ -91,7 +90,7 @@ data:
   content: Hello
 """
         assert not git_notes_helper.validate_yaml_schema(invalid_yaml)
-    
+
     def test_invalid_schema_messages_not_list(self, git_notes_helper):
         """Test invalid schema where messages is not a list."""
         invalid_yaml = """schema: tigs.chat/v1
@@ -100,7 +99,7 @@ messages:
   content: Hello
 """
         assert not git_notes_helper.validate_yaml_schema(invalid_yaml)
-    
+
     def test_invalid_schema_message_missing_role(self, git_notes_helper):
         """Test invalid schema where message is missing role."""
         invalid_yaml = """schema: tigs.chat/v1
@@ -108,7 +107,7 @@ messages:
 - content: Hello
 """
         assert not git_notes_helper.validate_yaml_schema(invalid_yaml)
-    
+
     def test_invalid_schema_message_missing_content(self, git_notes_helper):
         """Test invalid schema where message is missing content."""
         invalid_yaml = """schema: tigs.chat/v1
@@ -116,7 +115,7 @@ messages:
 - role: user
 """
         assert not git_notes_helper.validate_yaml_schema(invalid_yaml)
-    
+
     def test_invalid_yaml_syntax(self, git_notes_helper):
         """Test invalid YAML syntax."""
         invalid_yaml = """schema: tigs.chat/v1
@@ -125,7 +124,7 @@ messages:
   content: [unclosed bracket
 """
         assert not git_notes_helper.validate_yaml_schema(invalid_yaml)
-    
+
     def test_schema_with_system_messages(self, git_notes_helper):
         """Test schema with system role messages."""
         system_yaml = """schema: tigs.chat/v1
@@ -138,11 +137,11 @@ messages:
   content: Hi there! How can I help you today?
 """
         assert git_notes_helper.validate_yaml_schema(system_yaml)
-        
+
         data = yaml.safe_load(system_yaml)
-        assert len(data['messages']) == 3
-        assert data['messages'][0]['role'] == 'system'
-    
+        assert len(data["messages"]) == 3
+        assert data["messages"][0]["role"] == "system"
+
     def test_schema_with_unicode_content(self, git_notes_helper):
         """Test schema validation with Unicode content."""
         unicode_yaml = """schema: tigs.chat/v1
@@ -163,12 +162,12 @@ messages:
     And some more emojis: 🗣️📚🎯
 """
         assert git_notes_helper.validate_yaml_schema(unicode_yaml)
-        
+
         data = yaml.safe_load(unicode_yaml)
-        assert "你好" in data['messages'][0]['content']
-        assert "👋" in data['messages'][0]['content']
-        assert "🗣️" in data['messages'][1]['content']
-    
+        assert "你好" in data["messages"][0]["content"]
+        assert "👋" in data["messages"][0]["content"]
+        assert "🗣️" in data["messages"][1]["content"]
+
     def test_schema_with_empty_messages_list(self, git_notes_helper):
         """Test schema with empty messages list."""
         empty_messages_yaml = """schema: tigs.chat/v1
@@ -176,12 +175,13 @@ messages: []
 """
         # Empty messages should still be valid schema
         assert git_notes_helper.validate_yaml_schema(empty_messages_yaml)
-        
+
         data = yaml.safe_load(empty_messages_yaml)
-        assert len(data['messages']) == 0
-    
-    
-    def test_store_and_retrieve_preserves_schema(self, runner, git_repo, git_notes_helper):
+        assert len(data["messages"]) == 0
+
+    def test_store_and_retrieve_preserves_schema(
+        self, runner, git_repo, git_notes_helper
+    ):
         """Test that storing and retrieving preserves YAML schema."""
         original_yaml = """schema: tigs.chat/v1
 messages:
@@ -220,30 +220,31 @@ messages:
     
     This is much more efficient! 🚀
 """
-        
+
         # Store the YAML
-        result = runner.invoke(main, ["--repo", str(git_repo), "add-chat", "-m", original_yaml])
+        result = runner.invoke(
+            main, ["--repo", str(git_repo), "add-chat", "-m", original_yaml]
+        )
         assert result.exit_code == 0
         commit_sha = result.output.split(":")[-1].strip()
-        
+
         # Verify schema validation on stored content
         stored_content = git_notes_helper.get_note_content(git_repo, commit_sha)
         assert git_notes_helper.validate_yaml_schema(stored_content)
-        
+
         # Verify content preservation (handle whitespace normalization)
         assert git_notes_helper.validate_yaml_schema(stored_content)
         assert "fibonacci numbers" in stored_content
         assert "fibonacci_iterative" in stored_content
         assert "🚀" in stored_content
-        
+
         # Retrieve and verify
         result = runner.invoke(main, ["--repo", str(git_repo), "show-chat"])
         assert result.exit_code == 0
         assert git_notes_helper.validate_yaml_schema(result.output)
         assert "fibonacci numbers" in result.output
         assert "🚀" in result.output
-    
-    
+
     def test_schema_with_additional_fields(self, git_notes_helper):
         """Test schema validation with additional fields (forward compatibility)."""
         yaml_with_extra = """schema: tigs.chat/v1

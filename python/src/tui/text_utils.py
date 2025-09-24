@@ -8,10 +8,10 @@ from wcwidth import wcswidth
 
 def display_width(text: str) -> int:
     """Calculate the display width of text accounting for Unicode, emoji, etc.
-    
+
     Args:
         text: Text to measure
-        
+
     Returns:
         Display width in terminal columns
     """
@@ -37,11 +37,11 @@ def _break_token(token: str, width: int) -> Iterable[str]:
             acc += w
         else:
             # flush
-            out.append(''.join(buf))
+            out.append("".join(buf))
             buf = [ch]
             acc = w
     if buf:
-        out.append(''.join(buf))
+        out.append("".join(buf))
     for part in out:
         yield part
 
@@ -121,11 +121,11 @@ def truncate_with_ellipsis(text: str, width: int, ellipsis: str = "...") -> str:
 
 def is_iterm2() -> bool:
     """Check if running in iTerm2."""
-    return os.environ.get('TERM_PROGRAM') == 'iTerm.app'
+    return os.environ.get("TERM_PROGRAM") == "iTerm.app"
 
 
 def clear_iterm2_scrollback() -> None:
     """Clear iTerm2 scrollback buffer."""
     if is_iterm2():
-        sys.stdout.write('\033[2J\033[H\033[3J')
+        sys.stdout.write("\033[2J\033[H\033[3J")
         sys.stdout.flush()
