@@ -2,6 +2,7 @@
 
 try:
     import curses
+
     # Verify curses is usable by checking for required functionality
     curses.KEY_UP  # Basic key constant check
     CURSES_AVAILABLE = True

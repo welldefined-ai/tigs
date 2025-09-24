@@ -17,11 +17,15 @@ class TestMessagesStatusFooter:
 
         # Create sample messages
         self.view.messages = [
-            ('user', 'Hello, how are you?', datetime(2025, 9, 10, 10, 0)),
-            ('assistant', 'I am doing well, thank you!', datetime(2025, 9, 10, 10, 1)),
-            ('user', 'Can you help me with Python?', datetime(2025, 9, 10, 10, 2)),
-            ('assistant', 'Of course! I would be happy to help.', datetime(2025, 9, 10, 10, 3)),
-            ('user', 'Great, thanks!', datetime(2025, 9, 10, 10, 4)),
+            ("user", "Hello, how are you?", datetime(2025, 9, 10, 10, 0)),
+            ("assistant", "I am doing well, thank you!", datetime(2025, 9, 10, 10, 1)),
+            ("user", "Can you help me with Python?", datetime(2025, 9, 10, 10, 2)),
+            (
+                "assistant",
+                "Of course! I would be happy to help.",
+                datetime(2025, 9, 10, 10, 3),
+            ),
+            ("user", "Great, thanks!", datetime(2025, 9, 10, 10, 4)),
         ]
         self.view.items = self.view.messages
         self.view.cursor_idx = 0
@@ -92,7 +96,9 @@ class TestMessagesStatusFooter:
 
         assert not footer_found, "Should not show status footer when no messages"
         # Should show "No messages" message instead
-        assert any("No messages" in str(line) for line in lines), "Should show 'No messages' message"
+        assert any("No messages" in str(line) for line in lines), (
+            "Should show 'No messages' message"
+        )
 
     def test_status_footer_colored(self):
         """Test that status footer uses metadata color when colors enabled."""
@@ -108,7 +114,9 @@ class TestMessagesStatusFooter:
                     # Check color of footer
                     for part_text, part_color in line:
                         if "(" in part_text:  # Found the footer part
-                            assert part_color == COLOR_METADATA, f"Footer should use COLOR_METADATA, got {part_color}"
+                            assert part_color == COLOR_METADATA, (
+                                f"Footer should use COLOR_METADATA, got {part_color}"
+                            )
                     break
 
         assert footer_found, "Colored status footer not found"
@@ -116,7 +124,9 @@ class TestMessagesStatusFooter:
     def test_status_footer_right_aligned(self):
         """Test that status footer is right-aligned."""
         width = 40
-        lines = self.view.get_display_lines(height=20, width=width, colors_enabled=False)
+        lines = self.view.get_display_lines(
+            height=20, width=width, colors_enabled=False
+        )
 
         # Find footer
         footer_line = None
@@ -132,11 +142,13 @@ class TestMessagesStatusFooter:
         assert "(1/5)" in footer_line  # Top-anchored, starts at first message
 
         # Check that it's padded with spaces on the left
-        assert footer_line.startswith(" "), "Footer should have left padding for right alignment"
+        assert footer_line.startswith(" "), (
+            "Footer should have left padding for right alignment"
+        )
 
     def test_status_footer_with_single_message(self):
         """Test status footer with single message."""
-        self.view.messages = [('user', 'Single message', None)]
+        self.view.messages = [("user", "Single message", None)]
         self.view.items = self.view.messages
         self.view.cursor_idx = 0
         self.view.message_cursor_idx = 0
@@ -147,7 +159,9 @@ class TestMessagesStatusFooter:
         for line in lines[-3:]:
             if isinstance(line, str) and "(" in line and "/" in line and ")" in line:
                 footer_found = True
-                assert "(1/1)" in line, f"Expected (1/1) for single message, got: {line}"
+                assert "(1/1)" in line, (
+                    f"Expected (1/1) for single message, got: {line}"
+                )
                 break
 
         assert footer_found, "Footer should appear even with single message"
@@ -158,7 +172,9 @@ class TestMessagesStatusFooter:
         lines = self.view.get_display_lines(height=8, width=50, colors_enabled=False)
 
         # Should not exceed height limit
-        assert len(lines) <= 8, f"Lines should fit within height limit, got {len(lines)} lines"
+        assert len(lines) <= 8, (
+            f"Lines should fit within height limit, got {len(lines)} lines"
+        )
 
         # Footer should still appear if there's room
         # Footer is optional if no space, so we don't assert it must be there

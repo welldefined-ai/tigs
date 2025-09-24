@@ -18,11 +18,11 @@ class TestLogsStatusFooter:
         # Create sample logs with metadata
         base_time = datetime.now()
         self.view.logs = [
-            ('log_001', {'modified': (base_time - timedelta(hours=0)).isoformat()}),
-            ('log_002', {'modified': (base_time - timedelta(hours=1)).isoformat()}),
-            ('log_003', {'modified': (base_time - timedelta(hours=2)).isoformat()}),
-            ('log_004', {'modified': (base_time - timedelta(hours=3)).isoformat()}),
-            ('log_005', {'modified': (base_time - timedelta(hours=4)).isoformat()}),
+            ("log_001", {"modified": (base_time - timedelta(hours=0)).isoformat()}),
+            ("log_002", {"modified": (base_time - timedelta(hours=1)).isoformat()}),
+            ("log_003", {"modified": (base_time - timedelta(hours=2)).isoformat()}),
+            ("log_004", {"modified": (base_time - timedelta(hours=3)).isoformat()}),
+            ("log_005", {"modified": (base_time - timedelta(hours=4)).isoformat()}),
         ]
         self.view.selected_log_idx = 0
         self.view.log_scroll_offset = 0
@@ -89,7 +89,9 @@ class TestLogsStatusFooter:
 
         assert not footer_found, "Should not show status footer when no logs"
         # Should show "No logs found" message instead
-        assert any("No logs found" in line for line in lines), "Should show 'No logs found' message"
+        assert any("No logs found" in line for line in lines), (
+            "Should show 'No logs found' message"
+        )
 
     def test_status_footer_right_aligned(self):
         """Test that status footer is right-aligned."""
@@ -109,11 +111,13 @@ class TestLogsStatusFooter:
         assert "(1/5)" in footer_line
 
         # Check that it's padded with spaces on the left
-        assert footer_line.startswith(" "), "Footer should have left padding for right alignment"
+        assert footer_line.startswith(" "), (
+            "Footer should have left padding for right alignment"
+        )
 
     def test_status_footer_with_single_log(self):
         """Test status footer with single log."""
-        self.view.logs = [('single_log', {'modified': datetime.now().isoformat()})]
+        self.view.logs = [("single_log", {"modified": datetime.now().isoformat()})]
         self.view.selected_log_idx = 0
 
         lines = self.view.get_display_lines(height=20)
@@ -133,12 +137,13 @@ class TestLogsStatusFooter:
         lines = self.view.get_display_lines(height=8)
 
         # Should not exceed height limit minus borders
-        assert len(lines) <= 6, f"Lines should fit within height limit, got {len(lines)} lines"
+        assert len(lines) <= 6, (
+            f"Lines should fit within height limit, got {len(lines)} lines"
+        )
 
         # Footer should still appear if there's room
         footer_found = any(
-            "(" in line and "/" in line and ")" in line
-            for line in lines
+            "(" in line and "/" in line and ")" in line for line in lines
         )
         # With height 8, we have 6 lines available (8-2 borders), so footer should appear
         assert footer_found, "Footer should appear when there's room"
@@ -148,7 +153,7 @@ class TestLogsStatusFooter:
         # Create many logs to enable scrolling
         base_time = datetime.now()
         self.view.logs = [
-            (f'log_{i:03d}', {'modified': (base_time - timedelta(hours=i)).isoformat()})
+            (f"log_{i:03d}", {"modified": (base_time - timedelta(hours=i)).isoformat()})
             for i in range(20)
         ]
         self.view.selected_log_idx = 10
@@ -161,7 +166,9 @@ class TestLogsStatusFooter:
         for line in lines[-3:]:
             if "(" in line and "/" in line and ")" in line:
                 footer_found = True
-                assert "(11/20)" in line, f"Expected (11/20) for position 10, got: {line}"
+                assert "(11/20)" in line, (
+                    f"Expected (11/20) for position 10, got: {line}"
+                )
                 break
 
         assert footer_found, "Footer should show during scrolling"
@@ -171,7 +178,7 @@ class TestLogsStatusFooter:
         # Create many logs to get double-digit numbers
         base_time = datetime.now()
         self.view.logs = [
-            (f'log_{i:03d}', {'modified': (base_time - timedelta(hours=i)).isoformat()})
+            (f"log_{i:03d}", {"modified": (base_time - timedelta(hours=i)).isoformat()})
             for i in range(100)
         ]
         self.view.selected_log_idx = 99
@@ -184,17 +191,23 @@ class TestLogsStatusFooter:
 
         # With width 10, we have 6 chars after borders and padding (10 - 4)
         # "(100/100)" is 10 chars, so it should be truncated to "(100/1"
-        assert len(footer_line) <= 6, f"Footer should be truncated to fit width, got: '{footer_line}' with length {len(footer_line)}"
+        assert len(footer_line) <= 6, (
+            f"Footer should be truncated to fit width, got: '{footer_line}' with length {len(footer_line)}"
+        )
 
         # The footer should be truncated
-        assert "(100/1" in footer_line or len(footer_line) == 6, f"Footer should be truncated, got: '{footer_line}'"
+        assert "(100/1" in footer_line or len(footer_line) == 6, (
+            f"Footer should be truncated, got: '{footer_line}'"
+        )
 
     def test_status_footer_different_widths(self):
         """Test footer behavior with different pane widths."""
         # Test with standard logs pane width (17)
         lines = self.view.get_display_lines(height=20, width=17)
         footer = lines[-1] if lines else ""
-        assert "(1/5)" in footer, f"Footer should show correctly at standard width, got: '{footer}'"
+        assert "(1/5)" in footer, (
+            f"Footer should show correctly at standard width, got: '{footer}'"
+        )
 
         # Test with narrower width (12)
         lines = self.view.get_display_lines(height=20, width=12)
@@ -207,8 +220,12 @@ class TestLogsStatusFooter:
         lines = self.view.get_display_lines(height=20, width=9)
         footer = lines[-1] if lines else ""
         # Width 9 - 4 = 5 usable, "(1/5)" is 5 chars, should just fit
-        assert len(footer) <= 5, f"Footer should fit within 5 chars, got: '{footer}' with length {len(footer)}"
-        assert "(1/5)" in footer or footer == "(1/5", f"Footer should show or be truncated, got: '{footer}'"
+        assert len(footer) <= 5, (
+            f"Footer should fit within 5 chars, got: '{footer}' with length {len(footer)}"
+        )
+        assert "(1/5)" in footer or footer == "(1/5", (
+            f"Footer should show or be truncated, got: '{footer}'"
+        )
 
     def test_status_footer_colored(self):
         """Test that status footer uses metadata color when colors enabled."""
@@ -224,7 +241,9 @@ class TestLogsStatusFooter:
                     # Check color of footer
                     for part_text, part_color in line:
                         if "(" in part_text:  # Found the footer part
-                            assert part_color == COLOR_METADATA, f"Footer should use COLOR_METADATA, got {part_color}"
+                            assert part_color == COLOR_METADATA, (
+                                f"Footer should use COLOR_METADATA, got {part_color}"
+                            )
                     break
 
         assert footer_found, "Colored status footer not found"
