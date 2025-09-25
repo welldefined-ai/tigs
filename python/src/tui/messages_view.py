@@ -91,8 +91,8 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
                 timestamp = msg.timestamp if hasattr(msg, "timestamp") else None
                 self.messages.append((role, content, timestamp))
 
-            # Reset cursor and scroll position for new messages
-            self.cursor_idx = 0
+            # Position cursor at last message for new messages
+            self.cursor_idx = max(0, len(self.messages) - 1)
             self.message_cursor_idx = self.cursor_idx  # Keep legacy alias in sync
             self.message_scroll_offset = 0
             self._scroll_offset = 0  # Reset scroll offset
@@ -294,13 +294,25 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
         if not self.messages:
             return
 
-        # Up/Down arrows: Simple line-by-line screen scrolling
+        # Up/Down arrows: Message navigation
         if key == curses.KEY_UP:
-            # Scroll up by one line
-            if self._scroll_offset > 0:
-                self._scroll_offset -= 1
+            # Move to previous message (up)
+            if self.cursor_idx > 0:
+                self.cursor_idx -= 1
+                self.message_cursor_idx = self.cursor_idx
+                # Scroll to show the new current message
+                self._scroll_to_message(self.cursor_idx, pane_height)
 
         elif key == curses.KEY_DOWN:
+            # Move to next message (down)
+            if self.cursor_idx < len(self.messages) - 1:
+                self.cursor_idx += 1
+                self.message_cursor_idx = self.cursor_idx
+                # Scroll to show the new current message
+                self._scroll_to_message(self.cursor_idx, pane_height)
+
+        # Vim-like keys: j/k for scrolling
+        elif key == ord("j"):
             # Scroll down by one line, but check if there's more content below
             if hasattr(self, "_last_width"):
                 total_lines = self._calculate_total_content_lines(self._last_width)
@@ -310,22 +322,10 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
                 if self._scroll_offset + content_height < total_lines:
                     self._scroll_offset += 1
 
-        # Vim-like navigation: j/k keys for message navigation
-        elif key == ord("j"):
-            # Move to next message (down)
-            if self.cursor_idx < len(self.messages) - 1:
-                self.cursor_idx += 1
-                self.message_cursor_idx = self.cursor_idx
-                # Scroll to show the new current message
-                self._scroll_to_message(self.cursor_idx, pane_height)
-
         elif key == ord("k"):
-            # Move to previous message (up)
-            if self.cursor_idx > 0:
-                self.cursor_idx -= 1
-                self.message_cursor_idx = self.cursor_idx
-                # Scroll to show the new current message
-                self._scroll_to_message(self.cursor_idx, pane_height)
+            # Scroll up by one line
+            if self._scroll_offset > 0:
+                self._scroll_offset -= 1
 
         # Delegate selection operations to mixin (only if not read-only)
         elif not self.read_only:
@@ -497,10 +497,11 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
 
         self._visible_message_items(height)
 
-        # Start at the beginning of the conversation
-        self.cursor_idx = 0
+        # Start at the end of the conversation (last message)
+        self.cursor_idx = max(0, len(self.messages) - 1)
         self.message_cursor_idx = self.cursor_idx
-        self._scroll_offset = 0  # Start with no scrolling offset
+        # Scroll to show the last message
+        self._scroll_to_message(self.cursor_idx, height)
 
     def _calculate_total_content_lines(self, width: int) -> int:
         """Calculate the total number of lines that would be generated for all content.

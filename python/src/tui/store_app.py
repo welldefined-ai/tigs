@@ -437,12 +437,12 @@ class TigsStoreApp:
         Returns:
             Help text appropriate for the currently focused pane
         """
-        base_help = "Tab: switch | Enter: store | q: quit | v2024-09-24-help"
+        base_help = "Tab: switch | Enter: store | q: quit"
 
         if self.focused_pane == 0:  # Commits pane
             return f"Space: select | {base_help}"
         elif self.focused_pane == 1:  # Messages pane
-            return f"Space: select | j/k: jump messages | ↑/↓: scroll | {base_help}"
+            return f"Space: select | ↑/↓: jump messages | j/k: scroll | {base_help}"
         elif self.focused_pane == 2:  # Logs pane
             return f"↑/↓: navigate | {base_help}"
         else:
