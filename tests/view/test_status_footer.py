@@ -5,11 +5,10 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-import pytest
-
-from framework.tui import TUI, get_first_pane
 from framework.fixtures import create_test_repo
 from framework.paths import PYTHON_DIR
+from framework.tui import TUI
+from framework.tui import get_first_pane
 
 
 class TestViewStatusFooter:

@@ -1,16 +1,14 @@
 #!/usr/bin/env python3
 """Test status footer display in messages view for store command."""
 
-import subprocess
 import tempfile
 from pathlib import Path
 
-import pytest
-
-from framework.tui import TUI, get_middle_pane
 from framework.fixtures import create_test_repo
 from framework.mock_claude_logs import create_mock_claude_home
 from framework.paths import PYTHON_DIR
+from framework.tui import TUI
+from framework.tui import get_middle_pane
 
 
 class TestMessagesStatusFooter:

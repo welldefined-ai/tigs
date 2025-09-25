@@ -40,8 +40,8 @@ class TestMessagesStatusFooter:
         for line in lines[-3:]:  # Check last few lines
             if isinstance(line, str) and "(" in line and "/" in line and ")" in line:
                 footer_found = True
-                # Should show (1/5) for first position (top-anchored in new system)
-                assert "(1/5)" in line, f"Expected (1/5) in footer, got: {line}"
+                # Should show (5/5) for last position (cursor starts at last message by default)
+                assert "(5/5)" in line, f"Expected (5/5) in footer, got: {line}"
                 break
 
         assert footer_found, "Status footer not found in display lines"
@@ -55,7 +55,7 @@ class TestMessagesStatusFooter:
             if isinstance(line, str) and "(" in line and "/" in line and ")" in line:
                 initial_footer = line.strip()
                 break
-        assert "(1/5)" in initial_footer  # Top-anchored, starts at first message
+        assert "(5/5)" in initial_footer  # Cursor starts at last message by default
 
         # Move cursor to position 2
         self.view.cursor_idx = 2
@@ -139,7 +139,7 @@ class TestMessagesStatusFooter:
 
         # Footer should be right-aligned
         assert footer_line.rstrip().endswith(")"), "Footer should be right-aligned"
-        assert "(1/5)" in footer_line  # Top-anchored, starts at first message
+        assert "(5/5)" in footer_line  # Cursor starts at last message by default
 
         # Check that it's padded with spaces on the left
         assert footer_line.startswith(" "), (
