@@ -5,11 +5,10 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-import pytest
-
-from framework.tui import TUI, get_first_pane
 from framework.fixtures import create_test_repo
 from framework.paths import PYTHON_DIR
+from framework.tui import TUI
+from framework.tui import get_first_pane
 
 
 class TestViewStatusFooter:
@@ -43,7 +42,9 @@ class TestViewStatusFooter:
                         footer_found = True
                         print(f"Found view status footer: {first_pane.strip()}")
                         # Should show (1/10) for first commit
-                        assert "(1/10)" in first_pane, f"Expected (1/10), got: {first_pane}"
+                        assert "(1/10)" in first_pane, (
+                            f"Expected (1/10), got: {first_pane}"
+                        )
                         break
 
                 assert footer_found, "Status footer not found in view command"
@@ -142,7 +143,11 @@ class TestViewStatusFooter:
                     first_pane = get_first_pane(line)
                     if "(" in first_pane and "/" in first_pane and ")" in first_pane:
                         footer_found = True
-                        assert "(1/3)" in first_pane or "(2/3)" in first_pane or "(3/3)" in first_pane
+                        assert (
+                            "(1/3)" in first_pane
+                            or "(2/3)" in first_pane
+                            or "(3/3)" in first_pane
+                        )
                         break
 
                 assert footer_found, "Status footer should be present in read-only mode"
@@ -165,7 +170,7 @@ class TestViewMessagesStatusFooter:
                 ["git", "rev-parse", "HEAD"],
                 cwd=repo_path,
                 capture_output=True,
-                text=True
+                text=True,
             )
             sha = result.stdout.strip()
 
@@ -184,7 +189,7 @@ messages:
             subprocess.run(
                 ["git", "notes", "--ref=refs/notes/chats", "add", "-m", chat, sha],
                 cwd=repo_path,
-                check=True
+                check=True,
             )
 
             command = f"uv run tigs --repo {repo_path} view"
@@ -204,13 +209,16 @@ messages:
 
                 # Look for status footer in messages pane (second column)
                 from framework.tui import get_middle_pane
+
                 footer_found = False
                 for line in lines[-10:]:
                     second_pane = get_middle_pane(line)
                     if "(" in second_pane and "/" in second_pane and ")" in second_pane:
                         footer_found = True
                         # Should show (1/4) for first message
-                        assert "(1/4)" in second_pane, f"Expected (1/4), got: {second_pane}"
+                        assert "(1/4)" in second_pane, (
+                            f"Expected (1/4), got: {second_pane}"
+                        )
                         break
 
                 assert footer_found, "Status footer not found in messages pane"
@@ -228,7 +236,7 @@ messages:
                 ["git", "rev-parse", "HEAD"],
                 cwd=repo_path,
                 capture_output=True,
-                text=True
+                text=True,
             )
             sha = result.stdout.strip()
 
@@ -245,7 +253,7 @@ messages:
             subprocess.run(
                 ["git", "notes", "--ref=refs/notes/chats", "add", "-m", chat, sha],
                 cwd=repo_path,
-                check=True
+                check=True,
             )
 
             command = f"uv run tigs --repo {repo_path} view"

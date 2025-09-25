@@ -2,16 +2,20 @@
 
 import json
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime
+from datetime import timedelta
 from pathlib import Path
-from typing import List, Dict, Any, Tuple
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Tuple
 
 
 def create_mock_session_file(
     output_path: Path,
     messages: List[Tuple[str, str]],
     project_name: str = "test-project",
-    start_time: datetime = None
+    start_time: datetime = None,
 ) -> Dict[str, Any]:
     """Create a mock JSONL session file similar to Claude logs.
 
@@ -44,17 +48,9 @@ def create_mock_session_file(
             "version": "1.0.109",
             "gitBranch": "main",
             "type": role,
-            "message": {
-                "role": role,
-                "content": [
-                    {
-                        "type": "text",
-                        "text": content
-                    }
-                ]
-            },
+            "message": {"role": role, "content": [{"type": "text", "text": content}]},
             "uuid": msg_uuid,
-            "timestamp": current_time.isoformat() + "Z"
+            "timestamp": current_time.isoformat() + "Z",
         }
 
         # Add model for assistant messages
@@ -68,24 +64,22 @@ def create_mock_session_file(
 
     # Write JSONL file
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(output_path, 'w') as f:
+    with open(output_path, "w") as f:
         for entry in log_entries:
-            f.write(json.dumps(entry) + '\n')
+            f.write(json.dumps(entry) + "\n")
 
     # Return metadata
     return {
-        'id': session_id,
-        'accessible': True,
-        'size': output_path.stat().st_size,
-        'project': project_name,
-        'modified': datetime.now().isoformat()
+        "id": session_id,
+        "accessible": True,
+        "size": output_path.stat().st_size,
+        "project": project_name,
+        "modified": datetime.now().isoformat(),
     }
 
 
 def create_mock_claude_home(
-    base_path: Path,
-    sessions_data: List[List[Tuple[str, str]]] = None,
-    cwd: Path = None
+    base_path: Path, sessions_data: List[List[Tuple[str, str]]] = None, cwd: Path = None
 ) -> List[Tuple[str, Dict[str, Any]]]:
     """Create a mock ~/.claude directory structure with session files.
 
@@ -106,10 +100,10 @@ def create_mock_claude_home(
 
     # Convert path to project folder name (replace / with -)
     # Cligent keeps the leading dash, so we should too
-    project_folder_name = str(cwd).replace('/', '-')
+    project_folder_name = str(cwd).replace("/", "-")
 
     # Create the correct directory structure that cligent expects
-    claude_dir = base_path / '.claude' / 'projects' / project_folder_name
+    claude_dir = base_path / ".claude" / "projects" / project_folder_name
     claude_dir.mkdir(parents=True, exist_ok=True)
 
     # Default test sessions if none provided
@@ -119,7 +113,7 @@ def create_mock_claude_home(
                 ("user", "Test message 1"),
                 ("assistant", "Test response 1"),
                 ("user", "Test message 2"),
-                ("assistant", "Test response 2")
+                ("assistant", "Test response 2"),
             ]
         ]
 
@@ -135,7 +129,7 @@ def create_mock_claude_home(
             session_file,
             messages=messages,
             project_name=project_folder_name,
-            start_time=start_time + timedelta(hours=i*3)
+            start_time=start_time + timedelta(hours=i * 3),
         )
 
         # Use the session UUID as log ID (this is what cligent expects)

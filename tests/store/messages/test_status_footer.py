@@ -1,16 +1,14 @@
 #!/usr/bin/env python3
 """Test status footer display in messages view for store command."""
 
-import subprocess
 import tempfile
 from pathlib import Path
 
-import pytest
-
-from framework.tui import TUI, get_middle_pane
 from framework.fixtures import create_test_repo
 from framework.mock_claude_logs import create_mock_claude_home
 from framework.paths import PYTHON_DIR
+from framework.tui import TUI
+from framework.tui import get_middle_pane
 
 
 class TestMessagesStatusFooter:
@@ -28,13 +26,15 @@ class TestMessagesStatusFooter:
             monkeypatch.setenv("HOME", str(mock_home))
 
             # Create mock Claude logs with 5 messages
-            sessions_data = [[
-                ("user", "How do I implement a binary search?"),
-                ("assistant", "Here's how to implement binary search:"),
-                ("user", "Can you show an example?"),
-                ("assistant", "Sure, here's a Python example:"),
-                ("user", "Thanks!")
-            ]]
+            sessions_data = [
+                [
+                    ("user", "How do I implement a binary search?"),
+                    ("assistant", "Here's how to implement binary search:"),
+                    ("user", "Can you show an example?"),
+                    ("assistant", "Sure, here's a Python example:"),
+                    ("user", "Thanks!"),
+                ]
+            ]
             create_mock_claude_home(mock_home, sessions_data)
 
             # Create a repo with a commit
@@ -42,7 +42,12 @@ class TestMessagesStatusFooter:
 
             command = f"uv run tigs --repo {repo_path} store"
 
-            with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120), env={"HOME": str(mock_home)}) as tui:
+            with TUI(
+                command,
+                cwd=PYTHON_DIR,
+                dimensions=(30, 120),
+                env={"HOME": str(mock_home)},
+            ) as tui:
                 # Wait for UI to load
                 tui.wait_for("Commits")
 
@@ -66,7 +71,9 @@ class TestMessagesStatusFooter:
                     if "(" in second_pane and "/" in second_pane and ")" in second_pane:
                         footer_found = True
                         # Should show (1/5) for first message
-                        assert "(1/5)" in second_pane, f"Expected (1/5), got: {second_pane}"
+                        assert "(1/5)" in second_pane, (
+                            f"Expected (1/5), got: {second_pane}"
+                        )
                         break
 
                 assert footer_found, "Status footer not found in messages pane"
@@ -83,14 +90,16 @@ class TestMessagesStatusFooter:
             monkeypatch.setenv("HOME", str(mock_home))
 
             # Create mock Claude logs with 6 messages
-            sessions_data = [[
-                ("user", "Message 1"),
-                ("assistant", "Response 1"),
-                ("user", "Message 2"),
-                ("assistant", "Response 2"),
-                ("user", "Message 3"),
-                ("assistant", "Response 3")
-            ]]
+            sessions_data = [
+                [
+                    ("user", "Message 1"),
+                    ("assistant", "Response 1"),
+                    ("user", "Message 2"),
+                    ("assistant", "Response 2"),
+                    ("user", "Message 3"),
+                    ("assistant", "Response 3"),
+                ]
+            ]
             create_mock_claude_home(mock_home, sessions_data)
 
             # Create a repo with a commit
@@ -98,7 +107,12 @@ class TestMessagesStatusFooter:
 
             command = f"uv run tigs --repo {repo_path} store"
 
-            with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120), env={"HOME": str(mock_home)}) as tui:
+            with TUI(
+                command,
+                cwd=PYTHON_DIR,
+                dimensions=(30, 120),
+                env={"HOME": str(mock_home)},
+            ) as tui:
                 # Wait for UI to load
                 tui.wait_for("Commits")
 
@@ -158,7 +172,9 @@ class TestMessagesStatusFooter:
                 assert final_footer, "Final footer not found"
                 # After moving down 4 times (1 + 3), should be at position 5
                 # But need to check actual message count from mock
-                assert "/" in final_footer and "(" in final_footer, f"Expected position indicator, got: {final_footer}"
+                assert "/" in final_footer and "(" in final_footer, (
+                    f"Expected position indicator, got: {final_footer}"
+                )
 
     def test_status_footer_no_messages(self, monkeypatch):
         """Test status footer behavior when no messages selected."""
@@ -179,7 +195,12 @@ class TestMessagesStatusFooter:
 
             command = f"uv run tigs --repo {repo_path} store"
 
-            with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120), env={"HOME": str(mock_home)}) as tui:
+            with TUI(
+                command,
+                cwd=PYTHON_DIR,
+                dimensions=(30, 120),
+                env={"HOME": str(mock_home)},
+            ) as tui:
                 # Wait for UI to load
                 tui.wait_for("Commits")
 
@@ -197,7 +218,9 @@ class TestMessagesStatusFooter:
                             footer_found = True
                             break
 
-                assert not footer_found, "Should not show status footer when no messages"
+                assert not footer_found, (
+                    "Should not show status footer when no messages"
+                )
 
                 # Should show "No messages" message instead
                 has_no_messages = False
@@ -221,9 +244,7 @@ class TestMessagesStatusFooter:
             monkeypatch.setenv("HOME", str(mock_home))
 
             # Create mock Claude logs with single message
-            sessions_data = [[
-                ("user", "Single message")
-            ]]
+            sessions_data = [[("user", "Single message")]]
             create_mock_claude_home(mock_home, sessions_data)
 
             # Create a repo with a commit
@@ -231,7 +252,12 @@ class TestMessagesStatusFooter:
 
             command = f"uv run tigs --repo {repo_path} store"
 
-            with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120), env={"HOME": str(mock_home)}) as tui:
+            with TUI(
+                command,
+                cwd=PYTHON_DIR,
+                dimensions=(30, 120),
+                env={"HOME": str(mock_home)},
+            ) as tui:
                 # Wait for UI to load
                 tui.wait_for("Commits")
 
@@ -255,7 +281,9 @@ class TestMessagesStatusFooter:
                         footer_found = True
                         # Should show position indicator
                         # Mock logs have at least 4 messages, so expect (1/4) or similar
-                        assert "(1/" in second_pane, f"Expected position indicator (1/X), got: {second_pane}"
+                        assert "(1/" in second_pane, (
+                            f"Expected position indicator (1/X), got: {second_pane}"
+                        )
                         break
 
                 assert footer_found, "Status footer not found for single message"
