@@ -91,8 +91,8 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
                 timestamp = msg.timestamp if hasattr(msg, "timestamp") else None
                 self.messages.append((role, content, timestamp))
 
-            # Reset cursor and scroll position for new messages
-            self.cursor_idx = 0
+            # Position cursor at last message for new messages
+            self.cursor_idx = max(0, len(self.messages) - 1)
             self.message_cursor_idx = self.cursor_idx  # Keep legacy alias in sync
             self.message_scroll_offset = 0
             self._scroll_offset = 0  # Reset scroll offset
@@ -497,10 +497,11 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
 
         self._visible_message_items(height)
 
-        # Start at the beginning of the conversation
-        self.cursor_idx = 0
+        # Start at the end of the conversation (last message)
+        self.cursor_idx = max(0, len(self.messages) - 1)
         self.message_cursor_idx = self.cursor_idx
-        self._scroll_offset = 0  # Start with no scrolling offset
+        # Scroll to show the last message
+        self._scroll_to_message(self.cursor_idx, height)
 
     def _calculate_total_content_lines(self, width: int) -> int:
         """Calculate the total number of lines that would be generated for all content.
