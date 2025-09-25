@@ -222,17 +222,28 @@ class TigsRepo:
                     f"refs/notes-remote/{remote}/chats",
                 ]
             )
-        except subprocess.CalledProcessError as e:
+        except subprocess.CalledProcessError:
             # Check if merge conflict occurred
-            if os.path.exists(
-                os.path.join(self.repo_path, ".git/NOTES_MERGE_WORKTREE")
-            ):
-                # TODO: Implement custom conflict resolver in Phase 2
-                raise RuntimeError(
-                    "Notes merge conflict detected. Manual resolution required.\n"
-                    "Run: git notes merge --abort to cancel, or manually resolve in .git/NOTES_MERGE_WORKTREE"
-                ) from e
-            raise
+            worktree_path = os.path.join(self.repo_path, ".git/NOTES_MERGE_WORKTREE")
+            if os.path.exists(worktree_path):
+                # Run custom conflict resolver
+                try:
+                    from .notes_merger import ChatNotesMerger
+
+                    merger = ChatNotesMerger()
+                    merger.resolve_conflict(worktree_path)
+
+                    # Commit the resolved merge
+                    self._run_git(
+                        ["notes", "--ref=refs/notes/chats", "merge", "--commit"]
+                    )
+                except Exception as merge_error:
+                    raise RuntimeError(
+                        f"Failed to auto-resolve notes merge conflict: {merge_error}\n"
+                        "Run: git notes merge --abort to cancel"
+                    ) from merge_error
+            else:
+                raise
 
     def push_chats(self, remote: str = "origin") -> None:
         """Push chat notes to remote repository.
