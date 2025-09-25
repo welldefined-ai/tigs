@@ -59,6 +59,8 @@ class TigsStoreApp:
             log_id = self.log_view.get_selected_log_id()
             if log_id:
                 self.message_view.load_messages(log_id)
+                # Update message selection for any initially selected commits
+                self._update_message_selection_for_selected_commits()
 
     def run(self) -> None:
         """Run the TUI application."""
@@ -278,7 +280,9 @@ class TigsStoreApp:
                 self._handle_resize(stdscr)
                 continue  # Redraw with new dimensions
             elif self.focused_pane == 0:  # Commits pane focused
-                self.commit_view.handle_input(key, pane_height)
+                if self.commit_view.handle_input(key, pane_height):
+                    # Commit selection changed (Space was pressed), update message selection
+                    self._update_message_selection_for_selected_commits()
             elif self.focused_pane == 1:  # Messages pane focused
                 self.message_view.handle_input(stdscr, key, pane_height)
             elif self.focused_pane == 2:  # Logs pane focused
@@ -287,6 +291,8 @@ class TigsStoreApp:
                     log_id = self.log_view.get_selected_log_id()
                     if log_id:
                         self.message_view.load_messages(log_id)
+                        # After loading new messages, update selection based on selected commits
+                        self._update_message_selection_for_selected_commits()
 
     def _draw_status_bar(self, stdscr, y: int, width: int) -> None:
         """Draw the status bar.
@@ -430,6 +436,65 @@ class TigsStoreApp:
         pane_height = height - 1
         self.commit_view.scroll_to_cursor(pane_height)
         self.message_view.scroll_to_cursor(pane_height)
+
+    def _update_message_selection_for_selected_commits(self) -> None:
+        """Update message selection based on stored chat content for all selected commits."""
+        if not self.message_view.messages:
+            return
+
+        # Clear current selection
+        self.message_view.selected_messages.clear()
+
+        # Get all selected commit SHAs
+        selected_shas = self.commit_view.get_selected_shas()
+
+        if not selected_shas:
+            return
+
+        # Collect all stored messages from all selected commits
+        all_stored_messages = []
+        for sha in selected_shas:
+            try:
+                # Get raw chat content from git notes
+                content = self.store.show_chat(sha)
+
+                if content and self.chat_parser:
+                    try:
+                        # Parse the stored chat content
+                        stored_chat = self.chat_parser.decompose(content)
+
+                        # Extract stored messages for comparison
+                        for msg in stored_chat.messages:
+                            # Handle role conversion
+                            if hasattr(msg, "role"):
+                                role = msg.role
+                                if hasattr(role, "value"):
+                                    role = role.value
+                                else:
+                                    role = str(role).lower()
+                            else:
+                                role = "unknown"
+
+                            content_text = (
+                                msg.content if hasattr(msg, "content") else str(msg)
+                            )
+                            all_stored_messages.append((role, content_text))
+
+                    except Exception:
+                        # If parsing fails, skip this commit
+                        continue
+
+            except (KeyError, Exception):
+                # No chat for this commit or error occurred - skip this commit
+                continue
+
+        # Compare with current messages and select matches
+        for i, (current_role, current_content, _) in enumerate(self.message_view.messages):
+            for stored_role, stored_content in all_stored_messages:
+                if (current_role == stored_role and
+                    current_content.strip() == stored_content.strip()):
+                    self.message_view.selected_messages.add(i)
+                    break
 
     def _get_contextual_help(self) -> str:
         """Get contextual help text based on focused pane.
