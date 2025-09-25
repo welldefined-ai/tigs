@@ -40,10 +40,13 @@ class TestCommitsStatusFooter:
                     first_pane = get_first_pane(line)
                     # Look for the status footer pattern (X/Y)
                     import re
-                    if re.search(r'\(\d+/\d+\)', first_pane):
+
+                    if re.search(r"\(\d+/\d+\)", first_pane):
                         footer_found = True
                         # Should show (1/10) for first commit
-                        assert "(1/10)" in first_pane, f"Expected (1/10), got: {first_pane}"
+                        assert "(1/10)" in first_pane, (
+                            f"Expected (1/10), got: {first_pane}"
+                        )
                         break
 
                 assert footer_found, "Status footer not found in commits pane"
@@ -122,12 +125,16 @@ class TestCommitsStatusFooter:
                     first_pane = get_first_pane(line)
                     if "(" in first_pane and "/" in first_pane and ")" in first_pane:
                         # Make sure it's not from other panes
-                        if "commits" in first_pane.lower() or any(c.isdigit() for c in first_pane):
+                        if "commits" in first_pane.lower() or any(
+                            c.isdigit() for c in first_pane
+                        ):
                             footer_found = True
                             break
 
                 # Empty repo should show "No commits" message instead of footer
-                assert not footer_found or "(0/" not in str(lines), "Should not show status footer for empty repo"
+                assert not footer_found or "(0/" not in str(lines), (
+                    "Should not show status footer for empty repo"
+                )
 
     def test_status_footer_with_single_commit(self):
         """Test status footer with single commit."""
@@ -152,7 +159,9 @@ class TestCommitsStatusFooter:
                     if "(" in first_pane and "/" in first_pane and ")" in first_pane:
                         footer_found = True
                         # Should show (1/1) for single commit
-                        assert "(1/1)" in first_pane, f"Expected (1/1), got: {first_pane}"
+                        assert "(1/1)" in first_pane, (
+                            f"Expected (1/1), got: {first_pane}"
+                        )
                         break
 
                 assert footer_found, "Status footer not found for single commit"

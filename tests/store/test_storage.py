@@ -24,16 +24,18 @@ def storage_setup(monkeypatch):
         monkeypatch.setenv("HOME", str(mock_home))
 
         # Create repo with commits
-        commits = [f"Storage test commit {i+1}" for i in range(8)]
+        commits = [f"Storage test commit {i + 1}" for i in range(8)]
         create_test_repo(repo_path, commits)
 
         # Create mock Claude logs
-        sessions_data = [[
-            ("user", "First message for storage"),
-            ("assistant", "First response for storage"),
-            ("user", "Second message for storage"),
-            ("assistant", "Second response for storage")
-        ]]
+        sessions_data = [
+            [
+                ("user", "First message for storage"),
+                ("assistant", "First response for storage"),
+                ("user", "Second message for storage"),
+                ("assistant", "Second response for storage"),
+            ]
+        ]
         create_mock_claude_home(mock_home, sessions_data)
 
         yield repo_path, mock_home
@@ -46,7 +48,7 @@ def check_git_notes(repo_path, ref="refs/notes/chats"):
             ["git", "notes", "--ref", ref, "list"],
             cwd=repo_path,
             capture_output=True,
-            text=True
+            text=True,
         )
 
         if result.returncode != 0:
@@ -57,13 +59,13 @@ def check_git_notes(repo_path, ref="refs/notes/chats"):
             return False, "Empty notes list"
 
         # Get content of first note
-        first_note_commit = notes_list.split('\n')[0].split()[1] if notes_list else None
+        first_note_commit = notes_list.split("\n")[0].split()[1] if notes_list else None
         if first_note_commit:
             content_result = subprocess.run(
                 ["git", "notes", "--ref", ref, "show", first_note_commit],
                 cwd=repo_path,
                 capture_output=True,
-                text=True
+                text=True,
             )
             return True, content_result.stdout
 
@@ -82,7 +84,9 @@ class TestStorage:
 
         command = f"uv run tigs --repo {repo_path} store"
 
-        with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120), env={"HOME": str(mock_home)}) as tui:
+        with TUI(
+            command, cwd=PYTHON_DIR, dimensions=(30, 120), env={"HOME": str(mock_home)}
+        ) as tui:
             try:
                 tui.wait_for("commit", timeout=5.0)
 
@@ -134,12 +138,20 @@ class TestStorage:
                 # Check for confirmation message
                 store_display = "\n".join(after_store)
                 confirmation_patterns = [
-                    "stored", "saved", "created", "success",
-                    "2 message", "3 commit", "→", "notes"
+                    "stored",
+                    "saved",
+                    "created",
+                    "success",
+                    "2 message",
+                    "3 commit",
+                    "→",
+                    "notes",
                 ]
 
-                confirmation_found = any(pattern in store_display.lower()
-                                       for pattern in confirmation_patterns)
+                confirmation_found = any(
+                    pattern in store_display.lower()
+                    for pattern in confirmation_patterns
+                )
 
                 if confirmation_found:
                     print("✓ Found confirmation message pattern")
@@ -149,14 +161,18 @@ class TestStorage:
                 # Check Git notes after storage
                 notes_after, content_after = check_git_notes(repo_path)
                 print(f"Notes after storage: {notes_after}")
-                print(f"Notes content preview: {content_after[:200] if content_after else 'None'}")
+                print(
+                    f"Notes content preview: {content_after[:200] if content_after else 'None'}"
+                )
 
                 if notes_after and not notes_before:
                     print("✓ Git notes were created by storage operation")
                 elif notes_after:
                     print("Git notes exist (may have existed before)")
                 else:
-                    print("No Git notes found after storage - storage might not be implemented")
+                    print(
+                        "No Git notes found after storage - storage might not be implemented"
+                    )
 
                 # Look for commit indicators (*)
                 indicator_count = 0
@@ -180,7 +196,9 @@ class TestStorage:
 
         command = f"uv run tigs --repo {repo_path} store"
 
-        with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120), env={"HOME": str(mock_home)}) as tui:
+        with TUI(
+            command, cwd=PYTHON_DIR, dimensions=(30, 120), env={"HOME": str(mock_home)}
+        ) as tui:
             try:
                 tui.wait_for("commit", timeout=5.0)
 
@@ -188,12 +206,12 @@ class TestStorage:
 
                 # Quick selection: 1 message, 2 commits
                 tui.send("<tab>")  # Messages
-                tui.send(" ")     # Select message
+                tui.send(" ")  # Select message
 
                 tui.send("<tab>")  # Back to commits
-                tui.send(" ")     # Select commit
+                tui.send(" ")  # Select commit
                 tui.send_arrow("down")
-                tui.send(" ")     # Select second commit
+                tui.send(" ")  # Select second commit
 
                 # Store
                 tui.send("<enter>")
@@ -212,7 +230,7 @@ class TestStorage:
                     ("1 message", "2 commit"),
                     ("stored", "→"),
                     ("message", "commit"),
-                    ("saved", "note")
+                    ("saved", "note"),
                 ]
 
                 confirmation_quality = 0
@@ -237,24 +255,27 @@ class TestStorage:
 
         command = f"uv run tigs --repo {repo_path} store"
 
-        with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120), env={"HOME": str(mock_home)}) as tui:
+        with TUI(
+            command, cwd=PYTHON_DIR, dimensions=(30, 120), env={"HOME": str(mock_home)}
+        ) as tui:
             try:
                 tui.wait_for("commit", timeout=5.0)
 
                 print("=== Selections Cleared Test ===")
 
                 # Make selections
-                tui.send(" ")     # Select commit
+                tui.send(" ")  # Select commit
                 tui.send_arrow("down")
-                tui.send(" ")     # Select another commit
+                tui.send(" ")  # Select another commit
 
                 tui.send("<tab>")  # Go to messages
-                tui.send(" ")     # Select message
+                tui.send(" ")  # Select message
 
                 # Capture before storage
                 before_store = tui.capture()
-                selection_count_before = sum(1 for line in before_store
-                                           if "[x]" in line or "✓" in line)
+                selection_count_before = sum(
+                    1 for line in before_store if "[x]" in line or "✓" in line
+                )
 
                 print(f"Selections before storage: {selection_count_before}")
 
@@ -263,18 +284,25 @@ class TestStorage:
 
                 # Wait a moment for storage to complete
                 import time
+
                 time.sleep(0.5)
 
                 after_store = tui.capture()
-                selection_count_after = sum(1 for line in after_store
-                                          if "[x]" in line or "✓" in line)
+                selection_count_after = sum(
+                    1 for line in after_store if "[x]" in line or "✓" in line
+                )
 
                 print(f"Selections after storage: {selection_count_after}")
 
                 if selection_count_before > 0 and selection_count_after == 0:
                     print("✓ All selections cleared after storage")
-                elif selection_count_before > 0 and selection_count_after < selection_count_before:
-                    print(f"Some selections cleared: {selection_count_before} → {selection_count_after}")
+                elif (
+                    selection_count_before > 0
+                    and selection_count_after < selection_count_before
+                ):
+                    print(
+                        f"Some selections cleared: {selection_count_before} → {selection_count_after}"
+                    )
                 elif selection_count_before == 0:
                     print("No clear selections detected initially")
                 else:

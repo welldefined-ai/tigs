@@ -23,14 +23,14 @@ def repo_with_logs(monkeypatch):
         monkeypatch.setenv("HOME", str(mock_home))
 
         # Create test repo
-        commits = [f"Log test commit {i+1}" for i in range(5)]
+        commits = [f"Log test commit {i + 1}" for i in range(5)]
         create_test_repo(repo_path, commits)
 
         # Create multiple mock Claude log sessions
         sessions_data = [
             [("user", "Test question 1"), ("assistant", "Test response 1")],
             [("user", "Test question 2"), ("assistant", "Test response 2")],
-            [("user", "Test question 3"), ("assistant", "Test response 3")]
+            [("user", "Test question 3"), ("assistant", "Test response 3")],
         ]
         create_mock_claude_home(mock_home, sessions_data)
 
@@ -46,7 +46,9 @@ class TestLogNavigation:
 
         command = f"uv run tigs --repo {repo_path} store"
 
-        with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120), env={"HOME": str(mock_home)}) as tui:
+        with TUI(
+            command, cwd=PYTHON_DIR, dimensions=(30, 120), env={"HOME": str(mock_home)}
+        ) as tui:
             try:
                 tui.wait_for("Logs", timeout=5.0)
 
@@ -80,7 +82,9 @@ class TestLogNavigation:
 
         command = f"uv run tigs --repo {repo_path} store"
 
-        with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120), env={"HOME": str(mock_home)}) as tui:
+        with TUI(
+            command, cwd=PYTHON_DIR, dimensions=(30, 120), env={"HOME": str(mock_home)}
+        ) as tui:
             try:
                 tui.wait_for("Logs", timeout=5.0)
 
@@ -100,7 +104,9 @@ class TestLogNavigation:
                     print(f"{i:02d}: {line}")
 
                 # Basic test: navigation doesn't crash
-                assert len(after_navigation) > 0, "Should maintain display after log navigation"
+                assert len(after_navigation) > 0, (
+                    "Should maintain display after log navigation"
+                )
 
             except Exception as e:
                 print(f"Log navigation test failed: {e}")
@@ -117,7 +123,9 @@ class TestLogNavigation:
 
         command = f"uv run tigs --repo {repo_path} store"
 
-        with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120), env={"HOME": str(mock_home)}) as tui:
+        with TUI(
+            command, cwd=PYTHON_DIR, dimensions=(30, 120), env={"HOME": str(mock_home)}
+        ) as tui:
             try:
                 # Wait for some content to load
                 tui.wait_for("commit", timeout=5.0)
@@ -133,8 +141,10 @@ class TestLogNavigation:
                 # Should handle empty state gracefully
                 empty_indicators = []
                 for line in lines:
-                    if any(indicator in line.lower() for indicator in
-                          ["no log", "empty", "no messages"]):
+                    if any(
+                        indicator in line.lower()
+                        for indicator in ["no log", "empty", "no messages"]
+                    ):
                         empty_indicators.append(line)
 
                 if empty_indicators:

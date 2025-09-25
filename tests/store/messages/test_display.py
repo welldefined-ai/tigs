@@ -23,14 +23,21 @@ def messages_setup(monkeypatch):
         monkeypatch.setenv("HOME", str(mock_home))
 
         # Create repo with minimal commits
-        commits = [f"Test commit {i+1}" for i in range(5)]
+        commits = [f"Test commit {i + 1}" for i in range(5)]
         create_test_repo(repo_path, commits)
 
         # Create mock Claude logs with several messages
         sessions_data = [[]]
         for i in range(8):
-            sessions_data[0].append(("user", f"User message {i+1}: Question about the code"))
-            sessions_data[0].append(("assistant", f"Assistant message {i+1}: Here is the detailed answer with explanations"))
+            sessions_data[0].append(
+                ("user", f"User message {i + 1}: Question about the code")
+            )
+            sessions_data[0].append(
+                (
+                    "assistant",
+                    f"Assistant message {i + 1}: Here is the detailed answer with explanations",
+                )
+            )
 
         create_mock_claude_home(mock_home, sessions_data)
 
@@ -46,7 +53,9 @@ class TestMessageDisplay:
 
         command = f"uv run tigs --repo {repo_path} store"
 
-        with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120), env={"HOME": str(mock_home)}) as tui:
+        with TUI(
+            command, cwd=PYTHON_DIR, dimensions=(30, 120), env={"HOME": str(mock_home)}
+        ) as tui:
             try:
                 tui.wait_for("Messages", timeout=5.0)
 
@@ -86,7 +95,9 @@ class TestMessageDisplay:
 
         command = f"uv run tigs --repo {repo_path} store"
 
-        with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120), env={"HOME": str(mock_home)}) as tui:
+        with TUI(
+            command, cwd=PYTHON_DIR, dimensions=(30, 120), env={"HOME": str(mock_home)}
+        ) as tui:
             try:
                 tui.wait_for("Messages", timeout=5.0)
 
@@ -98,7 +109,7 @@ class TestMessageDisplay:
                 initial_lines = tui.capture()
 
                 print("=== Message pane display ===")
-                for i, line in enumerate(initial_lines[-10:], len(initial_lines)-10):
+                for i, line in enumerate(initial_lines[-10:], len(initial_lines) - 10):
                     print(f"{i:02d}: {line}")
 
                 # Look for messages near bottom of display
@@ -106,7 +117,10 @@ class TestMessageDisplay:
                 message_indicators_at_bottom = 0
 
                 for line in bottom_lines:
-                    if any(indicator in line.lower() for indicator in ["user:", "assistant:", "message"]):
+                    if any(
+                        indicator in line.lower()
+                        for indicator in ["user:", "assistant:", "message"]
+                    ):
                         message_indicators_at_bottom += 1
 
                 print(f"Message indicators near bottom: {message_indicators_at_bottom}")

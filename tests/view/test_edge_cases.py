@@ -21,7 +21,9 @@ class TestViewEdgeCases:
             repo_path.mkdir(parents=True)
 
             # Initialize empty repo
-            subprocess.run(['git', 'init'], cwd=repo_path, check=True, capture_output=True)
+            subprocess.run(
+                ["git", "init"], cwd=repo_path, check=True, capture_output=True
+            )
 
             command = f"uv run tigs --repo {repo_path} view"
 
@@ -36,15 +38,18 @@ class TestViewEdgeCases:
 
                     # Should show some indication of no commits
                     has_no_commits = (
-                        "no commit" in display_text.lower() or
-                        "empty" in display_text.lower() or
-                        len([line for line in lines if line.strip()]) < 10  # Very little content
+                        "no commit" in display_text.lower()
+                        or "empty" in display_text.lower()
+                        or len([line for line in lines if line.strip()])
+                        < 10  # Very little content
                     )
 
                     print(f"Shows empty state: {has_no_commits}")
 
                     # Should not crash
-                    assert len(lines) > 0, "Should display something even with empty repo"
+                    assert len(lines) > 0, (
+                        "Should display something even with empty repo"
+                    )
 
                     print("✓ Handles empty repository")
 
@@ -64,13 +69,10 @@ class TestViewEdgeCases:
 
             # Create repo with multiple commits but no chats
             from framework.fixtures import create_test_repo
-            create_test_repo(repo_path, [
-                "Commit 1",
-                "Commit 2",
-                "Commit 3",
-                "Commit 4",
-                "Commit 5"
-            ])
+
+            create_test_repo(
+                repo_path, ["Commit 1", "Commit 2", "Commit 3", "Commit 4", "Commit 5"]
+            )
 
             command = f"uv run tigs --repo {repo_path} view"
 
@@ -85,7 +87,7 @@ class TestViewEdgeCases:
                     def get_third_pane(line):
                         seps = [i for i, ch in enumerate(line) if ch in ("|", "│")]
                         if len(seps) >= 2:
-                            return line[seps[1]+1:].strip()
+                            return line[seps[1] + 1 :].strip()
                         return ""
 
                     chat_contents = []
@@ -104,7 +106,9 @@ class TestViewEdgeCases:
                     print(f"Has commit content: {has_commit_content}")
 
                     # Accept that the interface is structured correctly
-                    assert has_chat_header or has_commit_content, "Should show structured interface for repository with no chats"
+                    assert has_chat_header or has_commit_content, (
+                        "Should show structured interface for repository with no chats"
+                    )
 
                     print("✓ Handles repository with no chats")
 
@@ -136,11 +140,15 @@ class TestViewEdgeCases:
                 lines_after = tui.capture()
 
                 # Should still be functional
-                assert len(lines_after) > 10, "Should still display after navigating extreme commits"
+                assert len(lines_after) > 10, (
+                    "Should still display after navigating extreme commits"
+                )
 
                 # Check if Unicode is handled
                 display_text = "\n".join(lines_after)
-                handles_unicode = "🚀" in display_text or "?" in display_text  # Might show as ?
+                handles_unicode = (
+                    "🚀" in display_text or "?" in display_text
+                )  # Might show as ?
 
                 print(f"Handles Unicode: {handles_unicode}")
 
@@ -160,6 +168,7 @@ class TestViewEdgeCases:
             repo_path = Path(tmpdir) / "resize_repo"
 
             from framework.fixtures import create_test_repo
+
             create_test_repo(repo_path, ["Test commit for resize"])
 
             command = f"uv run tigs --repo {repo_path} view"
@@ -203,6 +212,7 @@ class TestViewEdgeCases:
             repo_path = Path(tmpdir) / "narrow_repo"
 
             from framework.fixtures import create_test_repo
+
             create_test_repo(repo_path, ["Narrow terminal test"])
 
             command = f"uv run tigs --repo {repo_path} view"

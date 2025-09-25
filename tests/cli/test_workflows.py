@@ -13,8 +13,12 @@ from framework.fixtures import create_test_repo
 def run_tigs(repo_path, *args):
     """Run tigs command and return result."""
     cmd = ["uv", "run", "tigs", "--repo", str(repo_path)] + list(args)
-    result = subprocess.run(cmd, cwd="/Users/basicthinker/Projects/tigs/python",
-                          capture_output=True, text=True)
+    result = subprocess.run(
+        cmd,
+        cwd="/Users/basicthinker/Projects/tigs/python",
+        capture_output=True,
+        text=True,
+    )
     return result
 
 
@@ -23,15 +27,23 @@ def check_git_notes(repo_path, commit_sha=None, ref="refs/notes/chats"):
     try:
         if commit_sha is None:
             # Get HEAD SHA
-            result = subprocess.run(["git", "rev-parse", "HEAD"],
-                                  cwd=repo_path, capture_output=True, text=True)
+            result = subprocess.run(
+                ["git", "rev-parse", "HEAD"],
+                cwd=repo_path,
+                capture_output=True,
+                text=True,
+            )
             if result.returncode != 0:
                 return False, None
             commit_sha = result.stdout.strip()
 
         # Check if note exists
-        result = subprocess.run(["git", "notes", "--ref", ref, "show", commit_sha],
-                              cwd=repo_path, capture_output=True, text=True)
+        result = subprocess.run(
+            ["git", "notes", "--ref", ref, "show", commit_sha],
+            cwd=repo_path,
+            capture_output=True,
+            text=True,
+        )
         if result.returncode == 0:
             return True, result.stdout
         else:
@@ -46,19 +58,19 @@ def validate_yaml_schema(content):
         data = yaml.safe_load(content)
         if not isinstance(data, dict):
             return False
-        if data.get('schema') != 'tigs.chat/v1':
+        if data.get("schema") != "tigs.chat/v1":
             return False
-        if 'messages' not in data:
+        if "messages" not in data:
             return False
-        if not isinstance(data['messages'], list):
+        if not isinstance(data["messages"], list):
             return False
 
-        for msg in data['messages']:
+        for msg in data["messages"]:
             if not isinstance(msg, dict):
                 return False
-            if 'role' not in msg or 'content' not in msg:
+            if "role" not in msg or "content" not in msg:
                 return False
-            if msg['role'] not in ['user', 'assistant', 'system']:
+            if msg["role"] not in ["user", "assistant", "system"]:
                 return False
         return True
     except Exception:
@@ -144,19 +156,23 @@ messages:
             commits_messages = [
                 "First commit: Add initial functionality",
                 "Second commit: Add error handling",
-                "Third commit: Add tests"
+                "Third commit: Add tests",
             ]
             create_test_repo(repo_path, commits_messages)
 
             # Get commit SHAs
-            result = subprocess.run(["git", "log", "--format=%H", "-n", str(len(commits_messages))],
-                                  cwd=repo_path, capture_output=True, text=True)
+            result = subprocess.run(
+                ["git", "log", "--format=%H", "-n", str(len(commits_messages))],
+                cwd=repo_path,
+                capture_output=True,
+                text=True,
+            )
 
             if result.returncode != 0:
                 print("Could not get commit SHAs")
                 return
 
-            commit_shas = result.stdout.strip().split('\n')
+            commit_shas = result.stdout.strip().split("\n")
             if len(commit_shas) < 3:
                 print("Need at least 3 commits for multi-commit test")
                 return
@@ -165,14 +181,16 @@ messages:
             chat_contents = [
                 "schema: tigs.chat/v1\nmessages:\n- role: user\n  content: First commit discussion",
                 "schema: tigs.chat/v1\nmessages:\n- role: user\n  content: Second commit discussion",
-                "schema: tigs.chat/v1\nmessages:\n- role: user\n  content: Third commit discussion"
+                "schema: tigs.chat/v1\nmessages:\n- role: user\n  content: Third commit discussion",
             ]
 
             stored_commits = []
 
-            for i, (commit_sha, content) in enumerate(zip(commit_shas[:3], chat_contents)):
+            for i, (commit_sha, content) in enumerate(
+                zip(commit_shas[:3], chat_contents)
+            ):
                 result = run_tigs(repo_path, "add-chat", commit_sha, "-m", content)
-                print(f"Add to commit {i+1}: {result.returncode}")
+                print(f"Add to commit {i + 1}: {result.returncode}")
 
                 if result.returncode == 0:
                     stored_commits.append(commit_sha)
@@ -180,7 +198,7 @@ messages:
                     # Verify Git note exists
                     notes_exist, stored_content = check_git_notes(repo_path, commit_sha)
                     if notes_exist and validate_yaml_schema(stored_content):
-                        print(f"✓ Commit {i+1} stored successfully")
+                        print(f"✓ Commit {i + 1} stored successfully")
 
             if not stored_commits:
                 print("No commits were stored successfully")
@@ -196,12 +214,14 @@ messages:
                         print(f"✓ Found {commit_sha[:8]} in list")
 
             # Show specific commit chats
-            for i, (commit_sha, content) in enumerate(zip(stored_commits, chat_contents[:len(stored_commits)])):
+            for i, (commit_sha, content) in enumerate(
+                zip(stored_commits, chat_contents[: len(stored_commits)])
+            ):
                 result = run_tigs(repo_path, "show-chat", commit_sha)
-                print(f"Show commit {i+1}: {result.returncode}")
+                print(f"Show commit {i + 1}: {result.returncode}")
 
                 if result.returncode == 0 and validate_yaml_schema(result.stdout):
-                    print(f"✓ Show commit {i+1} returned valid YAML")
+                    print(f"✓ Show commit {i + 1} returned valid YAML")
 
             # Remove middle commit chat (if we have at least 2)
             if len(stored_commits) >= 2:
@@ -279,8 +299,16 @@ messages:
 
             if result1.returncode == 0 and result2.returncode == 0:
                 # Extract SHAs
-                sha1 = result1.stdout.split(":")[-1].strip() if "commit:" in result1.stdout else None
-                sha2 = result2.stdout.split(":")[-1].strip() if "commit:" in result2.stdout else None
+                sha1 = (
+                    result1.stdout.split(":")[-1].strip()
+                    if "commit:" in result1.stdout
+                    else None
+                )
+                sha2 = (
+                    result2.stdout.split(":")[-1].strip()
+                    if "commit:" in result2.stdout
+                    else None
+                )
 
                 # Verify isolation: repo1 should only see its chat
                 result = run_tigs(repo1_path, "list-chats")
@@ -321,17 +349,22 @@ messages:
             subprocess.run(["git", "init", "--bare", str(remote_path)], check=True)
 
             # Add remote and push initial commit
-            subprocess.run(["git", "remote", "add", "origin", str(remote_path)],
-                         cwd=repo_path, check=True)
-            subprocess.run(["git", "push", "-u", "origin", "main"],
-                         cwd=repo_path, check=True)
+            subprocess.run(
+                ["git", "remote", "add", "origin", str(remote_path)],
+                cwd=repo_path,
+                check=True,
+            )
+            subprocess.run(
+                ["git", "push", "-u", "origin", "main"], cwd=repo_path, check=True
+            )
 
             # Create an unpushed commit
             test_file = repo_path / "test.txt"
             test_file.write_text("unpushed content")
             subprocess.run(["git", "add", "test.txt"], cwd=repo_path, check=True)
-            subprocess.run(["git", "commit", "-m", "Unpushed commit"],
-                         cwd=repo_path, check=True)
+            subprocess.run(
+                ["git", "commit", "-m", "Unpushed commit"], cwd=repo_path, check=True
+            )
 
             # Add chat to the unpushed commit
             content = "schema: tigs.chat/v1\nmessages:\n- role: user\n  content: Chat on unpushed commit"
@@ -359,17 +392,16 @@ messages:
             print("✓ Force flag bypasses validation")
 
             # Now push the commit and try again
-            subprocess.run(["git", "push", "origin", "main"],
-                         cwd=repo_path, check=True)
+            subprocess.run(["git", "push", "origin", "main"], cwd=repo_path, check=True)
 
             # Add another chat to test normal push
             test_file2 = repo_path / "test2.txt"
             test_file2.write_text("pushed content")
             subprocess.run(["git", "add", "test2.txt"], cwd=repo_path, check=True)
-            subprocess.run(["git", "commit", "-m", "Pushed commit"],
-                         cwd=repo_path, check=True)
-            subprocess.run(["git", "push", "origin", "main"],
-                         cwd=repo_path, check=True)
+            subprocess.run(
+                ["git", "commit", "-m", "Pushed commit"], cwd=repo_path, check=True
+            )
+            subprocess.run(["git", "push", "origin", "main"], cwd=repo_path, check=True)
 
             content2 = "schema: tigs.chat/v1\nmessages:\n- role: user\n  content: Chat on pushed commit"
             result = run_tigs(repo_path, "add-chat", "HEAD", "-m", content2)
@@ -389,7 +421,9 @@ messages:
             create_test_repo(repo_path, ["Sync test commit"])
 
             # Add a chat first
-            content = "schema: tigs.chat/v1\nmessages:\n- role: user\n  content: Sync test"
+            content = (
+                "schema: tigs.chat/v1\nmessages:\n- role: user\n  content: Sync test"
+            )
             result = run_tigs(repo_path, "add-chat", "-m", content)
 
             if result.returncode != 0:
@@ -403,8 +437,10 @@ messages:
             # Should fail but not crash
             assert result.returncode != 0
             error_output = result.stdout + result.stderr
-            assert any(indicator in error_output.lower() for indicator in
-                      ["error", "remote", "not found", "does not exist"])
+            assert any(
+                indicator in error_output.lower()
+                for indicator in ["error", "remote", "not found", "does not exist"]
+            )
 
             # Test new fetch command with non-existent remote (should fail gracefully)
             result = run_tigs(repo_path, "fetch", "nonexistent")
@@ -425,7 +461,6 @@ messages:
             assert result.returncode != 0
             assert "deprecated" in result.stderr.lower()
 
-
     def test_full_e2e_store_push_fetch_view_cycle(self):
         """Test complete end-to-end workflow: store -> push -> fetch -> view across two repos."""
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -435,18 +470,25 @@ messages:
 
             # Setup: Create first local repository (producer)
             repo1_path = Path(tmpdir) / "repo1"
-            create_test_repo(repo1_path, [
-                "Initial commit: Project setup",
-                "Feature: Add authentication module",
-                "Fix: Handle edge cases in auth",
-                "Docs: Update README with auth examples"
-            ])
+            create_test_repo(
+                repo1_path,
+                [
+                    "Initial commit: Project setup",
+                    "Feature: Add authentication module",
+                    "Fix: Handle edge cases in auth",
+                    "Docs: Update README with auth examples",
+                ],
+            )
 
             # Add remote and push commits to remote
-            subprocess.run(["git", "remote", "add", "origin", str(remote_path)],
-                         cwd=repo1_path, check=True)
-            subprocess.run(["git", "push", "-u", "origin", "main"],
-                         cwd=repo1_path, check=True)
+            subprocess.run(
+                ["git", "remote", "add", "origin", str(remote_path)],
+                cwd=repo1_path,
+                check=True,
+            )
+            subprocess.run(
+                ["git", "push", "-u", "origin", "main"], cwd=repo1_path, check=True
+            )
 
             # Step 1: STORE - Add chats using add-chat commands
             chat_contents = [
@@ -461,23 +503,29 @@ messages:
 - role: user
   content: What edge cases need handling?
 - role: assistant
-  content: Consider timeout, invalid tokens, and concurrent sessions."""
+  content: Consider timeout, invalid tokens, and concurrent sessions.""",
             ]
 
             # Get commit SHAs for adding chats
-            result = subprocess.run(["git", "log", "--format=%H", "-n", "4"],
-                                  cwd=repo1_path, capture_output=True, text=True)
-            commit_shas = result.stdout.strip().split('\n')
+            result = subprocess.run(
+                ["git", "log", "--format=%H", "-n", "4"],
+                cwd=repo1_path,
+                capture_output=True,
+                text=True,
+            )
+            commit_shas = result.stdout.strip().split("\n")
 
             # Add chats to specific commits
-            for sha, content in zip(commit_shas[2:4], chat_contents):  # Add to 2nd and 3rd commits
+            for sha, content in zip(
+                commit_shas[2:4], chat_contents
+            ):  # Add to 2nd and 3rd commits
                 result = run_tigs(repo1_path, "add-chat", sha, "-m", content)
                 assert result.returncode == 0, f"Failed to add chat to {sha}"
 
             # Verify chats were added
             result = run_tigs(repo1_path, "list-chats")
             assert result.returncode == 0
-            stored_chats = result.stdout.strip().split('\n')
+            stored_chats = result.stdout.strip().split("\n")
             assert len(stored_chats) >= 2, "Should have at least 2 chats stored"
 
             # Step 2: PUSH - Push chats to remote
@@ -487,13 +535,18 @@ messages:
 
             # Step 3: Clone repository to second location (consumer)
             repo2_path = Path(tmpdir) / "repo2"
-            subprocess.run(["git", "clone", str(remote_path), str(repo2_path)],
-                         check=True, capture_output=True)
+            subprocess.run(
+                ["git", "clone", str(remote_path), str(repo2_path)],
+                check=True,
+                capture_output=True,
+            )
 
             # Verify clone has commits but no chats yet
             result = run_tigs(repo2_path, "list-chats")
             assert result.returncode == 0
-            assert result.stdout.strip() == "", "Clone should not have chats before fetch"
+            assert result.stdout.strip() == "", (
+                "Clone should not have chats before fetch"
+            )
 
             # Step 4: FETCH - Fetch chats from remote
             result = run_tigs(repo2_path, "fetch")
@@ -503,7 +556,7 @@ messages:
             # Step 5: VERIFY - Check that chats are now available
             result = run_tigs(repo2_path, "list-chats")
             assert result.returncode == 0
-            fetched_chats = result.stdout.strip().split('\n')
+            fetched_chats = result.stdout.strip().split("\n")
             assert len(fetched_chats) >= 2, "Should have fetched at least 2 chats"
 
             # Verify the fetched chats match what was pushed
@@ -540,8 +593,8 @@ messages:
             result2 = run_tigs(repo2_path, "list-chats")
             assert result1.returncode == 0 and result2.returncode == 0
 
-            chats1 = set(result1.stdout.strip().split('\n'))
-            chats2 = set(result2.stdout.strip().split('\n'))
+            chats1 = set(result1.stdout.strip().split("\n"))
+            chats2 = set(result2.stdout.strip().split("\n"))
             assert chats1 == chats2, "Both repos should have identical chat lists"
 
             print("✓ Complete e2e cycle: store -> push -> fetch -> view successful")

@@ -25,7 +25,7 @@ class TUI:
         cwd: Optional[Path] = None,
         env: Optional[Dict[str, str]] = None,
         dimensions: tuple = (30, 120),
-        timeout: float = 10.0
+        timeout: float = 10.0,
     ):
         """Initialize TUI session.
 
@@ -41,12 +41,14 @@ class TUI:
 
         # Set up environment
         full_env = os.environ.copy()
-        full_env.update({
-            'LC_ALL': 'C',
-            'LANG': 'C',
-            'TERM': 'xterm-256color',
-            'NCURSES_NO_UTF8_ACS': '1',  # Force ASCII line drawing
-        })
+        full_env.update(
+            {
+                "LC_ALL": "C",
+                "LANG": "C",
+                "TERM": "xterm-256color",
+                "NCURSES_NO_UTF8_ACS": "1",  # Force ASCII line drawing
+            }
+        )
         if env:
             full_env.update(env)
 
@@ -64,7 +66,7 @@ class TUI:
             env=full_env,
             dimensions=dimensions,
             timeout=timeout,
-            encoding=None  # Handle bytes directly
+            encoding=None,  # Handle bytes directly
         )
 
         # Set up pyte for clean terminal display
@@ -133,7 +135,7 @@ class TUI:
     def send_arrow(self, direction: str) -> None:
         """Send arrow key with proper DECCKM handling."""
         arrow_keys = {
-            "up": (b"\x1bOA", b"\x1b[A"),      # SS3, CSI
+            "up": (b"\x1bOA", b"\x1b[A"),  # SS3, CSI
             "down": (b"\x1bOB", b"\x1b[B"),
             "right": (b"\x1bOC", b"\x1b[C"),
             "left": (b"\x1bOD", b"\x1b[D"),
@@ -161,25 +163,25 @@ class TUI:
     def send(self, text: str) -> None:
         """Send text or special keys."""
         # Handle special keys
-        if text.startswith('<') and text.endswith('>'):
+        if text.startswith("<") and text.endswith(">"):
             key = text[1:-1].lower()
-            if key in ['up', 'down', 'left', 'right']:
+            if key in ["up", "down", "left", "right"]:
                 self.send_arrow(key)
                 return
-            elif key == 'enter':
-                self.child.write(b'\r')
-            elif key == 'escape':
-                self.child.write(b'\x1b')
-            elif key == 'tab':
-                self.child.write(b'\t')
-            elif key == 'space':
-                self.child.write(b' ')
+            elif key == "enter":
+                self.child.write(b"\r")
+            elif key == "escape":
+                self.child.write(b"\x1b")
+            elif key == "tab":
+                self.child.write(b"\t")
+            elif key == "space":
+                self.child.write(b" ")
             else:
                 # Unknown special key, send as text
-                self.child.write(text.encode('utf-8'))
+                self.child.write(text.encode("utf-8"))
         else:
             # Regular text
-            self.child.write(text.encode('utf-8'))
+            self.child.write(text.encode("utf-8"))
 
         self._drain()
 
@@ -200,12 +202,14 @@ class TUI:
         # Timeout - show current display
         lines = self.capture()
         display = "\n".join(f"{i:02d}: {line}" for i, line in enumerate(lines[:20]))
-        raise AssertionError(f"Timeout waiting for '{pattern}'.\nCurrent display:\n{display}")
+        raise AssertionError(
+            f"Timeout waiting for '{pattern}'.\nCurrent display:\n{display}"
+        )
 
     def quit(self) -> None:
         """Quit the application gracefully."""
         try:
-            self.send('q')
+            self.send("q")
             self.child.expect(pexpect.EOF, timeout=2.0)
         except (pexpect.TIMEOUT, pexpect.EOF):
             pass
@@ -228,11 +232,13 @@ def find_cursor_row(lines: List[str]) -> int:
     """Find the row containing the cursor (>) in the first pane."""
     for i, line in enumerate(lines):
         pane_content = get_first_pane(line)
-        if '>' in pane_content:
+        if ">" in pane_content:
             return i
 
-    raise AssertionError("Cursor '>' not found in first pane.\nDisplay:\n" +
-                        "\n".join(f"{i:02d}: {line}" for i, line in enumerate(lines[:15])))
+    raise AssertionError(
+        "Cursor '>' not found in first pane.\nDisplay:\n"
+        + "\n".join(f"{i:02d}: {line}" for i, line in enumerate(lines[:15]))
+    )
 
 
 def get_first_pane(line: str, width: int = 50) -> str:
@@ -253,11 +259,12 @@ def get_first_pane(line: str, width: int = 50) -> str:
 def get_first_commit(lines: List[str]) -> Optional[str]:
     """Get the first visible commit message in the viewport."""
     import re
+
     for line in lines[1:]:  # Skip header line
         pane_content = get_first_pane(line)
         # Format: "x [>][ ] YYYY-MM-DD HH:MM AuthorName commit message"
         # Extract everything after "Test User " (or any author)
-        match = re.search(r'\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}\s+\S+\s+(.+)', pane_content)
+        match = re.search(r"\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}\s+\S+\s+(.+)", pane_content)
         if match:
             return match.group(1).strip()
     return None
@@ -266,10 +273,11 @@ def get_first_commit(lines: List[str]) -> Optional[str]:
 def get_last_commit(lines: List[str]) -> Optional[str]:
     """Get the last visible commit message in the viewport."""
     import re
+
     for line in reversed(lines[1:]):  # Skip header line, search backwards
         pane_content = get_first_pane(line)
         # Format: "x [ ][ ] MM-DD HH:MM AuthorName commit message"
-        match = re.search(r'\d{2}-\d{2}\s+\d{2}:\d{2}\s+\S+\s+(.+)', pane_content)
+        match = re.search(r"\d{2}-\d{2}\s+\d{2}:\d{2}\s+\S+\s+(.+)", pane_content)
         if match:
             return match.group(1).strip()
     return None
@@ -278,6 +286,7 @@ def get_last_commit(lines: List[str]) -> Optional[str]:
 def get_commit_at_cursor(lines: List[str]) -> Optional[str]:
     """Get the commit message at the current cursor position, handling multi-line commits."""
     import re
+
     try:
         cursor_row = find_cursor_row(lines)
 
@@ -287,17 +296,19 @@ def get_commit_at_cursor(lines: List[str]) -> Optional[str]:
 
         # If current line doesn't have timestamp, search backwards for header
         # Only support short format (MM-DD HH:MM)
-        if not re.search(r'\d{2}-\d{2}\s+\d{2}:\d{2}', header_pane_content):
+        if not re.search(r"\d{2}-\d{2}\s+\d{2}:\d{2}", header_pane_content):
             for i in range(cursor_row, max(0, cursor_row - 5), -1):
                 if i < len(lines):
                     pane_content = get_first_pane(lines[i])
-                    if re.search(r'\d{2}-\d{2}\s+\d{2}:\d{2}', pane_content):
+                    if re.search(r"\d{2}-\d{2}\s+\d{2}:\d{2}", pane_content):
                         header_row = i
                         header_pane_content = pane_content
                         break
 
         # Extract first line of commit message from header (MM-DD format only)
-        match = re.search(r'\d{2}-\d{2}\s+\d{2}:\d{2}\s+\S+\s+(.+)', header_pane_content)
+        match = re.search(
+            r"\d{2}-\d{2}\s+\d{2}:\d{2}\s+\S+\s+(.+)", header_pane_content
+        )
         if not match:
             return None
 
@@ -308,13 +319,18 @@ def get_commit_at_cursor(lines: List[str]) -> Optional[str]:
             pane_content = get_first_pane(lines[i])
 
             # Stop if we hit another commit (has timestamp) or empty content
-            if re.search(r'\d{2}-\d{2}\s+\d{2}:\d{2}', pane_content) or not pane_content.strip():
+            if (
+                re.search(r"\d{2}-\d{2}\s+\d{2}:\d{2}", pane_content)
+                or not pane_content.strip()
+            ):
                 break
 
             # Add continuation line (strip leading spaces and filter out separators)
             continuation = pane_content.strip()
             # Remove common UI separators that might appear in wrapped content
-            continuation = continuation.replace('x', '').replace('│', '').replace('|', '').strip()
+            continuation = (
+                continuation.replace("x", "").replace("│", "").replace("|", "").strip()
+            )
             if continuation:
                 commit_parts.append(continuation)
 
@@ -327,11 +343,12 @@ def get_commit_at_cursor(lines: List[str]) -> Optional[str]:
 def get_all_visible_commits(lines: List[str]) -> List[str]:
     """Get all commit messages visible in the viewport."""
     import re
+
     commits = []
     for line in lines[1:]:  # Skip header line
         pane_content = get_first_pane(line)
         # Format: "x [>][ ] MM-DD HH:MM AuthorName commit message"
-        match = re.search(r'\d{2}-\d{2}\s+\d{2}:\d{2}\s+\S+\s+(.+)', pane_content)
+        match = re.search(r"\d{2}-\d{2}\s+\d{2}:\d{2}\s+\S+\s+(.+)", pane_content)
         if match and match.group(1).strip() not in commits:  # Avoid duplicates
             commits.append(match.group(1).strip())
     return commits
@@ -411,7 +428,7 @@ def save_screenshot(tui: TUI, test_name: str) -> str:
 
     # Save to file
     try:
-        with open(f'{test_name}_screenshot.txt', 'w') as f:
+        with open(f"{test_name}_screenshot.txt", "w") as f:
             f.write("=== TUI SCREENSHOT ===\n")
             f.write("(Captured via pyte terminal emulator)\n\n")
             for i, line in enumerate(lines):

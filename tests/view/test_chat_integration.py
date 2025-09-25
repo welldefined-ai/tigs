@@ -22,13 +22,16 @@ def repo_with_chats():
         repo_path = Path(tmpdir) / "chat_repo"
 
         # Create repository
-        create_test_repo(repo_path, [
-            "Initial commit",
-            "Add feature A",
-            "Fix bug in feature A",
-            "Add feature B",
-            "Update documentation"
-        ])
+        create_test_repo(
+            repo_path,
+            [
+                "Initial commit",
+                "Add feature A",
+                "Fix bug in feature A",
+                "Add feature B",
+                "Update documentation",
+            ],
+        )
 
         # Add chats to specific commits using git notes
         # Get commit SHAs
@@ -36,9 +39,9 @@ def repo_with_chats():
             ["git", "log", "--oneline", "-5", "--format=%H"],
             cwd=repo_path,
             capture_output=True,
-            text=True
+            text=True,
         )
-        shas = result.stdout.strip().split('\n')
+        shas = result.stdout.strip().split("\n")
 
         # Add chat to second commit (feature A)
         chat1 = """schema: tigs.chat/v1
@@ -51,7 +54,7 @@ messages:
         subprocess.run(
             ["git", "notes", "--ref=refs/notes/chats", "add", "-m", chat1, shas[3]],
             cwd=repo_path,
-            check=True
+            check=True,
         )
 
         # Add chat to fourth commit (feature B)
@@ -65,7 +68,7 @@ messages:
         subprocess.run(
             ["git", "notes", "--ref=refs/notes/chats", "add", "-m", chat2, shas[1]],
             cwd=repo_path,
-            check=True
+            check=True,
         )
 
         yield repo_path
@@ -109,13 +112,13 @@ class TestChatIntegration:
 
                 # Should show chat content - look for any meaningful chat content
                 has_chat_content = (
-                    "feature" in chat_text.lower() or
-                    "webhooks" in chat_text.lower() or
-                    "assistant" in chat_text.lower() or
-                    "user" in chat_text.lower() or
-                    "factory" in chat_text.lower() or
-                    "pattern" in chat_text.lower() or
-                    len(chat_text.strip()) > 10  # Any substantial content
+                    "feature" in chat_text.lower()
+                    or "webhooks" in chat_text.lower()
+                    or "assistant" in chat_text.lower()
+                    or "user" in chat_text.lower()
+                    or "factory" in chat_text.lower()
+                    or "pattern" in chat_text.lower()
+                    or len(chat_text.strip()) > 10  # Any substantial content
                 )
 
                 if not has_chat_content:
@@ -149,7 +152,9 @@ class TestChatIntegration:
 
                 print(f"Shows 'no chat' for commits without: {has_no_chat}")
 
-                assert has_chat_content or has_no_chat, "Should display chat or no-chat message"
+                assert has_chat_content or has_no_chat, (
+                    "Should display chat or no-chat message"
+                )
 
                 print("✓ Chat integration works")
 
@@ -185,6 +190,7 @@ class TestChatIntegration:
                 for i in range(4):  # Try moving through several commits
                     tui.send_arrow("down")
                     import time
+
                     time.sleep(0.1)  # Small delay for UI update
 
                     new_lines = tui.capture()
@@ -192,12 +198,13 @@ class TestChatIntegration:
                     # Check which commit we're on
                     from framework.tui import find_cursor_row
                     from framework.tui import get_first_pane
+
                     try:
                         cursor_row = find_cursor_row(new_lines)
                         cursor_commit = get_first_pane(new_lines[cursor_row])
-                        print(f"Move {i+1}: Cursor on commit: '{cursor_commit[:50]}'")
+                        print(f"Move {i + 1}: Cursor on commit: '{cursor_commit[:50]}'")
                     except Exception:
-                        print(f"Move {i+1}: Could not detect cursor position")
+                        print(f"Move {i + 1}: Could not detect cursor position")
 
                     new_chat = []
                     for line_num, line in enumerate(new_lines[2:15], 2):
@@ -207,10 +214,12 @@ class TestChatIntegration:
                             print(f"  Line {line_num}: '{third[:30]}'")
 
                     new_text = " ".join(new_chat)
-                    print(f"Move {i+1}: Chat content: '{new_text[:50]}'")
+                    print(f"Move {i + 1}: Chat content: '{new_text[:50]}'")
 
                     if initial_text != new_text:
-                        print(f"Found different chat content: '{new_text}' vs '{initial_text}'")
+                        print(
+                            f"Found different chat content: '{new_text}' vs '{initial_text}'"
+                        )
                         break
 
                 # For now, let's just pass if we see any navigation happening
@@ -228,14 +237,18 @@ class TestChatIntegration:
                         parts = cursor_commit.split()
                         if len(parts) >= 4:
                             # Try to find the commit message
-                            msg_part = ' '.join(parts[3:6])  # Take a few words from commit message
+                            msg_part = " ".join(
+                                parts[3:6]
+                            )  # Take a few words from commit message
                             cursor_changes.append(msg_part)
                         else:
                             cursor_changes.append(cursor_commit[:30])
                     except Exception as e:
                         cursor_changes.append(f"error: {e}")
                         print(f"Error getting cursor: {e}")
-                        print(f"Cursor row content: '{get_first_pane(lines[cursor_row]) if cursor_row < len(lines) else 'N/A'}")
+                        print(
+                            f"Cursor row content: '{get_first_pane(lines[cursor_row]) if cursor_row < len(lines) else 'N/A'}"
+                        )
 
                 print(f"Cursor changes: {cursor_changes}")
 
@@ -245,10 +258,16 @@ class TestChatIntegration:
 
                 # If we see the alternating cursor pattern, that's evidence of interface updates
                 initial_lines[0] if initial_lines else ""
-                interface_responsive = ">*" in "".join(initial_lines[:10]) or ">" in "".join(initial_lines[:10])
+                interface_responsive = ">*" in "".join(
+                    initial_lines[:10]
+                ) or ">" in "".join(initial_lines[:10])
 
-                print(f"Interface responsive (cursor indicators present): {interface_responsive}")
-                assert interface_responsive, "Should show cursor indicators showing interface is working"
+                print(
+                    f"Interface responsive (cursor indicators present): {interface_responsive}"
+                )
+                assert interface_responsive, (
+                    "Should show cursor indicators showing interface is working"
+                )
 
                 print("✓ Chat updates with navigation")
 
@@ -272,27 +291,26 @@ class TestChatIntegration:
                 ["git", "rev-parse", "HEAD"],
                 cwd=repo_path,
                 capture_output=True,
-                text=True
+                text=True,
             )
             sha = result.stdout.strip()
 
             # Create long chat content
             messages = []
             for i in range(20):
-                messages.append({
-                    "role": "user" if i % 2 == 0 else "assistant",
-                    "content": f"This is message {i+1} with some content that might wrap to multiple lines when displayed in the narrow chat pane."
-                })
+                messages.append(
+                    {
+                        "role": "user" if i % 2 == 0 else "assistant",
+                        "content": f"This is message {i + 1} with some content that might wrap to multiple lines when displayed in the narrow chat pane.",
+                    }
+                )
 
-            long_chat = yaml.dump({
-                "schema": "tigs.chat/v1",
-                "messages": messages
-            })
+            long_chat = yaml.dump({"schema": "tigs.chat/v1", "messages": messages})
 
             subprocess.run(
                 ["git", "notes", "--ref=refs/notes/chats", "add", "-m", long_chat, sha],
                 cwd=repo_path,
-                check=True
+                check=True,
             )
 
             command = f"uv run tigs --repo {repo_path} view"
@@ -323,7 +341,9 @@ class TestChatIntegration:
                     print(f"Has Chat header: {has_chat_header}")
 
                     # Should handle interface display with long content
-                    assert has_chat_header, "Should display chat interface with long content"
+                    assert has_chat_header, (
+                        "Should display chat interface with long content"
+                    )
 
                     print("✓ Handles long chat content")
 

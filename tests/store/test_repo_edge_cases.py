@@ -19,9 +19,15 @@ def empty_repo():
         repo_path.mkdir(parents=True, exist_ok=True)
 
         # Initialize empty repo
-        subprocess.run(['git', 'init'], cwd=repo_path, check=True, capture_output=True)
-        subprocess.run(['git', 'config', 'user.email', 'test@example.com'], cwd=repo_path, check=True)
-        subprocess.run(['git', 'config', 'user.name', 'Test User'], cwd=repo_path, check=True)
+        subprocess.run(["git", "init"], cwd=repo_path, check=True, capture_output=True)
+        subprocess.run(
+            ["git", "config", "user.email", "test@example.com"],
+            cwd=repo_path,
+            check=True,
+        )
+        subprocess.run(
+            ["git", "config", "user.name", "Test User"], cwd=repo_path, check=True
+        )
 
         yield repo_path
 
@@ -33,7 +39,7 @@ def small_repo():
         repo_path = Path(tmpdir) / "small_repo"
 
         # Only 8 commits - well below lazy load threshold
-        commits = [f"Small repo commit {i+1}" for i in range(8)]
+        commits = [f"Small repo commit {i + 1}" for i in range(8)]
         create_test_repo(repo_path, commits)
         yield repo_path
 
@@ -55,7 +61,7 @@ def unicode_repo():
             "Mixed: ASCII + 中文 + 🔥 + ∑",
             "Control chars: \x01\x02\x03 (invisible)",
             "Quotes 'single' \"double\" `backtick`",
-            "Final commit"
+            "Final commit",
         ]
 
         create_test_repo(repo_path, commits)
@@ -83,8 +89,15 @@ class TestRepoEdgeCases:
                 # Look for empty state indicators
                 empty_indicators = []
                 for line in lines:
-                    if any(indicator in line.lower() for indicator in
-                          ["no commits", "empty", "0 commits", "nothing to display"]):
+                    if any(
+                        indicator in line.lower()
+                        for indicator in [
+                            "no commits",
+                            "empty",
+                            "0 commits",
+                            "nothing to display",
+                        ]
+                    ):
                         empty_indicators.append(line)
 
                 if empty_indicators:
@@ -129,9 +142,13 @@ class TestRepoEdgeCases:
 
                 # Should display all commits since there are only 8
                 if small_commit_count > 0:
-                    print(f"✓ Small repo handling working: {small_commit_count} commits")
+                    print(
+                        f"✓ Small repo handling working: {small_commit_count} commits"
+                    )
                     # With only 8 commits, should show all or most
-                    assert small_commit_count <= 8, f"Should not show more than 8 commits, got {small_commit_count}"
+                    assert small_commit_count <= 8, (
+                        f"Should not show more than 8 commits, got {small_commit_count}"
+                    )
                 else:
                     print("No small repo commits clearly visible")
 
@@ -160,7 +177,9 @@ class TestRepoEdgeCases:
                 unicode_indicators = []
                 for line in lines:
                     # Check for various unicode content
-                    if any(char in line for char in ["🚀", "🎉", "中文", "émoji", "∑", "≠"]):
+                    if any(
+                        char in line for char in ["🚀", "🎉", "中文", "émoji", "∑", "≠"]
+                    ):
                         unicode_indicators.append(line.strip())
 
                 print(f"Unicode indicators found: {len(unicode_indicators)}")
@@ -173,7 +192,9 @@ class TestRepoEdgeCases:
                     print("Unicode content may be filtered or not visible")
 
                 # Should handle unicode without crashing
-                assert len(lines) > 0, "Should display content even with unicode characters"
+                assert len(lines) > 0, (
+                    "Should display content even with unicode characters"
+                )
 
             except Exception as e:
                 print(f"Unicode content test failed: {e}")
@@ -208,14 +229,18 @@ class TestRepoEdgeCases:
                 print(f"Unicode celebration indicators: {len(wrapped_indicators)}")
 
                 if long_lines:
-                    print(f"✓ Long message handling detected, max length: {max(long_lines)}")
+                    print(
+                        f"✓ Long message handling detected, max length: {max(long_lines)}"
+                    )
                 if wrapped_indicators:
                     print("✓ Very long unicode message detected")
                     for indicator in wrapped_indicators[:2]:
                         print(f"  {indicator}")
 
                 # Should handle very long messages without crashing
-                assert len(lines) > 0, "Should display content even with very long messages"
+                assert len(lines) > 0, (
+                    "Should display content even with very long messages"
+                )
 
             except Exception as e:
                 print(f"Very long messages test failed: {e}")

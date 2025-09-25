@@ -23,14 +23,18 @@ def messages_setup(monkeypatch):
         monkeypatch.setenv("HOME", str(mock_home))
 
         # Create repo with minimal commits
-        commits = [f"Test commit {i+1}" for i in range(5)]
+        commits = [f"Test commit {i + 1}" for i in range(5)]
         create_test_repo(repo_path, commits)
 
         # Create mock Claude logs with several messages
         sessions_data = [[]]
         for i in range(8):
-            sessions_data[0].append(("user", f"User message {i+1}: Question about the code"))
-            sessions_data[0].append(("assistant", f"Assistant message {i+1}: Here is the answer"))
+            sessions_data[0].append(
+                ("user", f"User message {i + 1}: Question about the code")
+            )
+            sessions_data[0].append(
+                ("assistant", f"Assistant message {i + 1}: Here is the answer")
+            )
 
         create_mock_claude_home(mock_home, sessions_data)
 
@@ -46,7 +50,9 @@ class TestMessageSelection:
 
         command = f"uv run tigs --repo {repo_path} store"
 
-        with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120), env={"HOME": str(mock_home)}) as tui:
+        with TUI(
+            command, cwd=PYTHON_DIR, dimensions=(30, 120), env={"HOME": str(mock_home)}
+        ) as tui:
             try:
                 tui.wait_for("Messages", timeout=5.0)
 
@@ -98,7 +104,9 @@ class TestMessageSelection:
                 print("=== Message selection commands completed ===")
 
                 # Basic verification: commands didn't crash
-                assert len(select_all_result) > 0, "Should have display after selection commands"
+                assert len(select_all_result) > 0, (
+                    "Should have display after selection commands"
+                )
 
             except Exception as e:
                 print(f"Message selection test failed: {e}")

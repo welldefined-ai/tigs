@@ -182,7 +182,9 @@ class TestMessageWrapping:
         has_assistant = any("Assistant:" in str(line) for line in lines)
 
         # At least one of them should be visible (depending on cursor position and scrolling)
-        assert has_user or has_assistant, "Neither User: nor Assistant: found in display"
+        assert has_user or has_assistant, (
+            "Neither User: nor Assistant: found in display"
+        )
 
         # Content should be wrapped/indented
         assert any(str(line).startswith("    ") for line in lines)

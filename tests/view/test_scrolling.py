@@ -23,13 +23,15 @@ def long_commit_repo():
         commits = []
         for i in range(10):
             # Create a long commit message with many lines
-            message_lines = [f"Commit {i+1}: Main subject line"]
+            message_lines = [f"Commit {i + 1}: Main subject line"]
             message_lines.append("")
             message_lines.append("Detailed description:")
             for j in range(30):  # 30 lines of details
-                message_lines.append(f"  - Detail line {j+1} for commit {i+1}")
+                message_lines.append(f"  - Detail line {j + 1} for commit {i + 1}")
             message_lines.append("")
-            message_lines.append("This ensures we have content that exceeds the viewport height")
+            message_lines.append(
+                "This ensures we have content that exceeds the viewport height"
+            )
 
             commits.append("\n".join(message_lines))
 
@@ -80,7 +82,9 @@ class TestViewScrolling:
                     print(f"  {i}: {detail}")
 
                 # Content should have changed (scrolled)
-                assert initial_details != after_down_details, "Details should scroll when pressing DOWN"
+                assert initial_details != after_down_details, (
+                    "Details should scroll when pressing DOWN"
+                )
 
                 # Scroll back up
                 tui.send_arrow("up")
@@ -96,7 +100,9 @@ class TestViewScrolling:
                     print(f"  {i}: {detail}")
 
                 # Should be back to original view
-                assert after_up_details == initial_details, "Should return to original view after UP"
+                assert after_up_details == initial_details, (
+                    "Should return to original view after UP"
+                )
 
                 print("✓ Details pane scrolling works correctly")
 
@@ -124,8 +130,9 @@ class TestViewScrolling:
 
                 # Check if there's any chat content
                 initial_lines = tui.capture()
-                has_chat = find_in_pane(initial_lines, "chat", pane=3) or \
-                          find_in_pane(initial_lines, "message", pane=3)
+                has_chat = find_in_pane(initial_lines, "chat", pane=3) or find_in_pane(
+                    initial_lines, "message", pane=3
+                )
 
                 if not has_chat:
                     # Check for "No chat" message
@@ -206,11 +213,12 @@ class TestViewScrolling:
 
                 # Status messages should change to indicate focus
                 # We can't easily verify the exact text, but we can check they're different
-                assert (status_line != status_after_tab1 or
-                       status_after_tab1 != status_after_tab2 or
-                       "scroll" in status_after_tab1.lower() or
-                       "navigate" in status_line.lower()), \
-                       "Status should change to reflect focused pane"
+                assert (
+                    status_line != status_after_tab1
+                    or status_after_tab1 != status_after_tab2
+                    or "scroll" in status_after_tab1.lower()
+                    or "navigate" in status_line.lower()
+                ), "Status should change to reflect focused pane"
 
                 print("✓ Tab navigation between panes works")
 
@@ -237,10 +245,11 @@ class TestViewScrolling:
                 initial_commits = []
                 for line in initial_lines:
                     from framework.tui import get_first_pane
+
                     commit = get_first_pane(line)
                     if "Commit" in commit:
                         # Strip cursor marker to only check content
-                        commit_cleaned = commit.lstrip('>').lstrip()
+                        commit_cleaned = commit.lstrip(">").lstrip()
                         initial_commits.append(commit_cleaned)
 
                 print(f"Initial commits: {initial_commits[:3]}")
@@ -259,17 +268,19 @@ class TestViewScrolling:
                 final_commits = []
                 for line in final_lines:
                     from framework.tui import get_first_pane
+
                     commit = get_first_pane(line)
                     if "Commit" in commit:
                         # Strip cursor marker to only check content
-                        commit_cleaned = commit.lstrip('>').lstrip()
+                        commit_cleaned = commit.lstrip(">").lstrip()
                         final_commits.append(commit_cleaned)
 
                 print(f"Final commits: {final_commits[:3]}")
 
                 # Commits view should be unchanged
-                assert initial_commits == final_commits, \
-                       "Commits view should not change when scrolling in other panes"
+                assert initial_commits == final_commits, (
+                    "Commits view should not change when scrolling in other panes"
+                )
 
                 print("✓ Panes scroll independently")
 

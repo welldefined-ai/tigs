@@ -20,9 +20,11 @@ def view_repo():
         commits = []
         for i in range(30):
             if i % 5 == 0:
-                commits.append(f"Feature {i+1}: Major feature implementation with detailed description")
+                commits.append(
+                    f"Feature {i + 1}: Major feature implementation with detailed description"
+                )
             else:
-                commits.append(f"Commit {i+1}: Regular development work")
+                commits.append(f"Commit {i + 1}: Regular development work")
 
         create_test_repo(repo_path, commits)
         yield repo_path
@@ -69,10 +71,12 @@ class TestViewBoot:
                     # The layout should have content sections separated by borders
                     # Format: |commits content|details content|chat content|
                     # In test output, borders appear as 'x' characters
-                    if 'x' in line:
+                    if "x" in line:
                         # Split by 'x' to find content sections
-                        sections = [s.strip() for s in line.split('x') if s.strip()]
-                        if len(sections) >= 3:  # Should have at least 3 content sections
+                        sections = [s.strip() for s in line.split("x") if s.strip()]
+                        if (
+                            len(sections) >= 3
+                        ):  # Should have at least 3 content sections
                             has_three_sections = True
                             print(f"Found {len(sections)} content sections in line")
                             break
@@ -93,7 +97,10 @@ class TestViewBoot:
                 for i, line in enumerate(lines[:20]):
                     print(f"{i:02d}: {line}")
 
-                if "not found" in str(e).lower() or "command not found" in str(e).lower():
+                if (
+                    "not found" in str(e).lower()
+                    or "command not found" in str(e).lower()
+                ):
                     pytest.skip("View command not implemented yet")
                 else:
                     raise
@@ -117,7 +124,10 @@ class TestViewBoot:
                     # In the view output, commits appear after the cursor/selection indicators
                     if ">" in line or ("2024" in line or "2025" in line):
                         # Look for commit message patterns
-                        if any(word in line for word in ["Commit", "Feature", "development", "work"]):
+                        if any(
+                            word in line
+                            for word in ["Commit", "Feature", "development", "work"]
+                        ):
                             commit_count += 1
 
                 print(f"Found {commit_count} commit-like entries")
@@ -160,7 +170,9 @@ class TestViewBoot:
                 display_text = "\n".join(lines)
 
                 # Should show terminal size warning
-                has_size_warning = "small" in display_text.lower() or "min" in display_text.lower()
+                has_size_warning = (
+                    "small" in display_text.lower() or "min" in display_text.lower()
+                )
 
                 if has_size_warning:
                     print("✓ Shows terminal size warning for small terminal")
@@ -196,7 +208,11 @@ class TestViewBoot:
 
                 # Should have navigation hints
                 has_quit_hint = "q" in status_text and "quit" in status_text
-                has_nav_hint = "navigate" in status_text or "↑" in status_text or "↓" in status_text
+                has_nav_hint = (
+                    "navigate" in status_text
+                    or "↑" in status_text
+                    or "↓" in status_text
+                )
 
                 print(f"Has quit hint: {has_quit_hint}")
                 print(f"Has navigation hint: {has_nav_hint}")

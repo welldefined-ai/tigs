@@ -21,9 +21,9 @@ def commits_repo():
         commits = []
         for i in range(20):
             if i % 3 == 0:
-                commits.append(f"Feature commit {i+1}: Add new functionality")
+                commits.append(f"Feature commit {i + 1}: Add new functionality")
             else:
-                commits.append(f"Fix commit {i+1}: Bug fixes")
+                commits.append(f"Fix commit {i + 1}: Bug fixes")
 
         create_test_repo(repo_path, commits)
         yield repo_path
@@ -39,9 +39,11 @@ def scrolling_repo():
         commits = []
         for i in range(60):
             if i % 5 == 0:
-                commits.append(f"Long commit {i+1}: " + "This is a long commit message " * 10)
+                commits.append(
+                    f"Long commit {i + 1}: " + "This is a long commit message " * 10
+                )
             else:
-                commits.append(f"Commit {i+1}: Regular changes")
+                commits.append(f"Commit {i + 1}: Regular changes")
 
         create_test_repo(repo_path, commits)
         yield repo_path
@@ -86,7 +88,9 @@ class TestCommitSelection:
                 print("=== Selection commands completed ===")
 
                 # Basic verification: commands didn't crash
-                assert len(clear_result) > 0, "Should have display after selection commands"
+                assert len(clear_result) > 0, (
+                    "Should have display after selection commands"
+                )
 
             except Exception as e:
                 print(f"Basic selection test failed: {e}")
@@ -237,10 +241,14 @@ class TestCommitSelection:
                 if selection_indicators > 0:
                     print("✓ Selections visible after scrolling through varied commits")
                 else:
-                    print("No selection indicators visible - selections might not be implemented")
+                    print(
+                        "No selection indicators visible - selections might not be implemented"
+                    )
 
                 # Test doesn't crash during selection + scroll with varied commits
-                assert len(final_lines) > 0, "Should maintain display during selection/scroll"
+                assert len(final_lines) > 0, (
+                    "Should maintain display during selection/scroll"
+                )
 
             except Exception as e:
                 print(f"Selection during scroll test failed: {e}")

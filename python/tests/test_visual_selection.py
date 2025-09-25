@@ -316,6 +316,7 @@ class TestMessageViewSelection:
 
         # Test DOWN key for next message navigation
         import curses
+
         self.view.handle_input(None, curses.KEY_DOWN, 20)
         assert self.view.message_cursor_idx == 1
         assert self.view.cursor_idx == 1
@@ -340,6 +341,7 @@ class TestMessageViewSelection:
 
         # Move cursor with DOWN arrow key
         import curses
+
         self.view.handle_input(None, curses.KEY_DOWN, 20)
 
         # Exit visual mode

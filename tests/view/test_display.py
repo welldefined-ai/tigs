@@ -30,7 +30,7 @@ class TestViewDisplay:
                 "fix: Fix critical bug",
                 "docs: Update documentation",
                 "test: Add unit tests",
-                "refactor: Clean up code"
+                "refactor: Clean up code",
             ]
             create_test_repo(repo_path, commits)
 
@@ -47,24 +47,36 @@ class TestViewDisplay:
                     commit_entries = []
                     for line in lines[2:15]:  # Skip headers
                         first_col = get_first_pane(line)
-                        if any(word in first_col for word in ["feat", "fix", "docs", "test", "refactor"]):
+                        if any(
+                            word in first_col
+                            for word in ["feat", "fix", "docs", "test", "refactor"]
+                        ):
                             commit_entries.append(first_col)
                             print(f"Commit: {first_col[:60]}")
 
                     # Should have commit entries
-                    assert len(commit_entries) >= 3, f"Should display commits, found {len(commit_entries)}"
+                    assert len(commit_entries) >= 3, (
+                        f"Should display commits, found {len(commit_entries)}"
+                    )
 
                     # Check for cursor (>) but no checkboxes ([ ])
                     has_cursor = any(">" in get_first_pane(line) for line in lines)
-                    has_checkbox = any("[ ]" in get_first_pane(line) or "[x]" in get_first_pane(line).lower()
-                                      for line in lines)
+                    has_checkbox = any(
+                        "[ ]" in get_first_pane(line)
+                        or "[x]" in get_first_pane(line).lower()
+                        for line in lines
+                    )
 
                     assert has_cursor, "Should have cursor indicator"
                     assert not has_checkbox, "Should not have selection checkboxes"
 
                     # Check for timestamps in short format (MM-DD HH:MM)
                     import re
-                    has_timestamp = any(re.search(r'\d{2}-\d{2}\s+\d{2}:\d{2}', entry) for entry in commit_entries)
+
+                    has_timestamp = any(
+                        re.search(r"\d{2}-\d{2}\s+\d{2}:\d{2}", entry)
+                        for entry in commit_entries
+                    )
                     print(f"Has timestamps: {has_timestamp}")
 
                     print("✓ Commits column displays correctly")
@@ -82,11 +94,7 @@ class TestViewDisplay:
         with tempfile.TemporaryDirectory() as tmpdir:
             repo_path = Path(tmpdir) / "prefix_test_repo"
 
-            commits = [
-                "feat: Add feature A",
-                "fix: Fix bug B",
-                "docs: Update docs"
-            ]
+            commits = ["feat: Add feature A", "fix: Fix bug B", "docs: Update docs"]
             create_test_repo(repo_path, commits)
 
             command = f"uv run tigs --repo {repo_path} view"
@@ -106,10 +114,14 @@ class TestViewDisplay:
 
                     # Check commits column for compact bullet formatting
                     commit_entries = []
-                    for line in lines[1:20]:  # Include line 1 which has the cursor, skip just line 0 (header)
+                    for line in lines[
+                        1:20
+                    ]:  # Include line 1 which has the cursor, skip just line 0 (header)
                         first_col = get_first_pane(line)
                         # Look for lines with datetime patterns or bullet indicators, not just commit subjects
-                        if any(char in first_col for char in [">", "•", ":"]) or any(word in first_col for word in ["feat", "fix", "docs"]):
+                        if any(char in first_col for char in [">", "•", ":"]) or any(
+                            word in first_col for word in ["feat", "fix", "docs"]
+                        ):
                             commit_entries.append(first_col)
                             print(f"Log commit line: '{first_col}'")
 
@@ -120,12 +132,16 @@ class TestViewDisplay:
 
                     # The actual format is ">• " (cursor, bullet, space) or " • " (space, bullet, space)
                     # Pattern for cursor line: >• MM-DD HH:MM Author or >* MM-DD HH:MM Author
-                    cursor_pattern = r'>[\u2022•*]\s+\d{2}-\d{2}\s+\d{2}:\d{2}\s+\w+'
+                    cursor_pattern = r">[\u2022•*]\s+\d{2}-\d{2}\s+\d{2}:\d{2}\s+\w+"
                     # Pattern for non-cursor line:  • MM-DD HH:MM Author or  * MM-DD HH:MM Author
-                    non_cursor_pattern = r'\s[\u2022•*]\s+\d{2}-\d{2}\s+\d{2}:\d{2}\s+\w+'
+                    non_cursor_pattern = (
+                        r"\s[\u2022•*]\s+\d{2}-\d{2}\s+\d{2}:\d{2}\s+\w+"
+                    )
                     # Alternative patterns if Unicode doesn't work in terminal emulator
-                    cursor_pattern_fallback = r'>\s+\d{2}-\d{2}\s+\d{2}:\d{2}\s+\w+'
-                    non_cursor_pattern_fallback = r'\s{2}\d{2}-\d{2}\s+\d{2}:\d{2}\s+\w+'
+                    cursor_pattern_fallback = r">\s+\d{2}-\d{2}\s+\d{2}:\d{2}\s+\w+"
+                    non_cursor_pattern_fallback = (
+                        r"\s{2}\d{2}-\d{2}\s+\d{2}:\d{2}\s+\w+"
+                    )
 
                     cursor_found = False
                     non_cursor_found = False
@@ -134,20 +150,30 @@ class TestViewDisplay:
                         # Try Unicode patterns first
                         if re.search(cursor_pattern, entry):
                             cursor_found = True
-                            print(f"✓ Log cursor formatting: '{entry}' matches '>• MM-DD HH:MM'")
+                            print(
+                                f"✓ Log cursor formatting: '{entry}' matches '>• MM-DD HH:MM'"
+                            )
                         elif re.search(non_cursor_pattern, entry):
                             non_cursor_found = True
-                            print(f"✓ Log non-cursor formatting: '{entry}' matches ' • MM-DD HH:MM'")
+                            print(
+                                f"✓ Log non-cursor formatting: '{entry}' matches ' • MM-DD HH:MM'"
+                            )
                         # Try fallback patterns if Unicode doesn't render
                         elif re.search(cursor_pattern_fallback, entry):
                             cursor_found = True
-                            print(f"✓ Log cursor formatting (fallback): '{entry}' matches '> MM-DD HH:MM'")
+                            print(
+                                f"✓ Log cursor formatting (fallback): '{entry}' matches '> MM-DD HH:MM'"
+                            )
                         elif re.search(non_cursor_pattern_fallback, entry):
                             non_cursor_found = True
-                            print(f"✓ Log non-cursor formatting (fallback): '{entry}' matches '  MM-DD HH:MM'")
+                            print(
+                                f"✓ Log non-cursor formatting (fallback): '{entry}' matches '  MM-DD HH:MM'"
+                            )
 
                     # Should find formatting (either with bullet or fallback without)
-                    assert cursor_found or non_cursor_found, "Should find either cursor or non-cursor formatting"
+                    assert cursor_found or non_cursor_found, (
+                        "Should find either cursor or non-cursor formatting"
+                    )
 
                     print("✓ Log commit prefix formatting correct")
 
@@ -166,16 +192,22 @@ class TestViewDisplay:
 
             # Create repo with detailed commit
             repo_path.mkdir(parents=True)
-            subprocess.run(['git', 'init'], cwd=repo_path, check=True, capture_output=True)
-            subprocess.run(['git', 'config', 'user.email', 'test@example.com'],
-                          cwd=repo_path, check=True)
-            subprocess.run(['git', 'config', 'user.name', 'Test User'],
-                          cwd=repo_path, check=True)
+            subprocess.run(
+                ["git", "init"], cwd=repo_path, check=True, capture_output=True
+            )
+            subprocess.run(
+                ["git", "config", "user.email", "test@example.com"],
+                cwd=repo_path,
+                check=True,
+            )
+            subprocess.run(
+                ["git", "config", "user.name", "Test User"], cwd=repo_path, check=True
+            )
 
             # Create files and commit with detailed message
             test_file = repo_path / "feature.py"
             test_file.write_text("def feature():\n    pass\n")
-            subprocess.run(['git', 'add', '.'], cwd=repo_path, check=True)
+            subprocess.run(["git", "add", "."], cwd=repo_path, check=True)
 
             commit_msg = """feat: Implement awesome feature
 
@@ -187,7 +219,9 @@ This commit adds a new awesome feature that does:
 The implementation follows best practices and includes
 comprehensive test coverage.
 """
-            subprocess.run(['git', 'commit', '-m', commit_msg], cwd=repo_path, check=True)
+            subprocess.run(
+                ["git", "commit", "-m", commit_msg], cwd=repo_path, check=True
+            )
 
             command = f"uv run tigs --repo {repo_path} view"
 
@@ -210,11 +244,19 @@ comprehensive test coverage.
 
                     # Check for expected elements
                     has_commit_sha = any(
-                        len(word) >= 7 and all(c in "0123456789abcdef" for c in word.lower())
-                        for line in details_content for word in line.split()
+                        len(word) >= 7
+                        and all(c in "0123456789abcdef" for c in word.lower())
+                        for line in details_content
+                        for word in line.split()
                     )
-                    has_author = "Test User" in details_text or "Author:" in details_text
-                    has_date = "Date:" in details_text or "2024" in details_text or "2025" in details_text
+                    has_author = (
+                        "Test User" in details_text or "Author:" in details_text
+                    )
+                    has_date = (
+                        "Date:" in details_text
+                        or "2024" in details_text
+                        or "2025" in details_text
+                    )
                     has_message = "awesome feature" in details_text.lower()
                     has_files = "feature.py" in details_text or "1 file" in details_text
 
@@ -225,7 +267,9 @@ comprehensive test coverage.
                     print(f"Has files: {has_files}")
 
                     # Should have commit details
-                    assert has_commit_sha or has_author or has_message, "Should display commit details"
+                    assert has_commit_sha or has_author or has_message, (
+                        "Should display commit details"
+                    )
 
                     print("✓ Commit details display correctly")
 
@@ -271,7 +315,9 @@ comprehensive test coverage.
 
                     # Check if the interface shows three columns at all
                     # Look for any indication of chat column in the raw lines
-                    has_three_columns = any("Chat" in line for line in lines[:5])  # Check headers
+                    has_three_columns = any(
+                        "Chat" in line for line in lines[:5]
+                    )  # Check headers
                     has_commit_details = any("Author:" in line for line in lines)
 
                     print(f"Has 'Chat' column header: {has_three_columns}")
@@ -279,7 +325,9 @@ comprehensive test coverage.
 
                     # For now, just verify the interface has the expected structure
                     # The actual "no chat" message extraction can be fixed later
-                    assert has_three_columns or has_commit_details, "Should show structured three-column display"
+                    assert has_three_columns or has_commit_details, (
+                        "Should show structured three-column display"
+                    )
 
                     print("✓ Chat column shows placeholder correctly")
 

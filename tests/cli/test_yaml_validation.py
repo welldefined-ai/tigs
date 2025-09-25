@@ -13,8 +13,12 @@ from framework.fixtures import create_test_repo
 def run_tigs(repo_path, *args):
     """Run tigs command and return result."""
     cmd = ["uv", "run", "tigs", "--repo", str(repo_path)] + list(args)
-    result = subprocess.run(cmd, cwd="/Users/basicthinker/Projects/tigs/python",
-                          capture_output=True, text=True)
+    result = subprocess.run(
+        cmd,
+        cwd="/Users/basicthinker/Projects/tigs/python",
+        capture_output=True,
+        text=True,
+    )
     return result
 
 
@@ -26,21 +30,21 @@ def validate_yaml_schema(content):
         data = yaml.safe_load(content)
         if not isinstance(data, dict):
             return False
-        if data.get('schema') != 'tigs.chat/v1':
+        if data.get("schema") != "tigs.chat/v1":
             return False
-        if 'messages' not in data:
+        if "messages" not in data:
             return False
-        if not isinstance(data['messages'], list):
+        if not isinstance(data["messages"], list):
             return False
 
-        for msg in data['messages']:
+        for msg in data["messages"]:
             if not isinstance(msg, dict):
                 return False
-            if 'role' not in msg or 'content' not in msg:
+            if "role" not in msg or "content" not in msg:
                 return False
-            if msg['role'] not in ['user', 'assistant', 'system']:
+            if msg["role"] not in ["user", "assistant", "system"]:
                 return False
-            if not isinstance(msg['content'], str):
+            if not isinstance(msg["content"], str):
                 return False
         return True
     except Exception:
@@ -66,10 +70,10 @@ messages:
             assert validate_yaml_schema(minimal_yaml)
 
             data = yaml.safe_load(minimal_yaml)
-            assert data['schema'] == 'tigs.chat/v1'
-            assert len(data['messages']) == 1
-            assert data['messages'][0]['role'] == 'user'
-            assert data['messages'][0]['content'] == 'Hello'
+            assert data["schema"] == "tigs.chat/v1"
+            assert len(data["messages"]) == 1
+            assert data["messages"][0]["role"] == "user"
+            assert data["messages"][0]["content"] == "Hello"
 
             # Test that it can be stored and retrieved
             result = run_tigs(repo_path, "add-chat", "-m", minimal_yaml)
@@ -119,15 +123,15 @@ messages:
             assert validate_yaml_schema(complex_yaml)
 
             data = yaml.safe_load(complex_yaml)
-            assert data['schema'] == 'tigs.chat/v1'
-            assert len(data['messages']) == 4
+            assert data["schema"] == "tigs.chat/v1"
+            assert len(data["messages"]) == 4
 
             # Verify all messages have correct structure
-            for msg in data['messages']:
-                assert 'role' in msg
-                assert 'content' in msg
-                assert msg['role'] in ['user', 'assistant']
-                assert len(msg['content']) > 0
+            for msg in data["messages"]:
+                assert "role" in msg
+                assert "content" in msg
+                assert msg["role"] in ["user", "assistant"]
+                assert len(msg["content"]) > 0
 
             # Test that complex content can be stored and retrieved
             result = run_tigs(repo_path, "add-chat", "-m", complex_yaml)
@@ -176,14 +180,16 @@ messages: []
         ]
 
         for i, invalid_yaml in enumerate(invalid_schemas):
-            print(f"Testing invalid schema {i+1}")
+            print(f"Testing invalid schema {i + 1}")
 
             if i == len(invalid_schemas) - 1:  # Empty messages might be valid
                 # Empty messages list might be valid depending on implementation
                 result = validate_yaml_schema(invalid_yaml)
                 print(f"Empty messages validation result: {result}")
             else:
-                assert not validate_yaml_schema(invalid_yaml), f"Schema {i+1} should be invalid"
+                assert not validate_yaml_schema(invalid_yaml), (
+                    f"Schema {i + 1} should be invalid"
+                )
 
     def test_malformed_yaml_handling(self):
         """Test handling of malformed YAML content."""
@@ -245,8 +251,8 @@ messages:
             assert validate_yaml_schema(unicode_yaml)
 
             data = yaml.safe_load(unicode_yaml)
-            assert data['schema'] == 'tigs.chat/v1'
-            assert len(data['messages']) == 2
+            assert data["schema"] == "tigs.chat/v1"
+            assert len(data["messages"]) == 2
 
             # Test storage and retrieval of Unicode
             result = run_tigs(repo_path, "add-chat", "-m", unicode_yaml)
@@ -268,17 +274,19 @@ messages:
             # Create large YAML with many messages
             messages = []
             for i in range(20):
-                messages.append({
-                    "role": "user" if i % 2 == 0 else "assistant",
-                    "content": f"Message {i}: " + ("Content " * 50)  # Make each message substantial
-                })
+                messages.append(
+                    {
+                        "role": "user" if i % 2 == 0 else "assistant",
+                        "content": f"Message {i}: "
+                        + ("Content " * 50),  # Make each message substantial
+                    }
+                )
 
-            large_yaml_data = {
-                "schema": "tigs.chat/v1",
-                "messages": messages
-            }
+            large_yaml_data = {"schema": "tigs.chat/v1", "messages": messages}
 
-            large_yaml = yaml.dump(large_yaml_data, default_flow_style=False, allow_unicode=True)
+            large_yaml = yaml.dump(
+                large_yaml_data, default_flow_style=False, allow_unicode=True
+            )
 
             # Should validate correctly
             assert validate_yaml_schema(large_yaml)
@@ -301,8 +309,8 @@ messages:
 
             edge_cases = [
                 # Very long single line
-                "schema: tigs.chat/v1\nmessages:\n- role: user\n  content: " + ("Very long content " * 200),
-
+                "schema: tigs.chat/v1\nmessages:\n- role: user\n  content: "
+                + ("Very long content " * 200),
                 # Multiple newlines
                 """schema: tigs.chat/v1
 messages:
@@ -315,14 +323,12 @@ messages:
 
     Final line
 """,
-
                 # Special characters (properly escaped)
                 """schema: tigs.chat/v1
 messages:
 - role: user
   content: "Special chars: !@#$%^&*()_+-=[]{}|;',./<>?"
 """,
-
                 # Code blocks
                 """schema: tigs.chat/v1
 messages:
@@ -344,7 +350,7 @@ messages:
             ]
 
             for i, edge_yaml in enumerate(edge_cases):
-                print(f"Testing edge case {i+1}")
+                print(f"Testing edge case {i + 1}")
 
                 # Should validate
                 assert validate_yaml_schema(edge_yaml)
@@ -355,7 +361,7 @@ messages:
                     result = run_tigs(repo_path, "show-chat")
                     if result.returncode == 0:
                         assert validate_yaml_schema(result.stdout)
-                        print(f"✓ Edge case {i+1} handled correctly")
+                        print(f"✓ Edge case {i + 1} handled correctly")
 
                     # Clean up
                     run_tigs(repo_path, "remove-chat")

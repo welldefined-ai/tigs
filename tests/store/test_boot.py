@@ -21,9 +21,11 @@ def large_repo():
         commits = []
         for i in range(120):
             if i % 10 == 0:
-                commits.append(f"Major feature {i+1}: Complete implementation with tests")
+                commits.append(
+                    f"Major feature {i + 1}: Complete implementation with tests"
+                )
             else:
-                commits.append(f"Change {i+1}: Regular development work")
+                commits.append(f"Change {i + 1}: Regular development work")
 
         create_test_repo(repo_path, commits)
         yield repo_path
@@ -40,10 +42,7 @@ def claude_logs_dir(monkeypatch):
         monkeypatch.setenv("HOME", str(mock_home))
 
         # Create mock Claude logs
-        sessions_data = [[
-            ("user", "Test message"),
-            ("assistant", "Test response")
-        ]]
+        sessions_data = [[("user", "Test message"), ("assistant", "Test response")]]
         create_mock_claude_home(mock_home, sessions_data)
 
         yield mock_home
@@ -59,7 +58,12 @@ class TestStoreBoot:
 
         command = f"uv run tigs --repo {large_repo} store"
 
-        with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120), env={"HOME": str(claude_logs_dir)}) as tui:
+        with TUI(
+            command,
+            cwd=PYTHON_DIR,
+            dimensions=(30, 120),
+            env={"HOME": str(claude_logs_dir)},
+        ) as tui:
             # Wait for UI to load - look for any pane headers
             try:
                 tui.wait_for("Commits", timeout=5.0)
@@ -74,8 +78,10 @@ class TestStoreBoot:
 
                 # Look for pane separators or headers
                 has_separators = any("|" in line or "│" in line for line in lines[:10])
-                has_commit_content = any("commit" in line.lower() or "change" in line.lower()
-                                       for line in lines[:15])
+                has_commit_content = any(
+                    "commit" in line.lower() or "change" in line.lower()
+                    for line in lines[:15]
+                )
 
                 print(f"Has separators: {has_separators}")
                 print(f"Has commit content: {has_commit_content}")
@@ -83,7 +89,9 @@ class TestStoreBoot:
                 # Look for pane titles or structure
                 pane_indicators = []
                 for line in lines[:5]:  # Check header area
-                    if any(pane in line.lower() for pane in ["commits", "messages", "logs"]):
+                    if any(
+                        pane in line.lower() for pane in ["commits", "messages", "logs"]
+                    ):
                         pane_indicators.append(line.strip())
 
                 print(f"Pane indicators: {pane_indicators}")
@@ -105,7 +113,10 @@ class TestStoreBoot:
                     print(f"{i:02d}: {line}")
 
                 # Check if this is a "not implemented" vs "broken" issue
-                if "not found" in str(e).lower() or "command not found" in str(e).lower():
+                if (
+                    "not found" in str(e).lower()
+                    or "command not found" in str(e).lower()
+                ):
                     pytest.skip("Store command not implemented yet")
                 else:
                     raise
@@ -117,7 +128,9 @@ class TestStoreBoot:
 
         with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120)) as tui:
             try:
-                tui.wait_for("Commit", timeout=5.0)  # Wait for any commit-related content
+                tui.wait_for(
+                    "Commit", timeout=5.0
+                )  # Wait for any commit-related content
                 lines = tui.capture()
 
                 print("=== Initial Commit Load Test ===")
@@ -125,7 +138,10 @@ class TestStoreBoot:
                 # Count lines that look like commits (contain numbers, dates, or "Commit")
                 commit_like_lines = 0
                 for line in lines:
-                    if any(indicator in line for indicator in ["Commit", "Major feature", "20", "Change"]):
+                    if any(
+                        indicator in line
+                        for indicator in ["Commit", "Major feature", "20", "Change"]
+                    ):
                         commit_like_lines += 1
 
                 print(f"Found {commit_like_lines} commit-like lines")
@@ -134,11 +150,17 @@ class TestStoreBoot:
                 if commit_like_lines > 0:
                     print(f"✓ Found {commit_like_lines} commit entries")
                     # Lazy load should show reasonable number, not all 120
-                    assert commit_like_lines < 100, f"Should not load all 120 commits initially, got {commit_like_lines}"
+                    assert commit_like_lines < 100, (
+                        f"Should not load all 120 commits initially, got {commit_like_lines}"
+                    )
                 else:
-                    print("No clear commit entries found - might be different display format")
+                    print(
+                        "No clear commit entries found - might be different display format"
+                    )
                     # Just verify we got some content
-                    assert len([line for line in lines if line.strip()]) > 5, "Should have some non-empty content"
+                    assert len([line for line in lines if line.strip()]) > 5, (
+                        "Should have some non-empty content"
+                    )
 
             except Exception as e:
                 print(f"Commit load test failed: {e}")

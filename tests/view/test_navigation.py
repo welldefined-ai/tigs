@@ -31,7 +31,9 @@ class TestViewNavigation:
                 initial_cursor_row = find_cursor_row(initial_lines)
                 initial_content = get_first_pane(initial_lines[initial_cursor_row])
 
-                print(f"Initial cursor at row {initial_cursor_row}: {initial_content[:50]}")
+                print(
+                    f"Initial cursor at row {initial_cursor_row}: {initial_content[:50]}"
+                )
 
                 # Move cursor down
                 tui.send_arrow("down")
@@ -39,18 +41,24 @@ class TestViewNavigation:
                 down_cursor_row = find_cursor_row(after_down)
                 down_content = get_first_pane(after_down[down_cursor_row])
 
-                print(f"After DOWN: cursor at row {down_cursor_row}: {down_content[:50]}")
+                print(
+                    f"After DOWN: cursor at row {down_cursor_row}: {down_content[:50]}"
+                )
 
                 # Check if interface is responsive (showing cursor indicators)
                 has_cursor_indicators = ">" in initial_content or ">" in down_content
-                has_commits_display = "Change" in initial_content or "Change" in down_content
+                has_commits_display = (
+                    "Change" in initial_content or "Change" in down_content
+                )
 
                 print(f"Has cursor indicators: {has_cursor_indicators}")
                 print(f"Has commits display: {has_commits_display}")
 
                 # Test passes if the interface shows cursor and commit content
                 # The detailed navigation may not work perfectly in test environment
-                assert has_cursor_indicators or has_commits_display, "Should show responsive cursor interface"
+                assert has_cursor_indicators or has_commits_display, (
+                    "Should show responsive cursor interface"
+                )
 
                 print("✓ Basic cursor movement works")
 
@@ -91,7 +99,11 @@ class TestViewNavigation:
                 after_space = tui.capture()
 
                 # Display should not change (no selection happening)
-                changes = sum(1 for i, (a, b) in enumerate(zip(initial_lines, after_space)) if a != b)
+                changes = sum(
+                    1
+                    for i, (a, b) in enumerate(zip(initial_lines, after_space))
+                    if a != b
+                )
                 print(f"Lines changed after space key: {changes}")
 
                 # Allow minor changes (like status updates) but not selection changes
@@ -126,7 +138,7 @@ class TestViewNavigation:
                         seps = [i for i, ch in enumerate(line) if ch in ("|", "│")]
                         if len(seps) >= 2:
                             # Middle column is between first and second separator
-                            details.append(line[seps[0]+1:seps[1]].strip())
+                            details.append(line[seps[0] + 1 : seps[1]].strip())
                     return "\n".join(details)
 
                 # Get initial details
@@ -134,8 +146,10 @@ class TestViewNavigation:
                 initial_details = get_details_column(initial_lines)
 
                 # Look for commit SHA in details (should be present)
-                has_sha = any(len(word) >= 7 and all(c in "0123456789abcdef" for c in word)
-                             for word in initial_details.split())
+                has_sha = any(
+                    len(word) >= 7 and all(c in "0123456789abcdef" for c in word)
+                    for word in initial_details.split()
+                )
 
                 print(f"Initial details has SHA: {has_sha}")
 
@@ -148,14 +162,20 @@ class TestViewNavigation:
                 get_details_column(new_lines)
 
                 # Check if the interface shows the expected three-column structure
-                has_headers = any("Commit Details" in line for line in initial_lines[:5])
-                has_any_details = any("Author:" in line or "Date:" in line for line in initial_lines)
+                has_headers = any(
+                    "Commit Details" in line for line in initial_lines[:5]
+                )
+                has_any_details = any(
+                    "Author:" in line or "Date:" in line for line in initial_lines
+                )
 
                 print(f"Has 'Commit Details' header: {has_headers}")
                 print(f"Has any commit details: {has_any_details}")
 
                 # Pass if interface shows structured display
-                assert has_headers or has_any_details, "Should show commit details interface"
+                assert has_headers or has_any_details, (
+                    "Should show commit details interface"
+                )
 
                 print("✓ Navigation updates commit details")
 
@@ -173,7 +193,7 @@ class TestViewNavigation:
             repo_path = Path(tmpdir) / "scroll_repo"
 
             # Create many commits to test scrolling
-            commits = [f"Scroll test {i+1}" for i in range(100)]
+            commits = [f"Scroll test {i + 1}" for i in range(100)]
             create_test_repo(repo_path, commits)
 
             command = f"uv run tigs --repo {repo_path} view"
@@ -193,13 +213,17 @@ class TestViewNavigation:
                     # Check if we can still see cursor
                     try:
                         cursor_row = find_cursor_row(lines)
-                        print(f"Cursor still visible at row {cursor_row} after scrolling")
+                        print(
+                            f"Cursor still visible at row {cursor_row} after scrolling"
+                        )
 
                         # Cursor should stay in viewport
                         assert 0 <= cursor_row < 20, "Cursor should remain visible"
 
                     except AssertionError:
-                        print("Cursor might have scrolled out of view (implementation dependent)")
+                        print(
+                            "Cursor might have scrolled out of view (implementation dependent)"
+                        )
 
                     # Move back up
                     for _ in range(25):
@@ -209,7 +233,9 @@ class TestViewNavigation:
 
                     # Should be back near the top
                     top_content = get_first_pane(final_lines[2])
-                    assert "Scroll test" in top_content, "Should scroll back to top commits"
+                    assert "Scroll test" in top_content, (
+                        "Should scroll back to top commits"
+                    )
 
                     print("✓ Scrolling behavior works")
 

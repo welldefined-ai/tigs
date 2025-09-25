@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Test edge cases that reveal tigs limitations and issues."""
 
-
 import pytest
 from framework.paths import PYTHON_DIR
 from framework.tui import TUI
@@ -48,10 +47,10 @@ def test_extreme_commit_messages(extreme_repo):
                 commit_num = get_commit_at_cursor(lines)
 
                 result = {
-                    'move': move + 1,
-                    'cursor_row': cursor_row,
-                    'commit': commit_num,
-                    'success': True
+                    "move": move + 1,
+                    "cursor_row": cursor_row,
+                    "commit": commit_num,
+                    "success": True,
                 }
                 navigation_results.append(result)
 
@@ -68,18 +67,18 @@ def test_extreme_commit_messages(extreme_repo):
                     print("  Could not capture display")
 
                 result = {
-                    'move': move + 1,
-                    'cursor_row': None,
-                    'commit': None,
-                    'success': False,
-                    'error': str(e)
+                    "move": move + 1,
+                    "cursor_row": None,
+                    "commit": None,
+                    "success": False,
+                    "error": str(e),
                 }
                 navigation_results.append(result)
                 break
 
         # Analyze results
-        successful_moves = [r for r in navigation_results if r['success']]
-        failed_moves = [r for r in navigation_results if not r['success']]
+        successful_moves = [r for r in navigation_results if r["success"]]
+        failed_moves = [r for r in navigation_results if not r["success"]]
 
         print("\n=== Results ===")
         print(f"Successful moves: {len(successful_moves)}")
@@ -91,11 +90,15 @@ def test_extreme_commit_messages(extreme_repo):
                 print(f"  Move {fail['move']}: {fail['error']}")
 
         # The test should handle at least some navigation
-        assert len(successful_moves) >= 3, f"Should handle at least 3 moves with extreme commits, got {len(successful_moves)}"
+        assert len(successful_moves) >= 3, (
+            f"Should handle at least 3 moves with extreme commits, got {len(successful_moves)}"
+        )
 
         # If we got failures, that's expected with extreme content - report it
         if failed_moves:
-            print(f"\nNote: {len(failed_moves)} moves failed with extreme multi-line commits - this reveals issues with complex commit message handling")
+            print(
+                f"\nNote: {len(failed_moves)} moves failed with extreme multi-line commits - this reveals issues with complex commit message handling"
+            )
 
 
 if __name__ == "__main__":

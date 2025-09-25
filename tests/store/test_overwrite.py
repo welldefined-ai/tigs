@@ -24,14 +24,16 @@ def overwrite_setup(monkeypatch):
         monkeypatch.setenv("HOME", str(mock_home))
 
         # Create repo
-        commits = [f"Overwrite test commit {i+1}" for i in range(5)]
+        commits = [f"Overwrite test commit {i + 1}" for i in range(5)]
         create_test_repo(repo_path, commits)
 
         # Create mock Claude logs
-        sessions_data = [[
-            ("user", "New message for overwrite test"),
-            ("assistant", "New response for overwrite test")
-        ]]
+        sessions_data = [
+            [
+                ("user", "New message for overwrite test"),
+                ("assistant", "New response for overwrite test"),
+            ]
+        ]
         create_mock_claude_home(mock_home, sessions_data)
 
         # Add existing Git note to HEAD commit
@@ -42,7 +44,7 @@ def overwrite_setup(monkeypatch):
                 cwd=repo_path,
                 capture_output=True,
                 text=True,
-                check=True
+                check=True,
             )
             head_sha = result.stdout.strip()
 
@@ -55,9 +57,18 @@ def overwrite_setup(monkeypatch):
 """
 
             subprocess.run(
-                ["git", "notes", "--ref", "refs/notes/chats", "add", "-m", existing_note, head_sha],
+                [
+                    "git",
+                    "notes",
+                    "--ref",
+                    "refs/notes/chats",
+                    "add",
+                    "-m",
+                    existing_note,
+                    head_sha,
+                ],
                 cwd=repo_path,
-                check=True
+                check=True,
             )
 
             print(f"Created existing note on commit {head_sha[:8]}")
@@ -77,7 +88,7 @@ def check_note_content(repo_path, commit_sha=None):
                 ["git", "rev-parse", "HEAD"],
                 cwd=repo_path,
                 capture_output=True,
-                text=True
+                text=True,
             )
             if result.returncode != 0:
                 return None
@@ -88,7 +99,7 @@ def check_note_content(repo_path, commit_sha=None):
             ["git", "notes", "--ref", "refs/notes/chats", "show", commit_sha],
             cwd=repo_path,
             capture_output=True,
-            text=True
+            text=True,
         )
 
         if result.returncode == 0:
@@ -109,7 +120,9 @@ class TestOverwrite:
 
         command = f"uv run tigs --repo {repo_path} store"
 
-        with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120), env={"HOME": str(mock_home)}) as tui:
+        with TUI(
+            command, cwd=PYTHON_DIR, dimensions=(30, 120), env={"HOME": str(mock_home)}
+        ) as tui:
             try:
                 tui.wait_for("commit", timeout=5.0)
 
@@ -129,7 +142,9 @@ class TestOverwrite:
                         existing_indicators.append(line.strip())
 
                 if existing_indicators:
-                    print(f"✓ Found existing note indicators: {len(existing_indicators)}")
+                    print(
+                        f"✓ Found existing note indicators: {len(existing_indicators)}"
+                    )
                 else:
                     print("No clear existing note indicators visible")
 
@@ -138,7 +153,7 @@ class TestOverwrite:
 
                 # Select a message
                 tui.send("<tab>")  # Go to messages
-                tui.send(" ")     # Select message
+                tui.send(" ")  # Select message
 
                 # Try to store - should prompt for overwrite
                 tui.send("<enter>")
@@ -152,11 +167,20 @@ class TestOverwrite:
                 # Look for overwrite prompt patterns
                 display_text = "\n".join(overwrite_display).lower()
                 prompt_patterns = [
-                    "overwrite", "replace", "exists", "already",
-                    "confirm", "continue", "y/n", "[y]", "[n]"
+                    "overwrite",
+                    "replace",
+                    "exists",
+                    "already",
+                    "confirm",
+                    "continue",
+                    "y/n",
+                    "[y]",
+                    "[n]",
                 ]
 
-                prompt_found = any(pattern in display_text for pattern in prompt_patterns)
+                prompt_found = any(
+                    pattern in display_text for pattern in prompt_patterns
+                )
 
                 if prompt_found:
                     print("✓ Overwrite prompt displayed")
@@ -199,38 +223,47 @@ class TestOverwrite:
 
         # Check original content first
         original_content = check_note_content(repo_path)
-        print(f"Original note content: {original_content[:100] if original_content else 'None'}...")
+        print(
+            f"Original note content: {original_content[:100] if original_content else 'None'}..."
+        )
 
         command = f"uv run tigs --repo {repo_path} store"
 
-        with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120), env={"HOME": str(mock_home)}) as tui:
+        with TUI(
+            command, cwd=PYTHON_DIR, dimensions=(30, 120), env={"HOME": str(mock_home)}
+        ) as tui:
             try:
                 tui.wait_for("commit", timeout=5.0)
 
                 print("=== Overwrite Success Test ===")
 
                 # Quick selections and overwrite
-                tui.send(" ")      # Select commit with existing note
+                tui.send(" ")  # Select commit with existing note
                 tui.send("<tab>")  # Messages
-                tui.send(" ")      # Select message
-                tui.send("<enter>") # Store
+                tui.send(" ")  # Select message
+                tui.send("<enter>")  # Store
 
                 # If prompted, confirm
                 prompt_display = tui.capture()
-                if any(pattern in "\n".join(prompt_display).lower()
-                      for pattern in ["overwrite", "confirm", "y/n"]):
+                if any(
+                    pattern in "\n".join(prompt_display).lower()
+                    for pattern in ["overwrite", "confirm", "y/n"]
+                ):
                     print("Overwrite prompt detected, confirming...")
                     tui.send("y")
 
                     # Wait for operation to complete
                     import time
+
                     time.sleep(0.5)
 
                 tui.capture()
 
                 # Check final note content
                 final_content = check_note_content(repo_path)
-                print(f"Final note content: {final_content[:100] if final_content else 'None'}...")
+                print(
+                    f"Final note content: {final_content[:100] if final_content else 'None'}..."
+                )
 
                 if original_content and final_content:
                     if original_content != final_content:
@@ -258,27 +291,34 @@ class TestOverwrite:
 
         # Get original content
         original_content = check_note_content(repo_path)
-        print(f"Original content to preserve: {original_content[:100] if original_content else 'None'}...")
+        print(
+            f"Original content to preserve: {original_content[:100] if original_content else 'None'}..."
+        )
 
         command = f"uv run tigs --repo {repo_path} store"
 
-        with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120), env={"HOME": str(mock_home)}) as tui:
+        with TUI(
+            command, cwd=PYTHON_DIR, dimensions=(30, 120), env={"HOME": str(mock_home)}
+        ) as tui:
             try:
                 tui.wait_for("commit", timeout=5.0)
 
                 print("=== Overwrite Cancel Test ===")
 
                 # Make selections
-                tui.send(" ")      # Select commit with existing note
+                tui.send(" ")  # Select commit with existing note
                 tui.send("<tab>")  # Messages
-                tui.send(" ")      # Select message
-                tui.send("<enter>") # Store
+                tui.send(" ")  # Select message
+                tui.send("<enter>")  # Store
 
                 # Check for overwrite prompt
                 prompt_display = tui.capture()
                 display_text = "\n".join(prompt_display).lower()
 
-                if any(pattern in display_text for pattern in ["overwrite", "confirm", "y/n"]):
+                if any(
+                    pattern in display_text
+                    for pattern in ["overwrite", "confirm", "y/n"]
+                ):
                     print("Overwrite prompt detected, canceling...")
                     tui.send("n")  # Cancel overwrite
 

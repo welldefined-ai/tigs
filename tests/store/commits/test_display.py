@@ -25,13 +25,19 @@ def scrolling_repo():
         for i in range(60):
             if i % 5 == 0:
                 # Very long commits that will wrap multiple lines
-                commits.append(f"Long commit {i+1}: " + "This is an extremely long commit message that will definitely wrap to multiple lines when displayed in the narrow commits pane and should cause cursor positioning issues " * 2)
+                commits.append(
+                    f"Long commit {i + 1}: "
+                    + "This is an extremely long commit message that will definitely wrap to multiple lines when displayed in the narrow commits pane and should cause cursor positioning issues "
+                    * 2
+                )
             elif i % 3 == 0:
                 # Multi-line commits with actual newlines
-                commits.append(f"Multi-line commit {i+1}:\n\nThis commit has multiple paragraphs\nwith line breaks that might\ncause display issues\n\n- Feature A\n- Feature B\n- Bug fixes")
+                commits.append(
+                    f"Multi-line commit {i + 1}:\n\nThis commit has multiple paragraphs\nwith line breaks that might\ncause display issues\n\n- Feature A\n- Feature B\n- Bug fixes"
+                )
             else:
                 # Normal commits
-                commits.append(f"Commit {i+1}: Regular changes")
+                commits.append(f"Commit {i + 1}: Regular changes")
 
         create_test_repo(repo_path, commits)
         yield repo_path
@@ -62,9 +68,13 @@ def test_multiline_commit_display(test_repo):
         print(f"Visible commits: {all_commits[:5]}...")  # Show first 5
 
         # Basic assertions
-        assert len(all_commits) >= 3, f"Should see at least 3 commits, got: {len(all_commits)}"
+        assert len(all_commits) >= 3, (
+            f"Should see at least 3 commits, got: {len(all_commits)}"
+        )
         # Test should verify that the cursor is on Change 50, regardless of full extraction format
-        assert "Change 50:" in commit_at_cursor, f"Expected cursor on Change 50, got: {commit_at_cursor}"
+        assert "Change 50:" in commit_at_cursor, (
+            f"Expected cursor on Change 50, got: {commit_at_cursor}"
+        )
 
 
 def test_commit_prefix_formatting(test_repo):
@@ -93,15 +103,15 @@ def test_commit_prefix_formatting(test_repo):
         import re
 
         # Pattern for cursor line: >[ ] MM-DD HH:MM Author or >[ ]* MM-DD HH:MM Author (compact, no space between > and [ ])
-        cursor_pattern = r'>\[\s*[x\s]\]\*?\s+\d{2}-\d{2}\s+\d{2}:\d{2}\s+\w+'
+        cursor_pattern = r">\[\s*[x\s]\]\*?\s+\d{2}-\d{2}\s+\d{2}:\d{2}\s+\w+"
         # Pattern for non-cursor line: [ ] MM-DD HH:MM Author (space before [ ])
-        non_cursor_pattern = r'\s\[\s*[x\s]\]\*?\s+\d{2}-\d{2}\s+\d{2}:\d{2}\s+\w+'
+        non_cursor_pattern = r"\s\[\s*[x\s]\]\*?\s+\d{2}-\d{2}\s+\d{2}:\d{2}\s+\w+"
         # Anti-pattern: > [ ] (space between > and [ ]) - should NOT match
-        bad_pattern = r'>\s+\['
+        bad_pattern = r">\s+\["
         # Pattern for short datetime format
-        short_datetime_pattern = r'\d{2}-\d{2}\s+\d{2}:\d{2}'
+        short_datetime_pattern = r"\d{2}-\d{2}\s+\d{2}:\d{2}"
         # Pattern for long datetime format (should not be present)
-        long_datetime_pattern = r'\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}'
+        long_datetime_pattern = r"\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}"
 
         cursor_found = False
         non_cursor_found = False
@@ -112,10 +122,14 @@ def test_commit_prefix_formatting(test_repo):
         for line in commit_lines:
             if re.search(cursor_pattern, line):
                 cursor_found = True
-                print(f"✓ Store compact cursor formatting: '{line}' matches '>[ ] MM-DD HH:MM'")
+                print(
+                    f"✓ Store compact cursor formatting: '{line}' matches '>[ ] MM-DD HH:MM'"
+                )
             elif re.search(non_cursor_pattern, line):
                 non_cursor_found = True
-                print(f"✓ Store non-cursor formatting: '{line}' matches ' [ ] MM-DD HH:MM'")
+                print(
+                    f"✓ Store non-cursor formatting: '{line}' matches ' [ ] MM-DD HH:MM'"
+                )
             elif re.search(bad_pattern, line):
                 bad_format_found = True
                 print(f"✗ Bad formatting found: '{line}' has space between > and [ ]")
@@ -128,11 +142,17 @@ def test_commit_prefix_formatting(test_repo):
                 print(f"✗ Long datetime found: '{line}'")
 
         # Main assertions
-        assert not bad_format_found, "Should not have space between > and [ ] in store mode"
-        assert cursor_found or non_cursor_found, "Should find either cursor or non-cursor checkbox formatting"
+        assert not bad_format_found, (
+            "Should not have space between > and [ ] in store mode"
+        )
+        assert cursor_found or non_cursor_found, (
+            "Should find either cursor or non-cursor checkbox formatting"
+        )
 
         if long_datetime_found:
-            print("⚠ Still using long datetime format - code changes may not be active in test environment")
+            print(
+                "⚠ Still using long datetime format - code changes may not be active in test environment"
+            )
         elif short_datetime_found:
             print("✓ Using short datetime format as expected")
 
@@ -164,8 +184,10 @@ def test_varied_commit_lengths_display(scrolling_repo):
                 line_len = len(line.strip())
                 if line_len > 100:  # Very long lines
                     long_line_count += 1
-                elif any(indicator in line.lower() for indicator in
-                        ["multi-line", "feature a", "bug fixes"]):
+                elif any(
+                    indicator in line.lower()
+                    for indicator in ["multi-line", "feature a", "bug fixes"]
+                ):
                     multiline_indicators += 1
                 elif "commit" in line.lower() and "regular" in line.lower():
                     normal_commits += 1
@@ -178,7 +200,9 @@ def test_varied_commit_lengths_display(scrolling_repo):
             if long_line_count > 0 or multiline_indicators > 0:
                 print("✓ Varied commit types visible in display")
             else:
-                print("No clear variation in commit display - might be truncated/normalized")
+                print(
+                    "No clear variation in commit display - might be truncated/normalized"
+                )
 
             # Test basic cursor functionality with varied commits
             cursor_row = find_cursor_row(initial_lines)

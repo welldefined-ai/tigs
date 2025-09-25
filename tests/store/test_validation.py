@@ -23,15 +23,17 @@ def validation_setup(monkeypatch):
         monkeypatch.setenv("HOME", str(mock_home))
 
         # Create repo
-        commits = [f"Validation test commit {i+1}" for i in range(5)]
+        commits = [f"Validation test commit {i + 1}" for i in range(5)]
         create_test_repo(repo_path, commits)
 
         # Create mock Claude logs
-        sessions_data = [[
-            ("user", "Validation test message 1"),
-            ("assistant", "Validation test response 1"),
-            ("user", "Validation test message 2")
-        ]]
+        sessions_data = [
+            [
+                ("user", "Validation test message 1"),
+                ("assistant", "Validation test response 1"),
+                ("user", "Validation test message 2"),
+            ]
+        ]
         create_mock_claude_home(mock_home, sessions_data)
 
         yield repo_path, mock_home
@@ -46,7 +48,9 @@ class TestValidation:
 
         command = f"uv run tigs --repo {repo_path} store"
 
-        with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120), env={"HOME": str(mock_home)}) as tui:
+        with TUI(
+            command, cwd=PYTHON_DIR, dimensions=(30, 120), env={"HOME": str(mock_home)}
+        ) as tui:
             try:
                 tui.wait_for("commit", timeout=5.0)
 
@@ -54,7 +58,7 @@ class TestValidation:
 
                 # Select messages but no commits
                 tui.send("<tab>")  # Go to messages pane
-                tui.send(" ")     # Select a message
+                tui.send(" ")  # Select a message
 
                 tui.capture()
                 print("Selected messages, no commits")
@@ -71,8 +75,14 @@ class TestValidation:
                 # Look for error indicators
                 error_text = "\n".join(error_display).lower()
                 error_patterns = [
-                    "error", "select", "commit", "required",
-                    "must", "need", "invalid", "missing"
+                    "error",
+                    "select",
+                    "commit",
+                    "required",
+                    "must",
+                    "need",
+                    "invalid",
+                    "missing",
                 ]
 
                 error_found = any(pattern in error_text for pattern in error_patterns)
@@ -84,11 +94,12 @@ class TestValidation:
 
                 # Should not have created any Git notes
                 import subprocess
+
                 notes_result = subprocess.run(
                     ["git", "notes", "--ref", "refs/notes/chats", "list"],
                     cwd=repo_path,
                     capture_output=True,
-                    text=True
+                    text=True,
                 )
 
                 if notes_result.returncode != 0 or not notes_result.stdout.strip():
@@ -107,16 +118,18 @@ class TestValidation:
 
         command = f"uv run tigs --repo {repo_path} store"
 
-        with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120), env={"HOME": str(mock_home)}) as tui:
+        with TUI(
+            command, cwd=PYTHON_DIR, dimensions=(30, 120), env={"HOME": str(mock_home)}
+        ) as tui:
             try:
                 tui.wait_for("commit", timeout=5.0)
 
                 print("=== No Messages Selected Test ===")
 
                 # Select commits but no messages
-                tui.send(" ")     # Select a commit
+                tui.send(" ")  # Select a commit
                 tui.send_arrow("down")
-                tui.send(" ")     # Select another commit
+                tui.send(" ")  # Select another commit
 
                 tui.capture()
                 print("Selected commits, no messages")
@@ -133,8 +146,14 @@ class TestValidation:
                 # Look for error indicators
                 error_text = "\n".join(error_display).lower()
                 error_patterns = [
-                    "error", "select", "message", "required",
-                    "must", "need", "invalid", "missing"
+                    "error",
+                    "select",
+                    "message",
+                    "required",
+                    "must",
+                    "need",
+                    "invalid",
+                    "missing",
                 ]
 
                 error_found = any(pattern in error_text for pattern in error_patterns)
@@ -146,10 +165,11 @@ class TestValidation:
 
                 # Should not have created Git notes
                 import subprocess
+
                 notes_result = subprocess.run(
                     ["git", "notes", "--ref", "refs/notes/chats", "list"],
                     cwd=repo_path,
-                    capture_output=True
+                    capture_output=True,
                 )
 
                 if notes_result.returncode != 0 or not notes_result.stdout.strip():
@@ -168,7 +188,9 @@ class TestValidation:
 
         command = f"uv run tigs --repo {repo_path} store"
 
-        with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120), env={"HOME": str(mock_home)}) as tui:
+        with TUI(
+            command, cwd=PYTHON_DIR, dimensions=(30, 120), env={"HOME": str(mock_home)}
+        ) as tui:
             try:
                 tui.wait_for("commit", timeout=5.0)
 
@@ -189,8 +211,15 @@ class TestValidation:
                 # Look for error indicators
                 error_text = "\n".join(error_display).lower()
                 error_patterns = [
-                    "error", "select", "nothing", "empty", "required",
-                    "must", "need", "invalid", "no selection"
+                    "error",
+                    "select",
+                    "nothing",
+                    "empty",
+                    "required",
+                    "must",
+                    "need",
+                    "invalid",
+                    "no selection",
                 ]
 
                 error_found = any(pattern in error_text for pattern in error_patterns)
@@ -202,10 +231,11 @@ class TestValidation:
 
                 # Should not have created Git notes
                 import subprocess
+
                 notes_result = subprocess.run(
                     ["git", "notes", "--ref", "refs/notes/chats", "list"],
                     cwd=repo_path,
-                    capture_output=True
+                    capture_output=True,
                 )
 
                 if notes_result.returncode != 0 or not notes_result.stdout.strip():
@@ -230,22 +260,25 @@ class TestValidation:
 
         command = f"uv run tigs --repo {repo_path} store"
 
-        with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120), env={"HOME": str(mock_home)}) as tui:
+        with TUI(
+            command, cwd=PYTHON_DIR, dimensions=(30, 120), env={"HOME": str(mock_home)}
+        ) as tui:
             try:
                 tui.wait_for("commit", timeout=5.0)
 
                 print("=== Validation State Preservation Test ===")
 
                 # Make partial selections (commits only)
-                tui.send(" ")     # Select commit
+                tui.send(" ")  # Select commit
                 tui.send_arrow("down")
-                tui.send(" ")     # Select another commit
+                tui.send(" ")  # Select another commit
 
                 before_error = tui.capture()
 
                 # Count selections before
-                selections_before = sum(1 for line in before_error
-                                      if "[x]" in line or "✓" in line)
+                selections_before = sum(
+                    1 for line in before_error if "[x]" in line or "✓" in line
+                )
                 print(f"Selections before validation error: {selections_before}")
 
                 # Try to store (should fail validation)
@@ -254,14 +287,17 @@ class TestValidation:
                 after_error = tui.capture()
 
                 # Count selections after error
-                selections_after = sum(1 for line in after_error
-                                     if "[x]" in line or "✓" in line)
+                selections_after = sum(
+                    1 for line in after_error if "[x]" in line or "✓" in line
+                )
                 print(f"Selections after validation error: {selections_after}")
 
                 if selections_before > 0 and selections_after >= selections_before:
                     print("✓ Selections preserved after validation error")
                 elif selections_before > 0:
-                    print(f"Some selections lost: {selections_before} → {selections_after}")
+                    print(
+                        f"Some selections lost: {selections_before} → {selections_after}"
+                    )
                 else:
                     print("No selections detected to test preservation")
 
