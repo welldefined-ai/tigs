@@ -57,7 +57,6 @@ class CommitView(VisualSelectionMixin, ScrollableMixin):
         """
         try:
             # Preserve current cursor position
-            old_cursor_idx = self.cursor_idx
             old_cursor_sha = self.get_cursor_sha()
 
             # Get list of commits with notes first
