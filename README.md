@@ -1,36 +1,105 @@
 # Tigs - Talks in Git → Specs
 
+[![CI](https://github.com/welldefined-ai/tigs/actions/workflows/ci.yml/badge.svg)](https://github.com/welldefined-ai/tigs/actions/workflows/ci.yml)
 [![Discord Chat](https://img.shields.io/discord/1382712250598690947?logo=discord)](https://discord.gg/Tv4EcTu5YX)
+[![PyPI](https://img.shields.io/pypi/v/tigs)](https://pypi.org/project/tigs/)
 
-Tigs is a Git-based chat management system for "vibe coding"—the new generation of software development.
-It captures and manages talks, or chats, between human developers and AI, including prompts (contexts, instructions, queries, etc.) and responses of any format.
-Tigs' chat management encompasses the storage, retrieval, and comprehension of such conversations, which serve as the medium to express user requirements and software design.
-
-"Tig" in the name is simply "git" spelled in reverse.
-
-> Talk is cheap. Show me the code.  
+> Talk is cheap. Show me the code.
 > — Linus Torvalds
 
 Linus coded Git. Now, let's talk about Tigs.
 
-> Code is cheap. Show me the talk.
+> **Code is cheap. Show me the talk.**
 
-## Features
+## What is Tigs?
 
-- **Stores selected chat history or summaries** to preserve the rationale behind code changes.
-- **Transforms raw chats into well-defined specifications** of user requirements and software design.
-- **Tracks revisions and evolution** of the specifications over time.
-- **Links chats, specifications, and code** to help developers recall or better understand the software.
+Tigs is a Git-based chat management system that captures and versions your AI development conversations alongside your code. In the LLM era, the "why" behind code lives in chats—prompts, design debates, and micro-discoveries that vanish across tools and tabs. Tigs preserves this context as traceable dev artifacts in your Git repository.
 
-## Development
+"Tig" in the name is simply "git" spelled in reverse.
 
-Tigs is developed in [this LLM-native way](https://github.com/sublang-ai/sublang): its requirements and design are expressed through talks with an LLM and translated into code.
+## Why Tigs?
 
-By bootstrapping itself, Tigs manages its own talks and defines its own specifications.
+The biggest bug in software engineering isn't a crash—it's forgetting why. When someone asks "Why is this function designed this way?", too often the answer is "I think the AI suggested it?"
 
-The software specifications are language-agnostic and can be translated into code in different programming languages.
-Currently, we provide implementations in Python and Node.js.
+Tigs solves this by:
+- **Preserving decision rationale** - Never lose that god-tier prompt or design debate
+- **Creating traceable history** - Every "why" has a link you can follow
+- **Accelerating onboarding** - New contributors understand the conversation, not just the code
+- **Building prompt libraries** - Your best AI interactions become reusable team assets
 
-## Contribution
+## Quick Start
 
-Join us on Discord: https://discord.gg/8krkc4z5wK.
+```bash
+# Install
+pip install tigs  # or: uv pip install tigs
+
+# In your Git repository
+cd /path/to/your/repo
+
+# Launch the TUI to attach chats to commits
+tigs store
+
+# Review linked chats
+tigs view
+
+# Push notes to remote (no commit rewriting)
+tigs push
+```
+
+## Key Features
+
+- **Non-invasive storage** - Uses Git notes; never rewrites your commits
+- **Fast TUI interface** - Navigate commits, select chats, and link them effortlessly
+- **Tool-agnostic** - Works with chats from Claude Code, Gemini CLI, Qwen Code and more
+- **Version-controlled context** - Your reasoning becomes greppable, diffable, and reviewable
+- **Future: Auto-generated specs** - AI will read commits + chats to generate precise system specifications
+
+## How It Works
+
+The TUI shows:
+- **Left panel**: Your repository's commit history
+- **Middle panel**: Chat messages from selected logs
+- **Right panel**: Available chat sessions/files
+
+Simply select the conversations that matter and attach them to relevant commits. Tigs stores this metadata in Git notes, keeping your commit hashes intact.
+
+## FAQ
+
+**Does Tigs modify my commits?**
+No. Tigs uses Git notes to store metadata. Your commit hashes remain unchanged.
+
+**Where is chat data stored?**
+In your repository as log files and Git notes. You maintain full control through Git remotes.
+
+**What about privacy?**
+Tigs operates locally. Treat chat notes like any code history when pushing to remotes.
+
+**Is this production-ready?**
+Yes for chat curation and traceability. The auto-spec generation module is in active development.
+
+## Development Philosophy
+
+Tigs is developed in [this LLM-native way](https://github.com/sublang-ai/sublang): its requirements and design are expressed through talks with an LLM and translated into code. By bootstrapping itself, Tigs will manage its own talks and define its own specifications.
+
+The specifications are language-agnostic and can be translated into different programming languages. Currently, we provide implementations in Python and Node.js.
+
+## Roadmap
+
+- [ ] Direct integrations with popular AI tools and IDEs
+- [ ] Auto-generated specifications from commits + chats
+- [ ] CI/CD hooks for "talk coverage" in PRs
+- [ ] Multi-language implementations beyond Python/Node.js
+
+## Contributing
+
+We welcome contributions! Here's how to get involved:
+
+- ⭐ **Star the repository** if you find Tigs useful
+- 🐛 **File issues** for bugs or feature requests
+- 🤝 **Submit PRs** for new adapters or improvements
+- 💬 **Join our Discord**: https://discord.gg/8krkc4z5wK
+- 📖 **Share your use cases** to help shape the roadmap
+
+---
+
+*For the new generation of AI-empowered software development.*
