@@ -1,7 +1,7 @@
 [project]
 name = "tigs"
 version = "0.1.2"
-description = "Talks in Git → Specs - Git-based chat management system for AI-assisted software development"
+description = "Talks in Git → Specs - Git-based chat management system for AI-empowered software development"
 readme = "README.md"
 requires-python = ">=3.8"
 license = {text = "AGPL-3.0"}

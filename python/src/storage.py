@@ -200,7 +200,7 @@ class TigsRepo:
 
         Args:
             remote: Remote name to push to.
-            force: Force push even if there are unpushed commits.
+            force: Force push even if there are unpushed commits or non-fast-forward.
 
         Raises:
             ValueError: If there are unpushed commits with chats and force is False.
@@ -219,7 +219,11 @@ class TigsRepo:
                     f"Or use --force to push chats anyway (not recommended)"
                 )
 
-        self._run_git(["push", remote, "refs/notes/chats:refs/notes/chats"])
+        if force:
+            # Force push to handle non-fast-forward updates
+            self._run_git(["push", "--force", remote, "refs/notes/chats:refs/notes/chats"])
+        else:
+            self._run_git(["push", remote, "refs/notes/chats:refs/notes/chats"])
 
     # Legacy methods for backward compatibility (will be removed)
     def store(self, content: str, object_id: Optional[str] = None) -> str:
