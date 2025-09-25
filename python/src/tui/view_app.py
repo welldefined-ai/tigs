@@ -337,10 +337,15 @@ class TigsViewApp:
         """
         # Context-sensitive status based on focused pane
         if self.focused_pane == 0:
-            status_text = "↑/↓: navigate commits | Tab: switch pane | q: quit | <FORMATTED CHAT VIEW>"
+            status_text = "↑/↓: navigate commits | Tab: switch pane | q: quit"
         else:
-            status_text = (
-                "↑/↓: scroll | Tab: switch pane | q: quit | <FORMATTED CHAT VIEW>"
+            status_text = "↑/↓: scroll | Tab: switch pane | q: quit"
+
+        # Add terminal size info
+        height = stdscr.getmaxyx()[0]
+        if width < self.MIN_WIDTH + 10 or height < self.MIN_HEIGHT + 5:
+            status_text += (
+                f" | Size: {width}x{height} (min: {self.MIN_WIDTH}x{self.MIN_HEIGHT})"
             )
 
         # Use reverse video for status bar
