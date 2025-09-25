@@ -1,5 +1,6 @@
 """Core storage implementation for Tigs chats using Git notes."""
 
+import os
 import subprocess
 from pathlib import Path
 from typing import List, Optional
@@ -195,35 +196,67 @@ class TigsRepo:
         except subprocess.CalledProcessError:
             return []
 
-    def push_chats(self, remote: str = "origin", force: bool = False) -> None:
+    def pull_chats(self, remote: str = "origin", strategy: str = "union") -> None:
+        """Pull (fetch + merge) chat notes from remote repository.
+
+        Args:
+            remote: Remote name to pull from.
+            strategy: Merge strategy (manual, ours, theirs, union).
+
+        Raises:
+            subprocess.CalledProcessError: If git operations fail.
+        """
+        # Step 1: Fetch to staging namespace
+        self._run_git(
+            ["fetch", remote, f"refs/notes/chats:refs/notes-remote/{remote}/chats"]
+        )
+
+        # Step 2: Merge from staging ref using specified strategy
+        try:
+            self._run_git(
+                [
+                    "notes",
+                    "--ref=refs/notes/chats",
+                    "merge",
+                    f"-s{strategy}",
+                    f"refs/notes-remote/{remote}/chats",
+                ]
+            )
+        except subprocess.CalledProcessError as e:
+            # Check if merge conflict occurred
+            if os.path.exists(
+                os.path.join(self.repo_path, ".git/NOTES_MERGE_WORKTREE")
+            ):
+                # TODO: Implement custom conflict resolver in Phase 2
+                raise RuntimeError(
+                    "Notes merge conflict detected. Manual resolution required.\n"
+                    "Run: git notes merge --abort to cancel, or manually resolve in .git/NOTES_MERGE_WORKTREE"
+                ) from e
+            raise
+
+    def push_chats(self, remote: str = "origin") -> None:
         """Push chat notes to remote repository.
 
         Args:
             remote: Remote name to push to.
-            force: Force push even if there are unpushed commits or non-fast-forward.
 
         Raises:
-            ValueError: If there are unpushed commits with chats and force is False.
+            ValueError: If there are unpushed commits with chats.
+            subprocess.CalledProcessError: If push fails (e.g., non-fast-forward).
         """
-        if not force:
-            unpushed = self.get_unpushed_commits_with_chats(remote)
-            if unpushed:
-                raise ValueError(
-                    f"Cannot push chats: {len(unpushed)} commit(s) with chats are not pushed to '{remote}'.\n"
-                    f"Unpushed commits:\n"
-                    + "\n".join(f"  - {sha[:8]}" for sha in unpushed)
-                    + "\n\n"
-                    f"To fix this:\n"
-                    f"  1. Push your commits first: git push {remote} <branch>\n"
-                    f"  2. Then push the chats: tigs push\n\n"
-                    f"Or use --force to push chats anyway (not recommended)"
-                )
+        unpushed = self.get_unpushed_commits_with_chats(remote)
+        if unpushed:
+            raise ValueError(
+                f"Cannot push chats: {len(unpushed)} commit(s) with chats are not pushed to '{remote}'.\n"
+                f"Unpushed commits:\n"
+                + "\n".join(f"  - {sha[:8]}" for sha in unpushed)
+                + "\n\n"
+                f"To fix this:\n"
+                f"  1. Push your commits first: git push {remote} <branch>\n"
+                f"  2. Then push the chats: tigs push"
+            )
 
-        if force:
-            # Force push to handle non-fast-forward updates
-            self._run_git(["push", "--force", remote, "refs/notes/chats:refs/notes/chats"])
-        else:
-            self._run_git(["push", remote, "refs/notes/chats:refs/notes/chats"])
+        self._run_git(["push", remote, "refs/notes/chats:refs/notes/chats"])
 
     # Legacy methods for backward compatibility (will be removed)
     def store(self, content: str, object_id: Optional[str] = None) -> str:

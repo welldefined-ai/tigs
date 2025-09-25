@@ -124,11 +124,8 @@ def remove_chat(ctx: click.Context, commit: str) -> None:
 
 @main.command("push")
 @click.argument("remote", type=str, default="origin")
-@click.option(
-    "--force", "-f", is_flag=True, help="Force push even if commits are not pushed or non-fast-forward"
-)
 @click.pass_context
-def push(ctx: click.Context, remote: str, force: bool) -> None:
+def push(ctx: click.Context, remote: str) -> None:
     """Push chats to remote repository.
 
     This command ensures all commits with chats are pushed to the remote
@@ -136,24 +133,25 @@ def push(ctx: click.Context, remote: str, force: bool) -> None:
     """
     store = ctx.obj["store"]
     try:
-        store.push_chats(remote, force=force)
-        if force:
-            click.echo(f"Successfully force-pushed chats to '{remote}'")
-        else:
-            click.echo(f"Successfully pushed chats to '{remote}'")
+        store.push_chats(remote)
+        click.echo(f"Successfully pushed chats to '{remote}'")
     except ValueError as e:
         click.echo(str(e), err=True)
         sys.exit(1)
     except subprocess.CalledProcessError as e:
         error_msg = e.stderr or str(e)
-        if "non-fast-forward" in error_msg:
+        if "non-fast-forward" in error_msg or "rejected" in error_msg:
             click.echo(f"Error pushing chats: {error_msg}", err=True)
             click.echo(
-                "\nThe remote has diverged from your local notes. You can either:",
+                "\nThe remote has diverged from your local notes.",
                 err=True,
             )
-            click.echo("  1. Force push (will overwrite remote notes): tigs push --force", err=True)
-            click.echo("  2. Fetch remote notes first: tigs fetch --force", err=True)
+            click.echo("To resolve:", err=True)
+            click.echo("  1. Pull remote notes first: tigs pull", err=True)
+            click.echo("  2. Then push again: tigs push", err=True)
+            click.echo("\nOr choose a specific merge strategy:", err=True)
+            click.echo("  tigs pull --strategy=theirs  # Use remote version", err=True)
+            click.echo("  tigs pull --strategy=ours    # Use local version", err=True)
         else:
             click.echo(f"Error pushing chats: {error_msg}", err=True)
         sys.exit(1)
@@ -162,38 +160,64 @@ def push(ctx: click.Context, remote: str, force: bool) -> None:
         sys.exit(1)
 
 
-@main.command("fetch")
+@main.command("pull")
 @click.argument("remote", type=str, default="origin")
 @click.option(
-    "--force",
-    "-f",
-    is_flag=True,
-    help="Force fetch even if it's not a fast-forward update",
+    "--strategy",
+    "-s",
+    type=click.Choice(["manual", "ours", "theirs", "union"]),
+    default="union",
+    help="Merge strategy for conflicting notes",
 )
 @click.pass_context
-def fetch(ctx: click.Context, remote: str, force: bool) -> None:
-    """Fetch chats from remote repository."""
+def pull(ctx: click.Context, remote: str, strategy: str) -> None:
+    """Fetch and merge chats from remote repository.
+
+    This command fetches remote notes and merges them with your local notes
+    using the specified strategy. Default is 'union' which preserves both
+    local and remote notes.
+
+    Strategies:
+      manual: Require manual conflict resolution
+      ours:   Keep local notes on conflict
+      theirs: Keep remote notes on conflict
+      union:  Combine local and remote notes (default)
+    """
     store = ctx.obj["store"]
     try:
-        if force:
-            # Force fetch by updating the local ref
-            store._run_git(["fetch", remote, f"+refs/notes/chats:refs/notes/chats"])
-            click.echo(f"Successfully force-fetched chats from '{remote}'")
-        else:
-            store._run_git(["fetch", remote, "refs/notes/chats:refs/notes/chats"])
-            click.echo(f"Successfully fetched chats from '{remote}'")
+        store.pull_chats(remote, strategy)
+        click.echo(f"Successfully pulled and merged chats from '{remote}'")
     except subprocess.CalledProcessError as e:
         error_msg = e.stderr or str(e)
-        if "non-fast-forward" in error_msg:
-            click.echo(f"Error fetching chats: {error_msg}", err=True)
-            click.echo(
-                "\nThe remote has diverged from your local notes. You can either:",
-                err=True,
-            )
-            click.echo("  1. Force fetch (will overwrite local notes): tigs fetch --force", err=True)
-            click.echo("  2. Push your local notes (if you want to keep them): tigs push --force", err=True)
-        else:
-            click.echo(f"Error fetching chats: {error_msg}", err=True)
+        click.echo(f"Error pulling chats: {error_msg}", err=True)
+        sys.exit(1)
+    except Exception as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+
+
+@main.command("fetch")
+@click.argument("remote", type=str, default="origin")
+@click.pass_context
+def fetch(ctx: click.Context, remote: str) -> None:
+    """Fetch chats from remote repository to staging namespace.
+
+    This command downloads remote notes without modifying your local notes.
+    The remote notes are stored in refs/notes-remote/<remote>/chats for
+    inspection and merging via 'tigs pull'.
+    """
+    store = ctx.obj["store"]
+    try:
+        # Fetch to staging namespace (safe, never overwrites local notes)
+        store._run_git(
+            ["fetch", remote, f"refs/notes/chats:refs/notes-remote/{remote}/chats"]
+        )
+        click.echo(f"Successfully fetched chats from '{remote}' to staging namespace")
+        click.echo(f"  Remote notes: refs/notes-remote/{remote}/chats")
+        click.echo("  Use 'tigs pull' to merge with your local notes")
+    except subprocess.CalledProcessError as e:
+        error_msg = e.stderr or str(e)
+        click.echo(f"Error fetching chats: {error_msg}", err=True)
         sys.exit(1)
     except Exception as e:
         click.echo(f"Error: {e}", err=True)
