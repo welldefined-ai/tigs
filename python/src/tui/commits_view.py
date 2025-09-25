@@ -56,6 +56,10 @@ class CommitView(VisualSelectionMixin, ScrollableMixin):
             limit: Maximum number of commits to load initially
         """
         try:
+            # Preserve current cursor position
+            old_cursor_idx = self.cursor_idx
+            old_cursor_sha = self.get_cursor_sha()
+
             # Get list of commits with notes first
             self.commits_with_notes = set(self.store.list_chats())
 
@@ -100,8 +104,18 @@ class CommitView(VisualSelectionMixin, ScrollableMixin):
                         }
                     )
 
-            # Reset cursor and scroll position
-            self.cursor_idx = 0
+            # Try to preserve cursor position by finding the same commit SHA
+            if old_cursor_sha and self.commits:
+                new_cursor_idx = 0
+                for i, commit in enumerate(self.commits):
+                    if commit["full_sha"] == old_cursor_sha:
+                        new_cursor_idx = i
+                        break
+                self.cursor_idx = min(new_cursor_idx, len(self.commits) - 1)
+            else:
+                # Reset cursor and scroll position only if this is initial load
+                self.cursor_idx = 0
+
             self.reset_scroll()  # Use scrollable mixin method
             self.commit_scroll_offset = 0  # Keep legacy alias in sync
             # Update items reference for mixin
