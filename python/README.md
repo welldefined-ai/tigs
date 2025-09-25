@@ -2,6 +2,24 @@
 
 Tigs (Talks in Git → Specs) is a CLI tool for storing and managing LLM chats in Git associated with code commits.
 
+## Why Tigs?
+
+The biggest bug in software engineering isn't a crash — it's forgetting why. When someone asks "Why is this function designed this way?", too often the answer is "I think the AI suggested it?"
+
+Tigs solves this by:
+- **Preserving decision rationale** - Never lose that god-tier prompt or design debate
+- **Creating traceable history** - Every "why" has a link you can follow
+- **Accelerating onboarding** - New contributors understand the conversation, not just the code
+- **Building prompt libraries** - Your best AI interactions become reusable team assets
+
+## Key Features
+
+- **Non-invasive storage** - Uses Git notes; never rewrites your commits
+- **Fast TUI interface** - Navigate commits, select chats, and link them effortlessly
+- **Tool-agnostic** - Works with chats from Claude Code, Gemini CLI, Qwen Code and more
+- **Version-controlled context** - Your reasoning becomes greppable, diffable, and reviewable
+- **Future: Auto-generated specs** - AI will read commits + chats to generate precise system specifications
+
 ## Installation
 
 ```bash
