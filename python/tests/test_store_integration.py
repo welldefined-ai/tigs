@@ -273,7 +273,7 @@ class TestTUIStoreEndToEnd:
         app.message_view.selected_messages = set([0])
 
         app._handle_store_operation(None)
-        assert "No commits selected" in app.status_message
+        assert "No commit selected" in app.status_message
 
 
 class TestTUIDynamicLayout:

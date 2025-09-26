@@ -345,7 +345,7 @@ class TigsStoreApp:
 
         # Validate that both commits and messages are selected
         if not selected_commits:
-            self.status_message = "Error: No commits selected"
+            self.status_message = "Error: No commit selected"
             self.status_message_time = datetime.now()
             return
 
@@ -358,44 +358,34 @@ class TigsStoreApp:
         chat_content = self.message_view.get_selected_messages_content()
         num_messages = len(self.message_view.selected_messages)
 
-        # Store to each selected commit
-        stored_count = 0
-        overwrite_count = 0
-        errors = []
-
-        for sha in selected_commits:
-            try:
-                # Try to add the chat
-                self.store.add_chat(sha, chat_content)
-                stored_count += 1
-            except ValueError as e:
-                if "already has a chat" in str(e):
-                    # Offer to overwrite
-                    if self._prompt_overwrite(stdscr, sha):
-                        try:
-                            # Remove existing and add new
-                            self.store.remove_chat(sha)
-                            self.store.add_chat(sha, chat_content)
-                            stored_count += 1
-                            overwrite_count += 1
-                        except Exception as ex:
-                            errors.append(f"{sha[:7]}: {str(ex)}")
+        # Store to the selected commit (should be only one)
+        sha = selected_commits[0]  # Single commit selection
+        try:
+            # Try to add the chat
+            self.store.add_chat(sha, chat_content)
+            self.status_message = f"Stored {num_messages} messages → {sha[:7]}"
+        except ValueError as e:
+            if "already has a chat" in str(e):
+                # Offer to overwrite
+                if self._prompt_overwrite(stdscr, sha):
+                    try:
+                        # Remove existing and add new
+                        self.store.remove_chat(sha)
+                        self.store.add_chat(sha, chat_content)
+                        self.status_message = f"Stored {num_messages} messages → {sha[:7]} (overwritten)"
+                    except Exception as ex:
+                        self.status_message = f"Error: {sha[:7]}: {str(ex)}"
                 else:
-                    errors.append(f"{sha[:7]}: {str(e)}")
-
-        # Update status message
-        if errors:
-            self.status_message = f"Errors: {'; '.join(errors)}"
-        else:
-            msg = f"Stored {num_messages} messages → {stored_count} commits"
-            if overwrite_count > 0:
-                msg += f" ({overwrite_count} overwritten)"
-            self.status_message = msg
+                    self.status_message = f"Storage cancelled for {sha[:7]}"
+            else:
+                self.status_message = f"Error: {sha[:7]}: {str(e)}"
+        except Exception as e:
+            self.status_message = f"Error: {sha[:7]}: {str(e)}"
 
         self.status_message_time = datetime.now()
 
         # Clear selections after successful storage
-        if stored_count > 0:
+        if "Error:" not in self.status_message and "cancelled" not in self.status_message:
             self.commit_view.clear_selection()
             self.message_view.clear_selection()
 
