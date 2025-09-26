@@ -50,8 +50,13 @@ tigs store
 # Review linked chats
 tigs view
 
-# Push notes to remote (no commit rewriting)
-tigs push
+# Sync with remote (fetch, pull, push)
+tigs pull   # Fetch and merge remote chats (default: union strategy)
+tigs push   # Push your chats to remote
+
+# Or specify merge strategy
+tigs pull --strategy=ours    # Keep local on conflict
+tigs pull --strategy=theirs  # Keep remote on conflict
 ```
 
 ## How It Works
@@ -76,6 +81,15 @@ Tigs operates locally. Treat chat notes like any code history when pushing to re
 
 **Is this production-ready?**
 Yes for chat curation and traceability. The auto-spec generation module is in active development.
+
+**How does sync work with multiple users?**
+Tigs uses `tigs pull` to fetch and merge remote chats. The default `union` strategy preserves all conversations separately (no message mixing). Each user's chat remains an independent conversation. If conflicts occur, the custom merger auto-resolves by combining all chats as separate YAML documents.
+
+**What are the merge strategies?**
+- `union` (default): Combine local and remote chats, preserving all conversations
+- `ours`: Keep local chats on conflict
+- `theirs`: Keep remote chats on conflict
+- `manual`: Require manual conflict resolution
 
 ## Development Philosophy
 

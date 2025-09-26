@@ -71,17 +71,33 @@ The view interface displays:
 
 ## Syncing with Remote Repositories
 
-Share your chats across team members using Git's native push/pull:
+Share your chats across team members using Git-native sync workflow:
 
 ```bash
+# Pull (fetch + merge) chats from remote
+tigs pull   # Default: union strategy (preserves all conversations)
+
+# Or specify merge strategy
+tigs pull --strategy=ours    # Keep local on conflict
+tigs pull --strategy=theirs  # Keep remote on conflict
+
 # Push chats to remote repository
 tigs push
-
-# Fetch chats from remote repository
-tigs fetch
 ```
 
+### How Sync Works
+
+- **`tigs fetch`**: Downloads remote notes to staging namespace (`refs/notes-remote/<remote>/chats`) - safe, read-only
+- **`tigs pull`**: Fetches and merges using git notes merge strategies
+  - `union` (default): Combines all conversations separately, no message mixing
+  - `ours`: Keep local notes on conflict
+  - `theirs`: Keep remote notes on conflict
+  - `manual`: Require manual resolution
+- **`tigs push`**: Uploads your local notes to remote
+
 The `push` command validates that all commits with chats are pushed to the remote before pushing the notes, preventing orphaned references.
+
+**Multi-user workflow**: Each user's chat is preserved as an independent conversation. The default `union` strategy combines all chats using YAML multi-document format, ensuring no messages are mixed across different conversations.
 
 ## Low-Level Commands
 

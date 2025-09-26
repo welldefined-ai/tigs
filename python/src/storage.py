@@ -1,5 +1,6 @@
 """Core storage implementation for Tigs chats using Git notes."""
 
+import os
 import subprocess
 from pathlib import Path
 from typing import List, Optional
@@ -195,29 +196,76 @@ class TigsRepo:
         except subprocess.CalledProcessError:
             return []
 
-    def push_chats(self, remote: str = "origin", force: bool = False) -> None:
+    def pull_chats(self, remote: str = "origin", strategy: str = "union") -> None:
+        """Pull (fetch + merge) chat notes from remote repository.
+
+        Args:
+            remote: Remote name to pull from.
+            strategy: Merge strategy (manual, ours, theirs, union).
+
+        Raises:
+            subprocess.CalledProcessError: If git operations fail.
+        """
+        # Step 1: Fetch to staging namespace
+        self._run_git(
+            ["fetch", remote, f"refs/notes/chats:refs/notes-remote/{remote}/chats"]
+        )
+
+        # Step 2: Merge from staging ref using specified strategy
+        try:
+            self._run_git(
+                [
+                    "notes",
+                    "--ref=refs/notes/chats",
+                    "merge",
+                    f"-s{strategy}",
+                    f"refs/notes-remote/{remote}/chats",
+                ]
+            )
+        except subprocess.CalledProcessError:
+            # Check if merge conflict occurred
+            worktree_path = os.path.join(self.repo_path, ".git/NOTES_MERGE_WORKTREE")
+            if os.path.exists(worktree_path):
+                # Run custom conflict resolver
+                try:
+                    from .notes_merger import ChatNotesMerger
+
+                    merger = ChatNotesMerger()
+                    merger.resolve_conflict(worktree_path)
+
+                    # Commit the resolved merge
+                    self._run_git(
+                        ["notes", "--ref=refs/notes/chats", "merge", "--commit"]
+                    )
+                except Exception as merge_error:
+                    raise RuntimeError(
+                        f"Failed to auto-resolve notes merge conflict: {merge_error}\n"
+                        "Run: git notes merge --abort to cancel"
+                    ) from merge_error
+            else:
+                raise
+
+    def push_chats(self, remote: str = "origin") -> None:
         """Push chat notes to remote repository.
 
         Args:
             remote: Remote name to push to.
-            force: Force push even if there are unpushed commits.
 
         Raises:
-            ValueError: If there are unpushed commits with chats and force is False.
+            ValueError: If there are unpushed commits with chats.
+            subprocess.CalledProcessError: If push fails (e.g., non-fast-forward).
         """
-        if not force:
-            unpushed = self.get_unpushed_commits_with_chats(remote)
-            if unpushed:
-                raise ValueError(
-                    f"Cannot push chats: {len(unpushed)} commit(s) with chats are not pushed to '{remote}'.\n"
-                    f"Unpushed commits:\n"
-                    + "\n".join(f"  - {sha[:8]}" for sha in unpushed)
-                    + "\n\n"
-                    f"To fix this:\n"
-                    f"  1. Push your commits first: git push {remote} <branch>\n"
-                    f"  2. Then push the chats: tigs push\n\n"
-                    f"Or use --force to push chats anyway (not recommended)"
-                )
+        unpushed = self.get_unpushed_commits_with_chats(remote)
+        if unpushed:
+            raise ValueError(
+                f"Cannot push chats: {len(unpushed)} commit(s) with chats are not pushed to '{remote}'.\n"
+                f"Unpushed commits:\n"
+                + "\n".join(f"  - {sha[:8]}" for sha in unpushed)
+                + "\n\n"
+                f"To fix this:\n"
+                f"  1. Push your commits first: git push {remote} <branch>\n"
+                f"  2. Then push the chats: tigs push"
+            )
 
         self._run_git(["push", remote, "refs/notes/chats:refs/notes/chats"])
 
