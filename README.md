@@ -37,6 +37,8 @@ Tigs solves this by:
 
 ## Quick Start
 
+**Best with Claude Code**: Run `tigs` inside a Git repository that has Claude Code sessions. Your chat history will be automatically loaded and ready to store with commits!
+
 ```bash
 # Install
 pip install tigs  # or: pipx install tigs

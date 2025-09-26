@@ -23,16 +23,12 @@ Tigs solves this by:
 ## Installation
 
 ```bash
-pip install tigs
-```
-
-Or using uv:
-
-```bash
-uv pip install tigs
+pip install tigs  # or: pipx install tigs
 ```
 
 ## Quick Start
+
+**Best with Claude Code**: Run `tigs` inside a Git repository that has Claude Code sessions. Your chat history will be automatically loaded and ready to store with commits!
 
 Tigs provides two main interactive TUI (Terminal User Interface) commands:
 
