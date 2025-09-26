@@ -204,7 +204,6 @@ class TestTUIStoreEndToEnd:
         # Mock the UI state
         app.commit_view.selected_commits = {selected_commit_idx}
         app.message_view.selected_messages = set(selected_message_indices)
-        app.message_view.get_selected_messages_content = Mock()
         app.commit_view.clear_selection = Mock()
         app.message_view.clear_selection = Mock()
         app.commit_view.load_commits = Mock()
@@ -218,7 +217,6 @@ class TestTUIStoreEndToEnd:
         app.chat_parser.clear_selection()
         app.chat_parser.select(log_id, selected_message_indices)
         real_yaml = app.chat_parser.compose()
-        app.message_view.get_selected_messages_content.return_value = real_yaml
 
         # Step 4: Execute store operation (real Git notes operation)
         app._handle_store_operation(None)

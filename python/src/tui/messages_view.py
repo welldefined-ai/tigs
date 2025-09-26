@@ -36,60 +36,22 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
         self._scroll_offset = 0  # Simple line-based scrolling offset
         self.read_only = False  # Flag for read-only mode
 
-    def get_selected_messages_content(self) -> str:
-        """Get the exported chat content from cligent.
-
-        Returns:
-            The exported chat content from cligent
-        """
-        if not self.chat_parser or not hasattr(self, "current_log_id"):
-            raise ValueError("No chat loaded")
-
-        # Clear any previous selections
-        self.chat_parser.clear_selection()
-
-        # Select the messages we want
-        selected_indices = sorted(self.selected_messages)
-        self.chat_parser.select(self.current_log_id, selected_indices)
-
-        # Compose returns the exported text directly
-        return self.chat_parser.compose()
-
-    def load_messages(self, log_id: str) -> None:
+    def load_messages(self, log_uri: str) -> None:
         """Load messages for a specific log.
 
         Args:
-            log_id: ID of the log to load messages from
+            log_uri: URI of the log to load messages from
         """
         if not self.chat_parser:
             self.messages = []
             return
 
         try:
-            chat = self.chat_parser.parse(log_id)
-            self.current_log_id = log_id  # Store log ID for compose()
+            chat = self.chat_parser.parse(log_uri)
+            self.current_log_uri = log_uri  # Store log URI for compose()
 
-            # Extract messages from the chat
-            self.messages = []
-            for msg in chat.messages:
-                # Handle cligent Role enum or string
-                if hasattr(msg, "role"):
-                    role = msg.role
-                    # Convert Role enum to string if needed
-                    if hasattr(role, "value"):
-                        role = role.value
-                    elif role == Role.USER:
-                        role = "user"
-                    elif role == Role.ASSISTANT:
-                        role = "assistant"
-                    else:
-                        role = str(role).lower()
-                else:
-                    role = "unknown"
-
-                content = msg.content if hasattr(msg, "content") else str(msg)
-                timestamp = msg.timestamp if hasattr(msg, "timestamp") else None
-                self.messages.append((role, content, timestamp))
+            # Extract messages from the chat - store Message objects directly
+            self.messages = list(chat.messages)
 
             # Position cursor at last message for new messages
             self.cursor_idx = max(0, len(self.messages) - 1)
@@ -159,7 +121,11 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
         # Build ALL display lines for ALL messages first
         all_lines = []
         for i in range(len(self.messages)):
-            role, content, timestamp = self.messages[i]
+            msg = self.messages[i]
+            role = msg.role.value if hasattr(msg.role, 'value') else str(msg.role)
+            content = msg.content if hasattr(msg, "content") else str(msg)
+            timestamp = msg.timestamp
+            message_log_uri = msg.log_uri
 
             # Check if selected using mixin method (only if not read-only)
             is_selected = self.is_item_selected(i) if not self.read_only else False
@@ -356,7 +322,7 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
         """Calculate height needed for each message with word wrapping.
 
         Args:
-            messages: List of (role, content, timestamp) tuples
+            messages: List of Message objects
             width: Available width for display
 
         Returns:
@@ -365,7 +331,11 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
         heights = []
         content_width = max(10, width - 6)  # Account for borders and indentation
 
-        for role, content, timestamp in messages:
+        for msg in messages:
+            role = msg.role.value if hasattr(msg.role, 'value') else str(msg.role)
+            content = msg.content if hasattr(msg, "content") else str(msg)
+            timestamp = msg.timestamp
+            message_log_uri = msg.log_uri
             # Header line
             height = 1
 
@@ -518,12 +488,12 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
         total_lines = 0
         content_width = max(10, width - 6)
 
-        for i, (role, content, timestamp) in enumerate(self.messages):
+        for i, msg in enumerate(self.messages):
             # Add 1 line for header
             total_lines += 1
 
             # Add lines for content
-            for line in content.split("\n"):
+            for line in msg.content.split("\n"):
                 wrapped_lines = self._word_wrap(line, content_width)
                 total_lines += len(wrapped_lines)
 
@@ -556,7 +526,11 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
             line_offset += 1
 
             # Add lines for content
-            role, content, timestamp = self.messages[i]
+            msg = self.messages[i]
+            role = msg.role.value if hasattr(msg.role, 'value') else str(msg.role)
+            content = msg.content if hasattr(msg, "content") else str(msg)
+            timestamp = msg.timestamp
+            message_log_uri = msg.log_uri
             for line in content.split("\n"):
                 wrapped_lines = self._word_wrap(line, content_width)
                 line_offset += len(wrapped_lines)

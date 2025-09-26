@@ -56,9 +56,9 @@ class TigsStoreApp:
         if self.chat_parser:
             self.log_view.load_logs()
             # Auto-load messages for the first log
-            log_id = self.log_view.get_selected_log_id()
-            if log_id:
-                self.message_view.load_messages(log_id)
+            log_uri = self.log_view.get_selected_log_uri()
+            if log_uri:
+                self.message_view.load_messages(log_uri)
                 # Update message selection for any initially selected commits
                 self._update_message_selection_for_selected_commits()
 
@@ -288,9 +288,9 @@ class TigsStoreApp:
             elif self.focused_pane == 2:  # Logs pane focused
                 if self.log_view.handle_input(key):
                     # Log selection changed, reload messages
-                    log_id = self.log_view.get_selected_log_id()
-                    if log_id:
-                        self.message_view.load_messages(log_id)
+                    log_uri = self.log_view.get_selected_log_uri()
+                    if log_uri:
+                        self.message_view.load_messages(log_uri)
                         # After loading new messages, update selection based on selected commits
                         self._update_message_selection_for_selected_commits()
 
@@ -343,54 +343,107 @@ class TigsStoreApp:
         # Get selected commits
         selected_commits = self.commit_view.get_selected_shas()
 
-        # Validate that both commits and messages are selected
+        # Validate that commit is selected
         if not selected_commits:
             self.status_message = "Error: No commit selected"
             self.status_message_time = datetime.now()
             return
 
-        if not self.message_view.selected_messages:
-            self.status_message = "Error: No messages selected"
+        # Get current log URI
+        current_log_uri = self.log_view.get_selected_log_uri()
+        if not current_log_uri:
+            self.status_message = "Error: No log selected"
             self.status_message_time = datetime.now()
             return
 
-        # Get the content in cligent's export format
-        chat_content = self.message_view.get_selected_messages_content()
-        num_messages = len(self.message_view.selected_messages)
-
         # Store to the selected commit (should be only one)
         sha = selected_commits[0]  # Single commit selection
+        num_selected = len(self.message_view.selected_messages)
+
         try:
-            # Try to add the chat
-            self.store.add_chat(sha, chat_content)
-            self.status_message = f"Stored {num_messages} messages → {sha[:7]}"
-        except ValueError as e:
-            if "already has a chat" in str(e):
-                # Offer to overwrite
-                if self._prompt_overwrite(stdscr, sha):
-                    try:
-                        # Remove existing and add new
-                        self.store.remove_chat(sha)
-                        self.store.add_chat(sha, chat_content)
-                        self.status_message = f"Stored {num_messages} messages → {sha[:7]} (overwritten)"
-                    except Exception as ex:
-                        self.status_message = f"Error: {sha[:7]}: {str(ex)}"
+            # Update messages for current log URI
+            success = self._update_commit_messages_for_log_uri(sha, current_log_uri)
+
+            if success:
+                if num_selected > 0:
+                    self.status_message = f"Stored {num_selected} messages → {sha[:7]} (log: {current_log_uri})"
                 else:
-                    self.status_message = f"Storage cancelled for {sha[:7]}"
+                    self.status_message = f"Removed messages from {sha[:7]} (log: {current_log_uri})"
             else:
-                self.status_message = f"Error: {sha[:7]}: {str(e)}"
+                self.status_message = f"No changes made to {sha[:7]}"
+
         except Exception as e:
             self.status_message = f"Error: {sha[:7]}: {str(e)}"
 
         self.status_message_time = datetime.now()
 
         # Clear selections after successful storage
-        if "Error:" not in self.status_message and "cancelled" not in self.status_message:
+        if "Error:" not in self.status_message:
             self.commit_view.clear_selection()
             self.message_view.clear_selection()
 
             # Update commit indicators (reload to get updated notes status)
             self.commit_view.load_commits()
+
+    def _update_commit_messages_for_log_uri(self, sha: str, current_log_uri: str) -> bool:
+        """Update messages for a specific log URI in a commit's stored chat.
+
+        Args:
+            sha: The commit SHA
+            current_log_uri: The log URI to update messages for
+
+        Returns:
+            True if changes were made, False if no changes
+        """
+        try:
+            # Get existing chat content from git notes
+            existing_content = self.store.show_chat(sha)
+        except (KeyError, Exception):
+            existing_content = None
+
+        # 1. Get all existing associated messages for the commit
+        all_existing_messages = []
+        if existing_content and self.chat_parser:
+            try:
+                existing_chat = self.chat_parser.decompose(existing_content)
+                all_existing_messages = existing_chat.messages
+            except Exception:
+                all_existing_messages = []
+
+        # 2. Remove messages that belong to the current log URI
+        messages_from_other_logs = []
+        for msg in all_existing_messages:
+            msg_log_uri = msg.log_uri if hasattr(msg, 'log_uri') else 'unknown'
+            if msg_log_uri != current_log_uri:
+                messages_from_other_logs.append(msg)
+
+        # 3. Add currently selected messages to the list
+        final_messages = messages_from_other_logs.copy()
+        if self.message_view.selected_messages:
+            # Get selected messages directly from message_view
+            for idx in self.message_view.selected_messages:
+                if idx < len(self.message_view.messages):
+                    msg = self.message_view.messages[idx]
+                    final_messages.append(msg)
+
+        # 4. Save the final list or remove if empty
+        if not final_messages:
+            # No messages left - remove git note
+            if existing_content:
+                self.store.remove_chat(sha)
+                return True
+            return False
+        else:
+            # We have messages - compose them directly and store
+            new_content = self.chat_parser.compose(*final_messages)
+            if new_content:
+                # Remove existing chat first if it exists
+                if existing_content:
+                    self.store.remove_chat(sha)
+                self.store.add_chat(sha, new_content)
+                return True
+
+        return False
 
     def _prompt_overwrite(self, stdscr, sha: str) -> bool:
         """Prompt user to overwrite existing note.
@@ -428,33 +481,39 @@ class TigsStoreApp:
         self.message_view.scroll_to_cursor(pane_height)
 
     def _update_message_selection_for_selected_commits(self) -> None:
-        """Update message selection based on stored chat content for all selected commits."""
+        """Update message selection based on stored chat content for selected commits and current log URI."""
         if not self.message_view.messages:
             return
 
         # Clear current selection
         self.message_view.selected_messages.clear()
 
-        # Get all selected commit SHAs
+        # Get the selected commit SHA (should be only one)
         selected_shas = self.commit_view.get_selected_shas()
-
         if not selected_shas:
             return
 
-        # Collect all stored messages from all selected commits
-        all_stored_messages = []
-        for sha in selected_shas:
-            try:
-                # Get raw chat content from git notes
-                content = self.store.show_chat(sha)
+        # Get current log URI
+        current_log_uri = self.log_view.get_selected_log_uri()
+        if not current_log_uri:
+            return
 
-                if content and self.chat_parser:
-                    try:
-                        # Parse the stored chat content
-                        stored_chat = self.chat_parser.decompose(content)
+        sha = selected_shas[0]  # Single commit selection
 
-                        # Extract stored messages for comparison
-                        for msg in stored_chat.messages:
+        try:
+            # Get raw chat content from git notes
+            content = self.store.show_chat(sha)
+
+            if content and self.chat_parser:
+                try:
+                    # Parse the stored chat content
+                    stored_chat = self.chat_parser.decompose(content)
+
+                    # Extract stored messages only for the current log URI
+                    stored_messages_for_current_log = []
+                    for msg in stored_chat.messages:
+                        msg_log_uri = msg.log_uri if hasattr(msg, 'log_uri') else 'unknown'
+                        if msg_log_uri == current_log_uri:
                             # Handle role conversion
                             if hasattr(msg, "role"):
                                 role = msg.role
@@ -468,23 +527,40 @@ class TigsStoreApp:
                             content_text = (
                                 msg.content if hasattr(msg, "content") else str(msg)
                             )
-                            all_stored_messages.append((role, content_text))
+                            stored_messages_for_current_log.append((role, content_text))
 
-                    except Exception:
-                        # If parsing fails, skip this commit
-                        continue
+                    # Compare with current messages and select matches from current log URI
+                    for stored_idx, (stored_role, stored_content) in enumerate(stored_messages_for_current_log):
+                        found = False
+                        # Find this stored message in the current messages
+                        for i, msg in enumerate(self.message_view.messages):
+                            current_role = msg.role.value if hasattr(msg.role, 'value') else str(msg.role)
+                            current_content = msg.content if hasattr(msg, "content") else str(msg)
+                            message_log_uri = msg.log_uri
+                            # Only consider messages from the current log URI
+                            if message_log_uri == current_log_uri:
+                                if current_role == stored_role:
+                                    # Normalize line endings and trailing spaces for comparison
+                                    current_clean = current_content.strip().replace('\r\n', '\n').replace('\r', '\n')
+                                    stored_clean = stored_content.strip().replace('\r\n', '\n').replace('\r', '\n')
 
-            except (KeyError, Exception):
-                # No chat for this commit or error occurred - skip this commit
-                continue
+                                    # Remove trailing spaces from each line (both before newlines and at end of string)
+                                    import re
+                                    current_normalized = re.sub(r'[ \t]+$', '', current_clean, flags=re.MULTILINE)
+                                    stored_normalized = re.sub(r'[ \t]+$', '', stored_clean, flags=re.MULTILINE)
 
-        # Compare with current messages and select matches
-        for i, (current_role, current_content, _) in enumerate(self.message_view.messages):
-            for stored_role, stored_content in all_stored_messages:
-                if (current_role == stored_role and
-                    current_content.strip() == stored_content.strip()):
-                    self.message_view.selected_messages.add(i)
-                    break
+                                    if current_normalized == stored_normalized:
+                                        self.message_view.selected_messages.add(i)
+                                        found = True
+                                        break  # Found this stored message, move to next stored message
+
+                except Exception:
+                    # If parsing fails, ignore
+                    pass
+
+        except (KeyError, Exception):
+            # No chat for this commit or error occurred - ignore
+            pass
 
     def _get_contextual_help(self) -> str:
         """Get contextual help text based on focused pane.
