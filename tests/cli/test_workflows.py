@@ -461,8 +461,8 @@ messages:
             assert result.returncode != 0
             assert "deprecated" in result.stderr.lower()
 
-    def test_full_e2e_store_push_fetch_view_cycle(self):
-        """Test complete end-to-end workflow: store -> push -> fetch -> view across two repos."""
+    def test_full_e2e_store_push_pull_view_cycle(self):
+        """Test complete end-to-end workflow: store -> push -> pull -> view across two repos."""
         with tempfile.TemporaryDirectory() as tmpdir:
             # Setup: Create bare remote repository
             remote_path = Path(tmpdir) / "remote.git"
@@ -548,10 +548,10 @@ messages:
                 "Clone should not have chats before fetch"
             )
 
-            # Step 4: FETCH - Fetch chats from remote
-            result = run_tigs(repo2_path, "fetch")
-            assert result.returncode == 0, "Failed to fetch chats"
-            assert "successfully fetched" in result.stdout.lower()
+            # Step 4: PULL - Pull (fetch + merge) chats from remote
+            result = run_tigs(repo2_path, "pull")
+            assert result.returncode == 0, "Failed to pull chats"
+            assert "successfully pulled" in result.stdout.lower()
 
             # Step 5: VERIFY - Check that chats are now available
             result = run_tigs(repo2_path, "list-chats")
@@ -580,8 +580,8 @@ messages:
             result = run_tigs(repo2_path, "push")
             assert result.returncode == 0
 
-            # Step 7: Original repo fetches the new chat
-            result = run_tigs(repo1_path, "fetch")
+            # Step 7: Original repo pulls the new chat
+            result = run_tigs(repo1_path, "pull")
             assert result.returncode == 0
 
             result = run_tigs(repo1_path, "show-chat", commit_shas[1])
@@ -597,7 +597,7 @@ messages:
             chats2 = set(result2.stdout.strip().split("\n"))
             assert chats1 == chats2, "Both repos should have identical chat lists"
 
-            print("✓ Complete e2e cycle: store -> push -> fetch -> view successful")
+            print("✓ Complete e2e cycle: store -> push -> pull -> view successful")
             print(f"✓ Synced {len(chats1)} chats between repositories")
 
 
