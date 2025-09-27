@@ -1,6 +1,7 @@
 """Tests for message display with variable heights."""
 
 from src.tui.messages_view import MessageView
+from tests.conftest import create_mock_message
 
 
 class TestMessageWrapping:
@@ -59,8 +60,8 @@ class TestMessageWrapping:
     def test_calculate_message_heights_simple(self):
         """Test message height calculation with simple messages."""
         messages = [
-            ("user", "Short message", None),
-            ("assistant", "Another short response", None),
+            create_mock_message("user", "Short message", None),
+            create_mock_message("assistant", "Another short response", None),
         ]
 
         heights = self.view._calculate_message_heights(messages, 40)
@@ -72,12 +73,12 @@ class TestMessageWrapping:
     def test_calculate_message_heights_long_content(self):
         """Test height calculation with content that needs wrapping."""
         messages = [
-            (
+            create_mock_message(
                 "user",
                 "This is a very long message that will definitely need to be wrapped when displayed",
                 None,
             ),
-            ("assistant", "Short reply", None),
+            create_mock_message("assistant", "Short reply", None),
         ]
 
         heights = self.view._calculate_message_heights(messages, 30)
@@ -88,7 +89,7 @@ class TestMessageWrapping:
     def test_calculate_message_heights_multiline(self):
         """Test height calculation with multi-line content."""
         messages = [
-            ("user", "Multi\nline\nmessage\nwith\nbreaks", None),
+            create_mock_message("user", "Multi\nline\nmessage\nwith\nbreaks", None),
         ]
 
         heights = self.view._calculate_message_heights(messages, 40)
@@ -99,13 +100,13 @@ class TestMessageWrapping:
     def test_calculate_message_heights_mixed(self):
         """Test height calculation with mixed message types."""
         messages = [
-            ("user", "Short", None),
-            (
+            create_mock_message("user", "Short", None),
+            create_mock_message(
                 "assistant",
                 "This is a very long response that will need multiple lines when displayed in the terminal",
                 None,
             ),
-            ("user", "Multi\nline\nmessage", None),
+            create_mock_message("user", "Multi\nline\nmessage", None),
         ]
 
         heights = self.view._calculate_message_heights(messages, 40)
@@ -117,9 +118,9 @@ class TestMessageWrapping:
     def test_get_visible_messages_variable_simple(self):
         """Test visible message calculation with simple case."""
         self.view.messages = [
-            ("user", "Message 1", None),
-            ("assistant", "Response 1", None),
-            ("user", "Message 2", None),
+            create_mock_message("user", "Message 1", None),
+            create_mock_message("assistant", "Response 1", None),
+            create_mock_message("user", "Message 2", None),
         ]
         self.view.message_scroll_offset = 0
         self.view.message_cursor_idx = 0
@@ -137,7 +138,7 @@ class TestMessageWrapping:
 
     def test_get_visible_messages_variable_cursor_visibility(self):
         """Test that cursor is always visible."""
-        self.view.messages = [("user", f"Message {i}", None) for i in range(10)]
+        self.view.messages = [create_mock_message("user", f"Message {i}", None) for i in range(10)]
         self.view.message_scroll_offset = 0
         self.view.message_cursor_idx = 5  # Focus on message in middle
 
@@ -164,8 +165,8 @@ class TestMessageWrapping:
     def test_get_display_lines_with_width(self):
         """Test display lines generation with width parameter."""
         self.view.messages = [
-            ("user", "This is a message that should be wrapped", None),
-            ("assistant", "Short reply", None),
+            create_mock_message("user", "This is a message that should be wrapped", None),
+            create_mock_message("assistant", "Short reply", None),
         ]
         # Manually set cursor to first message to avoid auto-initialization to last message
         self.view.cursor_idx = 0
@@ -192,7 +193,7 @@ class TestMessageWrapping:
     def test_get_display_lines_narrow_width(self):
         """Test display with very narrow width."""
         self.view.messages = [
-            (
+            create_mock_message(
                 "user",
                 "This is a very long message that will definitely need wrapping",
                 None,
@@ -213,8 +214,8 @@ class TestMessageWrapping:
     def test_scroll_to_cursor_sets_scroll_offset(self):
         """Test that scroll_to_cursor sets the scroll offset correctly."""
         self.view.messages = [
-            ("user", "Test message", None),
-            ("assistant", "Response", None),
+            create_mock_message("user", "Test message", None),
+            create_mock_message("assistant", "Response", None),
         ]
         self.view.cursor_idx = 1
         self.view._last_width = 80  # Set width for calculation
@@ -239,7 +240,7 @@ class TestMessageWrapping:
 
     def test_visual_mode_indicator_space(self):
         """Test that visual mode indicator reserves space."""
-        self.view.messages = [("user", "Test", None)]
+        self.view.messages = [create_mock_message("user", "Test", None)]
         self.view.visual_mode = True
         self.view.message_cursor_idx = 0
 
