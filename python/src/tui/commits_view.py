@@ -349,15 +349,7 @@ class CommitView(VisualSelectionMixin, ScrollableMixin):
             else:
                 lines.append(status_line)
 
-        # Handle visual mode indicator (only in store mode)
-        if self.visual_mode and not self.read_only and len(lines) >= 2:
-            # Visual mode replaces the footer
-            lines[-2] = "" if not colors_enabled else [("", COLOR_DEFAULT)]
-            lines[-1] = (
-                SelectionIndicators.VISUAL_MODE
-                if not colors_enabled
-                else [(SelectionIndicators.VISUAL_MODE, COLOR_DEFAULT)]
-            )
+        # Visual mode is disabled for single selection, so no indicator needed
 
         return lines
 
@@ -387,9 +379,31 @@ class CommitView(VisualSelectionMixin, ScrollableMixin):
                 self.cursor_idx += 1
                 selection_changed = True
 
-        # Delegate selection operations to mixin (only if not read-only)
+        # Handle single selection (only if not read-only)
         elif not self.read_only:
-            selection_changed = self.handle_selection_input(key)
+            selection_changed = self.handle_single_selection_input(key)
+
+        return selection_changed
+
+    def handle_single_selection_input(self, key: int) -> bool:
+        """Handle single selection input for commits.
+
+        Args:
+            key: The key pressed
+
+        Returns:
+            True if selection changed
+        """
+        selection_changed = False
+
+        if key == ord(" "):  # Space - select current commit (clear others)
+            # Clear all previous selections
+            self.selected_commits.clear()
+            # Select current commit
+            self.selected_commits.add(self.cursor_idx)
+            selection_changed = True
+
+        # Ignore other selection keys (v, a, c, etc.) to disable multi-selection
 
         return selection_changed
 
@@ -698,9 +712,7 @@ class CommitView(VisualSelectionMixin, ScrollableMixin):
         # Rows available for content between borders
         rows = max(0, height - 2)
 
-        # Reserve rows for any status footer we append
-        if self.visual_mode:
-            rows = max(0, rows - 2)  # One blank + "-- VISUAL --"
+        # No visual mode in single selection, so no extra rows needed
 
         # Estimate based on average lines per commit
         # Most commits take 1 line, some wrap to 2-8 lines

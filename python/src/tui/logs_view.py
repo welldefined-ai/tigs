@@ -17,7 +17,7 @@ class LogsView:
             chat_parser: ChatParser instance for loading logs
         """
         self.chat_parser = chat_parser
-        self.logs = []  # List of (log_id, metadata) tuples
+        self.logs = []  # List of (log_uri, metadata) tuples
         self.selected_log_idx = 0
         self.log_scroll_offset = 0
 
@@ -135,11 +135,11 @@ class LogsView:
 
         return selection_changed
 
-    def get_selected_log_id(self) -> Optional[str]:
-        """Get the ID of the currently selected log.
+    def get_selected_log_uri(self) -> Optional[str]:
+        """Get the URI of the currently selected log.
 
         Returns:
-            Log ID or None if no logs available
+            Log URI or None if no logs available
         """
         if self.logs and 0 <= self.selected_log_idx < len(self.logs):
             return self.logs[self.selected_log_idx][0]

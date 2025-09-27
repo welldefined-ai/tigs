@@ -18,7 +18,7 @@ class TestCligentIntegration:
             "Need at least one accessible Claude Code log for testing"
         )
 
-        for log_id, info in claude_logs:
+        for log_uri, info in claude_logs:
             assert info["accessible"] is True
             assert "size" in info
             assert info["size"] > 0
@@ -28,11 +28,11 @@ class TestCligentIntegration:
         """Test parsing a real Claude Code log."""
         if not claude_logs:
             pytest.skip("No Claude logs available in test environment")
-        log_id, _ = claude_logs[0]
+        log_uri, _ = claude_logs[0]
         parser = ChatParser()
 
         # Parse the log
-        chat = parser.parse(log_id)
+        chat = parser.parse(log_uri)
         assert len(chat.messages) > 0
 
         # Verify message structure
@@ -47,13 +47,13 @@ class TestCligentIntegration:
         """Test that cligent produces valid YAML in tigs.chat/v1 format."""
         if not claude_logs:
             pytest.skip("No Claude logs available in test environment")
-        log_id, _ = claude_logs[0]
+        log_uri, _ = claude_logs[0]
         parser = ChatParser()
 
         # Parse and select some messages
-        chat = parser.parse(log_id)
+        chat = parser.parse(log_uri)
         message_count = min(5, len(chat.messages))  # Select up to 5 messages
-        parser.select(log_id, list(range(message_count)))
+        parser.select(log_uri, list(range(message_count)))
 
         # Compose YAML
         yaml_content = parser.compose()
@@ -82,13 +82,13 @@ class TestCligentIntegration:
         """Test storing real Claude Code chat content in Git notes."""
         if not claude_logs:
             pytest.skip("No Claude logs available in test environment")
-        log_id, _ = claude_logs[0]
+        log_uri, _ = claude_logs[0]
         parser = ChatParser()
 
         # Parse and select first 3 messages
-        chat = parser.parse(log_id)
+        chat = parser.parse(log_uri)
         message_indices = list(range(min(3, len(chat.messages))))
-        parser.select(log_id, message_indices)
+        parser.select(log_uri, message_indices)
 
         # Get YAML content
         yaml_content = parser.compose()
@@ -133,16 +133,16 @@ class TestCligentIntegration:
         stored_contents = []
 
         for i in range(2):
-            log_id, _ = claude_logs[i]
+            log_uri, _ = claude_logs[i]
             commit_sha = commits[i]
 
             # Use simple selection (first 2 messages)
-            chat = parser.parse(log_id)
+            chat = parser.parse(log_uri)
             if len(chat.messages) < 2:
                 continue
 
             parser.clear_selection()
-            parser.select(log_id, [0, 1])
+            parser.select(log_uri, [0, 1])
             yaml_content = parser.compose()
             stored_contents.append((commit_sha, yaml_content))
 
@@ -174,14 +174,14 @@ class TestCligentIntegration:
             pytest.skip("No Claude logs available in test environment")
         # Find the largest available log
         largest_log = max(claude_logs, key=lambda x: x[1]["size"])
-        log_id, info = largest_log
+        log_uri, info = largest_log
 
         parser = ChatParser()
-        chat = parser.parse(log_id)
+        chat = parser.parse(log_uri)
 
         # Select a substantial portion of messages (up to 20)
         message_count = min(20, len(chat.messages))
-        parser.select(log_id, list(range(message_count)))
+        parser.select(log_uri, list(range(message_count)))
 
         yaml_content = parser.compose()
 
@@ -238,15 +238,15 @@ class TestCligentIntegration:
             pytest.skip("No Claude logs available in test environment")
         parser = ChatParser()
 
-        for log_id, _ in claude_logs[:2]:  # Test first 2 logs
-            chat = parser.parse(log_id)
+        for log_uri, _ in claude_logs[:2]:  # Test first 2 logs
+            chat = parser.parse(log_uri)
             if len(chat.messages) == 0:
                 continue
 
             # Test different message selection sizes
             for size in [1, min(3, len(chat.messages)), min(10, len(chat.messages))]:
                 parser.clear_selection()
-                parser.select(log_id, list(range(size)))
+                parser.select(log_uri, list(range(size)))
                 yaml_content = parser.compose()
 
                 # Verify schema compliance
@@ -269,16 +269,16 @@ class TestCligentIntegration:
         if not claude_logs:
             pytest.skip("No Claude Code logs available")
 
-        log_id, _ = claude_logs[0]
+        log_uri, _ = claude_logs[0]
         parser = ChatParser()
-        chat = parser.parse(log_id)
+        chat = parser.parse(log_uri)
 
         if len(chat.messages) < 3:
             pytest.skip("Need at least 3 messages for selection testing")
 
         # Test selecting first 3 messages (more reliable)
         selected_indices = [0, 1, 2]
-        parser.select(log_id, selected_indices)
+        parser.select(log_uri, selected_indices)
 
         yaml_content = parser.compose()
         data = yaml.safe_load(yaml_content)
@@ -298,14 +298,14 @@ class TestCligentIntegration:
         if not claude_logs:
             pytest.skip("No Claude Code logs available")
 
-        log_id, _ = claude_logs[0]
+        log_uri, _ = claude_logs[0]
         parser = ChatParser()
-        chat = parser.parse(log_id)
+        chat = parser.parse(log_uri)
 
         if len(chat.messages) < message_count:
             pytest.skip(f"Need at least {message_count} messages")
 
-        parser.select(log_id, list(range(message_count)))
+        parser.select(log_uri, list(range(message_count)))
         yaml_content = parser.compose()
 
         data = yaml.safe_load(yaml_content)

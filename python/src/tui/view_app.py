@@ -70,26 +70,8 @@ class TigsViewApp:
                 try:
                     chat = self.chat_parser.decompose(content)
 
-                    # Load parsed messages into MessageView
-                    self.message_view.messages = []
-                    for msg in chat.messages:
-                        # Handle role conversion
-                        if hasattr(msg, "role"):
-                            role = msg.role
-                            if hasattr(role, "value"):
-                                role = role.value
-                            else:
-                                role = str(role).lower()
-                        else:
-                            role = "unknown"
-
-                        content_text = (
-                            msg.content if hasattr(msg, "content") else str(msg)
-                        )
-                        timestamp = msg.timestamp if hasattr(msg, "timestamp") else None
-                        self.message_view.messages.append(
-                            (role, content_text, timestamp)
-                        )
+                    # Load parsed messages into MessageView (store Message objects directly)
+                    self.message_view.messages = list(chat.messages)
 
                     # Update MessageView state
                     self.message_view.items = self.message_view.messages

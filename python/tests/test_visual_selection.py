@@ -266,8 +266,8 @@ class TestCommitViewSelection:
         assert self.view.commit_cursor_idx == 0
         assert self.view.cursor_idx == 0
 
-    def test_commit_view_visual_selection(self):
-        """Test CommitView uses mixin for visual selection."""
+    def test_commit_view_single_selection(self):
+        """Test CommitView single selection behavior."""
         self.view.commits = [
             {"sha": "abc123", "full_sha": "abc123def", "subject": "Test 1"},
             {"sha": "def456", "full_sha": "def456ghi", "subject": "Test 2"},
@@ -275,18 +275,22 @@ class TestCommitViewSelection:
         ]
         self.view.items = self.view.commits
 
-        # Enter visual mode
+        # Visual mode should be disabled (v key ignored)
         result = self.view.handle_input(ord("v"))
-        assert self.view.visual_mode is True
+        assert self.view.visual_mode is False
 
-        # Move cursor
-        self.view.handle_input(curses.KEY_DOWN)
-        self.view.handle_input(curses.KEY_DOWN)
-
-        # Exit visual mode
-        result = self.view.handle_input(ord("v"))
+        # Select current commit (index 0)
+        result = self.view.handle_input(ord(" "))
         assert result is True
-        assert self.view.selected_commits == {0, 1, 2}
+        assert self.view.selected_commits == {0}
+
+        # Move cursor and select different commit
+        self.view.handle_input(curses.KEY_DOWN)
+        self.view.handle_input(curses.KEY_DOWN)  # Now at index 2
+        result = self.view.handle_input(ord(" "))
+        assert result is True
+        # Should clear previous selection and select only current
+        assert self.view.selected_commits == {2}
 
 
 class TestMessageViewSelection:

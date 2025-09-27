@@ -185,3 +185,33 @@ def multi_commit_repo(git_repo):
         commits.append(sha_result.stdout.strip())
 
     return git_repo, commits
+
+
+def create_mock_message(
+    role: str, content: str, timestamp=None, log_uri: str = "test_log"
+):
+    """Create a mock Message object for testing.
+
+    Args:
+        role: Message role ('user', 'assistant', 'system')
+        content: Message content
+        timestamp: Optional timestamp
+        log_uri: Log URI (default: 'test_log')
+
+    Returns:
+        Mock object with role, content, timestamp, and log_uri attributes
+    """
+    from unittest.mock import Mock
+
+    mock_msg = Mock()
+
+    # Create role object that can have .value attribute
+    mock_role = Mock()
+    mock_role.value = role
+    mock_msg.role = mock_role
+
+    mock_msg.content = content
+    mock_msg.timestamp = timestamp
+    mock_msg.log_uri = log_uri
+
+    return mock_msg
