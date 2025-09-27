@@ -18,9 +18,15 @@ class TestMessagesStatusFooter:
 
         # Create sample messages using Message objects
         self.view.messages = [
-            create_mock_message("user", "Hello, how are you?", datetime(2025, 9, 10, 10, 0)),
-            create_mock_message("assistant", "I am doing well, thank you!", datetime(2025, 9, 10, 10, 1)),
-            create_mock_message("user", "Can you help me with Python?", datetime(2025, 9, 10, 10, 2)),
+            create_mock_message(
+                "user", "Hello, how are you?", datetime(2025, 9, 10, 10, 0)
+            ),
+            create_mock_message(
+                "assistant", "I am doing well, thank you!", datetime(2025, 9, 10, 10, 1)
+            ),
+            create_mock_message(
+                "user", "Can you help me with Python?", datetime(2025, 9, 10, 10, 2)
+            ),
             create_mock_message(
                 "assistant",
                 "Of course! I would be happy to help.",

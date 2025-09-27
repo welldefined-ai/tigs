@@ -138,7 +138,9 @@ class TestMessageWrapping:
 
     def test_get_visible_messages_variable_cursor_visibility(self):
         """Test that cursor is always visible."""
-        self.view.messages = [create_mock_message("user", f"Message {i}", None) for i in range(10)]
+        self.view.messages = [
+            create_mock_message("user", f"Message {i}", None) for i in range(10)
+        ]
         self.view.message_scroll_offset = 0
         self.view.message_cursor_idx = 5  # Focus on message in middle
 
@@ -165,7 +167,9 @@ class TestMessageWrapping:
     def test_get_display_lines_with_width(self):
         """Test display lines generation with width parameter."""
         self.view.messages = [
-            create_mock_message("user", "This is a message that should be wrapped", None),
+            create_mock_message(
+                "user", "This is a message that should be wrapped", None
+            ),
             create_mock_message("assistant", "Short reply", None),
         ]
         # Manually set cursor to first message to avoid auto-initialization to last message

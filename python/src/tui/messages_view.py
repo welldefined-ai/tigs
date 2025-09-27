@@ -121,7 +121,7 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
         all_lines = []
         for i in range(len(self.messages)):
             msg = self.messages[i]
-            role = msg.role.value if hasattr(msg.role, 'value') else str(msg.role)
+            role = msg.role.value if hasattr(msg.role, "value") else str(msg.role)
             content = msg.content if hasattr(msg, "content") else str(msg)
             timestamp = msg.timestamp
 

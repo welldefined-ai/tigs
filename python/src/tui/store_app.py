@@ -368,7 +368,9 @@ class TigsStoreApp:
                 if num_selected > 0:
                     self.status_message = f"Stored {num_selected} messages → {sha[:7]} (log: {current_log_uri})"
                 else:
-                    self.status_message = f"Removed messages from {sha[:7]} (log: {current_log_uri})"
+                    self.status_message = (
+                        f"Removed messages from {sha[:7]} (log: {current_log_uri})"
+                    )
             else:
                 self.status_message = f"No changes made to {sha[:7]}"
 
@@ -385,7 +387,9 @@ class TigsStoreApp:
             # Update commit indicators (reload to get updated notes status)
             self.commit_view.load_commits()
 
-    def _update_commit_messages_for_log_uri(self, sha: str, current_log_uri: str) -> bool:
+    def _update_commit_messages_for_log_uri(
+        self, sha: str, current_log_uri: str
+    ) -> bool:
         """Update messages for a specific log URI in a commit's stored chat.
 
         Args:
@@ -413,7 +417,7 @@ class TigsStoreApp:
         # 2. Remove messages that belong to the current log URI
         messages_from_other_logs = []
         for msg in all_existing_messages:
-            msg_log_uri = msg.log_uri if hasattr(msg, 'log_uri') else 'unknown'
+            msg_log_uri = msg.log_uri if hasattr(msg, "log_uri") else "unknown"
             if msg_log_uri != current_log_uri:
                 messages_from_other_logs.append(msg)
 
@@ -512,7 +516,9 @@ class TigsStoreApp:
                     # Extract stored messages only for the current log URI
                     stored_messages_for_current_log = []
                     for msg in stored_chat.messages:
-                        msg_log_uri = msg.log_uri if hasattr(msg, 'log_uri') else 'unknown'
+                        msg_log_uri = (
+                            msg.log_uri if hasattr(msg, "log_uri") else "unknown"
+                        )
                         if msg_log_uri == current_log_uri:
                             # Handle role conversion
                             if hasattr(msg, "role"):
@@ -530,23 +536,47 @@ class TigsStoreApp:
                             stored_messages_for_current_log.append((role, content_text))
 
                     # Compare with current messages and select matches from current log URI
-                    for stored_idx, (stored_role, stored_content) in enumerate(stored_messages_for_current_log):
+                    for stored_idx, (stored_role, stored_content) in enumerate(
+                        stored_messages_for_current_log
+                    ):
                         # Find this stored message in the current messages
                         for i, msg in enumerate(self.message_view.messages):
-                            current_role = msg.role.value if hasattr(msg.role, 'value') else str(msg.role)
-                            current_content = msg.content if hasattr(msg, "content") else str(msg)
+                            current_role = (
+                                msg.role.value
+                                if hasattr(msg.role, "value")
+                                else str(msg.role)
+                            )
+                            current_content = (
+                                msg.content if hasattr(msg, "content") else str(msg)
+                            )
                             message_log_uri = msg.log_uri
                             # Only consider messages from the current log URI
                             if message_log_uri == current_log_uri:
                                 if current_role == stored_role:
                                     # Normalize line endings and trailing spaces for comparison
-                                    current_clean = current_content.strip().replace('\r\n', '\n').replace('\r', '\n')
-                                    stored_clean = stored_content.strip().replace('\r\n', '\n').replace('\r', '\n')
+                                    current_clean = (
+                                        current_content.strip()
+                                        .replace("\r\n", "\n")
+                                        .replace("\r", "\n")
+                                    )
+                                    stored_clean = (
+                                        stored_content.strip()
+                                        .replace("\r\n", "\n")
+                                        .replace("\r", "\n")
+                                    )
 
                                     # Remove trailing spaces from each line (both before newlines and at end of string)
                                     import re
-                                    current_normalized = re.sub(r'[ \t]+$', '', current_clean, flags=re.MULTILINE)
-                                    stored_normalized = re.sub(r'[ \t]+$', '', stored_clean, flags=re.MULTILINE)
+
+                                    current_normalized = re.sub(
+                                        r"[ \t]+$",
+                                        "",
+                                        current_clean,
+                                        flags=re.MULTILINE,
+                                    )
+                                    stored_normalized = re.sub(
+                                        r"[ \t]+$", "", stored_clean, flags=re.MULTILINE
+                                    )
 
                                     if current_normalized == stored_normalized:
                                         self.message_view.selected_messages.add(i)

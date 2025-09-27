@@ -24,7 +24,11 @@ class TestMessagesViewColors:
 
         # Sample messages with different roles using Message objects
         self.view.messages = [
-            create_mock_message("user", "How do I implement this feature?", datetime(2025, 9, 10, 14, 30)),
+            create_mock_message(
+                "user",
+                "How do I implement this feature?",
+                datetime(2025, 9, 10, 14, 30),
+            ),
             create_mock_message(
                 "assistant",
                 "Here is how you can implement it:\n1. First step\n2. Second step",

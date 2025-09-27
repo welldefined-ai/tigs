@@ -187,7 +187,9 @@ def multi_commit_repo(git_repo):
     return git_repo, commits
 
 
-def create_mock_message(role: str, content: str, timestamp=None, log_uri: str = "test_log"):
+def create_mock_message(
+    role: str, content: str, timestamp=None, log_uri: str = "test_log"
+):
     """Create a mock Message object for testing.
 
     Args:
