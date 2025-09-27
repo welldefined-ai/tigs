@@ -531,7 +531,6 @@ class TigsStoreApp:
 
                     # Compare with current messages and select matches from current log URI
                     for stored_idx, (stored_role, stored_content) in enumerate(stored_messages_for_current_log):
-                        found = False
                         # Find this stored message in the current messages
                         for i, msg in enumerate(self.message_view.messages):
                             current_role = msg.role.value if hasattr(msg.role, 'value') else str(msg.role)
@@ -551,7 +550,6 @@ class TigsStoreApp:
 
                                     if current_normalized == stored_normalized:
                                         self.message_view.selected_messages.add(i)
-                                        found = True
                                         break  # Found this stored message, move to next stored message
 
                 except Exception:

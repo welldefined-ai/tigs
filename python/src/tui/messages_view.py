@@ -3,7 +3,6 @@
 import curses
 from typing import List, Tuple, Set, Union
 
-from cligent import Role
 from .selection_mixin import VisualSelectionMixin
 from .scrollable_mixin import ScrollableMixin
 from .indicators import SelectionIndicators
@@ -125,7 +124,6 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
             role = msg.role.value if hasattr(msg.role, 'value') else str(msg.role)
             content = msg.content if hasattr(msg, "content") else str(msg)
             timestamp = msg.timestamp
-            message_log_uri = msg.log_uri
 
             # Check if selected using mixin method (only if not read-only)
             is_selected = self.is_item_selected(i) if not self.read_only else False
@@ -332,10 +330,7 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
         content_width = max(10, width - 6)  # Account for borders and indentation
 
         for msg in messages:
-            role = msg.role.value if hasattr(msg.role, 'value') else str(msg.role)
             content = msg.content if hasattr(msg, "content") else str(msg)
-            timestamp = msg.timestamp
-            message_log_uri = msg.log_uri
             # Header line
             height = 1
 
@@ -527,10 +522,7 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
 
             # Add lines for content
             msg = self.messages[i]
-            role = msg.role.value if hasattr(msg.role, 'value') else str(msg.role)
             content = msg.content if hasattr(msg, "content") else str(msg)
-            timestamp = msg.timestamp
-            message_log_uri = msg.log_uri
             for line in content.split("\n"):
                 wrapped_lines = self._word_wrap(line, content_width)
                 line_offset += len(wrapped_lines)
