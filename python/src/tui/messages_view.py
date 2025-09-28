@@ -80,7 +80,7 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
         # Check if we have messages from multiple log files
         log_uris = set()
         for msg in self.messages:
-            log_uri = getattr(msg, 'log_uri', 'unknown')
+            log_uri = getattr(msg, "log_uri", "unknown")
             log_uris.add(log_uri)
 
         if len(log_uris) <= 1:
@@ -91,7 +91,7 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
         # Multiple log files - group and reorder messages
         grouped_messages = {}
         for msg in self.messages:
-            log_uri = getattr(msg, 'log_uri', 'unknown')
+            log_uri = getattr(msg, "log_uri", "unknown")
             if log_uri not in grouped_messages:
                 grouped_messages[log_uri] = []
             grouped_messages[log_uri].append(msg)
