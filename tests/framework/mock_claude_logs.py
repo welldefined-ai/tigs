@@ -43,7 +43,7 @@ def create_mock_session_file(
             "parentUuid": None if i == 0 else f"msg_{uuid.uuid4().hex[:8]}",
             "isSidechain": False,
             "userType": "external" if role == "user" else "assistant",
-            "cwd": f"/Users/testuser/Projects/{project_name}",
+            "cwd": f"/Users/testuser/Projects/{project_name.lower().replace(' ', '-')}",
             "sessionId": session_id,
             "version": "1.0.109",
             "gitBranch": "main",
@@ -88,15 +88,16 @@ def create_mock_claude_home(
         sessions_data: List of message lists, each containing (role, content) tuples.
                       If None, creates default test sessions.
         cwd: Current working directory to determine project folder name.
-             If None, uses /Users/basicthinker/Projects/tigs/tests
+             If None, uses the current project's python directory
 
     Returns:
         List of tuples (log_id, metadata) compatible with cligent
     """
     # Determine the project folder name based on cwd
     if cwd is None:
-        # Default to the python directory since that's where tests run from (PYTHON_DIR)
-        cwd = Path("/Users/basicthinker/Projects/tigs/python")
+        # Default to the python directory - get it dynamically
+        test_dir = Path(__file__).parent.parent.parent
+        cwd = test_dir / "python"
 
     # Convert path to project folder name (replace / with -)
     # Cligent keeps the leading dash, so we should too

@@ -13,9 +13,12 @@ from framework.fixtures import create_test_repo
 def run_tigs(repo_path, *args):
     """Run tigs command and return result."""
     cmd = ["uv", "run", "tigs", "--repo", str(repo_path)] + list(args)
+    # Get the python directory relative to the current test file
+    test_dir = Path(__file__).parent.parent.parent
+    python_dir = test_dir / "python"
     result = subprocess.run(
         cmd,
-        cwd="/Users/basicthinker/Projects/tigs/python",
+        cwd=str(python_dir),
         capture_output=True,
         text=True,
     )
