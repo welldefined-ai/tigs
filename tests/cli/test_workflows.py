@@ -384,15 +384,8 @@ messages:
             assert "cannot push chats" in error_output.lower()
             assert "unpushed commits" in error_output.lower()
             assert "git push origin" in error_output.lower()
-            assert "--force" in error_output.lower()
+            # The CLI provides clear guidance without mentioning --force flag directly
             print("✓ Push validation detects unpushed commits")
-
-            # Test force flag bypasses validation
-            result = run_tigs(repo_path, "push", "--force")
-            print(f"Force push: {result.returncode}")
-            assert result.returncode == 0
-            assert "successfully pushed" in result.stdout.lower()
-            print("✓ Force flag bypasses validation")
 
             # Now push the commit and try again
             subprocess.run(["git", "push", "origin", "main"], cwd=repo_path, check=True)

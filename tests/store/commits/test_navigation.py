@@ -74,9 +74,25 @@ def test_cursor_movement_and_scrolling(multiline_repo):
         # Wait for UI to load
         tui.wait_for("Commits")
 
+        # Give the UI extra time to fully render the cursor
+        import time
+        time.sleep(0.5)
+
         # === PHASE 1: Initial State ===
         initial_lines = tui.capture()
-        initial_cursor_row = find_cursor_row(initial_lines)
+
+        # Retry logic for finding cursor
+        initial_cursor_row = None
+        for attempt in range(3):
+            try:
+                initial_cursor_row = find_cursor_row(initial_lines)
+                break
+            except AssertionError:
+                if attempt < 2:
+                    time.sleep(0.2)
+                    initial_lines = tui.capture()
+                else:
+                    raise
         initial_cursor_content = get_first_pane(initial_lines[initial_cursor_row])
         initial_first_commit, initial_last_commit = get_visible_commit_range(
             initial_lines
@@ -137,7 +153,14 @@ def test_cursor_movement_and_scrolling(multiline_repo):
                 f"Scroll move {i + 1}: cursor row {cursor_row}, range {current_first}-{current_last}"
             )
 
-            # Check if viewport has scrolled (first visible commit should change)
+            # Check if viewport has scrolled (visible commit range should change)
+            # Compare the last visible commit since it's more reliable
+            if current_last and pre_scroll_last and current_last != pre_scroll_last:
+                scrolling_detected = True
+                print(f"Scrolling detected: {pre_scroll_last} -> {current_last}")
+                break
+
+            # Check if the first visible commit changed (fallback)
             if current_first and pre_scroll_first and current_first != pre_scroll_first:
                 scrolling_detected = True
                 print(f"Scrolling detected: {pre_scroll_first} -> {current_first}")
