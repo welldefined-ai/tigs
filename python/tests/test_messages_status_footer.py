@@ -5,6 +5,7 @@ from datetime import datetime
 
 from src.tui.messages_view import MessageView
 from src.tui.color_constants import COLOR_METADATA
+from tests.conftest import create_mock_message
 
 
 class TestMessagesStatusFooter:
@@ -15,17 +16,23 @@ class TestMessagesStatusFooter:
         self.mock_parser = Mock()
         self.view = MessageView(self.mock_parser)
 
-        # Create sample messages
+        # Create sample messages using Message objects
         self.view.messages = [
-            ("user", "Hello, how are you?", datetime(2025, 9, 10, 10, 0)),
-            ("assistant", "I am doing well, thank you!", datetime(2025, 9, 10, 10, 1)),
-            ("user", "Can you help me with Python?", datetime(2025, 9, 10, 10, 2)),
-            (
+            create_mock_message(
+                "user", "Hello, how are you?", datetime(2025, 9, 10, 10, 0)
+            ),
+            create_mock_message(
+                "assistant", "I am doing well, thank you!", datetime(2025, 9, 10, 10, 1)
+            ),
+            create_mock_message(
+                "user", "Can you help me with Python?", datetime(2025, 9, 10, 10, 2)
+            ),
+            create_mock_message(
                 "assistant",
                 "Of course! I would be happy to help.",
                 datetime(2025, 9, 10, 10, 3),
             ),
-            ("user", "Great, thanks!", datetime(2025, 9, 10, 10, 4)),
+            create_mock_message("user", "Great, thanks!", datetime(2025, 9, 10, 10, 4)),
         ]
         self.view.items = self.view.messages
         self.view.cursor_idx = 0
@@ -148,7 +155,7 @@ class TestMessagesStatusFooter:
 
     def test_status_footer_with_single_message(self):
         """Test status footer with single message."""
-        self.view.messages = [("user", "Single message", None)]
+        self.view.messages = [create_mock_message("user", "Single message", None)]
         self.view.items = self.view.messages
         self.view.cursor_idx = 0
         self.view.message_cursor_idx = 0

@@ -11,6 +11,7 @@ from src.tui.color_constants import (
     COLOR_METADATA,
     get_role_color,
 )
+from tests.conftest import create_mock_message
 
 
 class TestMessagesViewColors:
@@ -21,20 +22,24 @@ class TestMessagesViewColors:
         self.mock_parser = Mock()
         self.view = MessageView(self.mock_parser)
 
-        # Sample messages with different roles
+        # Sample messages with different roles using Message objects
         self.view.messages = [
-            ("user", "How do I implement this feature?", datetime(2025, 9, 10, 14, 30)),
-            (
+            create_mock_message(
+                "user",
+                "How do I implement this feature?",
+                datetime(2025, 9, 10, 14, 30),
+            ),
+            create_mock_message(
                 "assistant",
                 "Here is how you can implement it:\n1. First step\n2. Second step",
                 datetime(2025, 9, 10, 14, 31),
             ),
-            (
+            create_mock_message(
                 "system",
                 "System notification: Build completed",
                 datetime(2025, 9, 10, 14, 32),
             ),
-            ("user", "Thanks!", None),  # Message without timestamp
+            create_mock_message("user", "Thanks!", None),  # Message without timestamp
         ]
         self.view._needs_message_view_init = False
 
@@ -256,7 +261,7 @@ class TestMessagesViewColors:
         """Test that wrapped message content maintains consistent color."""
         # Add a very long message
         self.view.messages.append(
-            (
+            create_mock_message(
                 "assistant",
                 "This is a very long message that will definitely wrap to multiple lines when displayed in a narrow width. It contains lots of text to ensure wrapping happens.",
                 datetime(2025, 9, 10, 15, 0),

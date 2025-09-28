@@ -10,6 +10,7 @@ import yaml
 from src.tui.store_app import TigsStoreApp
 from src.tui.commits_view import CommitView
 from src.storage import TigsRepo
+from tests.conftest import create_mock_message
 
 
 class TestTUIStoreEndToEnd:
@@ -92,9 +93,12 @@ class TestTUIStoreEndToEnd:
         assert app.status_message is not None
 
     def test_store_with_existing_notes_overwrite(
-        self, git_repo, sample_yaml_content, git_notes_helper
+        self, git_repo, sample_yaml_content, git_notes_helper, claude_logs
     ):
         """Test store operation with existing notes (overwrite scenario)."""
+        if not claude_logs:
+            pytest.skip("No Claude Code logs available")
+
         store = TigsRepo(git_repo)
 
         # First, manually add a note using tigs CLI
@@ -112,20 +116,30 @@ class TestTUIStoreEndToEnd:
         # Verify original note exists
         assert git_notes_helper.verify_note_exists(git_repo, commit_sha)
 
-        # Now test TUI overwrite
+        # Now test TUI overwrite using real Claude logs
         app = TigsStoreApp(store)
         app.commit_view = Mock()
-        app.message_view = Mock()
+        app.log_view = Mock()
+
+        # Get real Claude messages
+        log_uri, _ = claude_logs[0]
+        chat = app.chat_parser.parse(log_uri)
+
+        if len(chat.messages) == 0:
+            pytest.skip("No messages in log")
+
+        # Set up real messages in message_view
+        app.message_view.messages = list(chat.messages)
+        app.message_view.selected_messages = set([0])  # Select first message
+
+        # Mock view methods
         app.commit_view.load_commits = Mock()
         app.commit_view.clear_selection = Mock()
         app.message_view.clear_selection = Mock()
 
         # Set up for overwrite
         app.commit_view.get_selected_shas.return_value = [commit_sha]
-        app.message_view.selected_messages = set([0])
-        app.message_view.get_selected_messages_content = Mock(
-            return_value=sample_yaml_content
-        )
+        app.log_view.get_selected_log_uri.return_value = log_uri
         app.commit_view.selected_commits = set([0])
 
         # Execute store (should overwrite)
@@ -134,7 +148,9 @@ class TestTUIStoreEndToEnd:
         # Verify note was overwritten (handle whitespace normalization)
         stored_content = git_notes_helper.get_note_content(git_repo, commit_sha)
         assert git_notes_helper.validate_yaml_schema(stored_content)
-        assert "How do I create a Python function?" in stored_content
+        # Should contain the first message content from Claude logs
+        first_message_content = chat.messages[0].content
+        assert first_message_content in stored_content
         assert "Original content" not in stored_content
 
     def test_message_selection_integration(self, git_repo, claude_logs):
@@ -146,15 +162,15 @@ class TestTUIStoreEndToEnd:
         app = TigsStoreApp(store)
 
         # Load real log
-        log_id, _ = claude_logs[0]
-        chat = app.chat_parser.parse(log_id)
+        log_uri, _ = claude_logs[0]
+        chat = app.chat_parser.parse(log_uri)
 
         if len(chat.messages) == 0:
             pytest.skip("No messages in log")
 
         # Initialize message view with real data
         app.message_view.messages = chat.messages
-        app.message_view.logs = {log_id: chat}
+        app.message_view.logs = {log_uri: chat}
 
         # Test message selection
         message_count = min(3, len(chat.messages))
@@ -165,7 +181,7 @@ class TestTUIStoreEndToEnd:
 
         # Test getting selected content
         app.chat_parser.clear_selection()
-        app.chat_parser.select(log_id, list(app.message_view.selected_messages))
+        app.chat_parser.select(log_uri, list(app.message_view.selected_messages))
         yaml_content = app.chat_parser.compose()
 
         # Verify YAML format
@@ -191,8 +207,8 @@ class TestTUIStoreEndToEnd:
         assert len(app.commit_view.commits) >= 4
 
         # Step 2: Load messages (real cligent operation)
-        log_id, _ = claude_logs[0]
-        chat = app.chat_parser.parse(log_id)
+        log_uri, _ = claude_logs[0]
+        chat = app.chat_parser.parse(log_uri)
 
         if len(chat.messages) == 0:
             pytest.skip("No messages in log")
@@ -204,7 +220,6 @@ class TestTUIStoreEndToEnd:
         # Mock the UI state
         app.commit_view.selected_commits = {selected_commit_idx}
         app.message_view.selected_messages = set(selected_message_indices)
-        app.message_view.get_selected_messages_content = Mock()
         app.commit_view.clear_selection = Mock()
         app.message_view.clear_selection = Mock()
         app.commit_view.load_commits = Mock()
@@ -214,11 +229,16 @@ class TestTUIStoreEndToEnd:
         commit_sha = commit_dict["full_sha"]
         app.commit_view.get_selected_shas = Mock(return_value=[commit_sha])
 
+        # Mock log_view to return the log_uri
+        app.log_view.get_selected_log_uri = Mock(return_value=log_uri)
+
+        # Set up real messages in message_view
+        app.message_view.messages = list(chat.messages)
+
         # Prepare real YAML content
         app.chat_parser.clear_selection()
-        app.chat_parser.select(log_id, selected_message_indices)
+        app.chat_parser.select(log_uri, selected_message_indices)
         real_yaml = app.chat_parser.compose()
-        app.message_view.get_selected_messages_content.return_value = real_yaml
 
         # Step 4: Execute store operation (real Git notes operation)
         app._handle_store_operation(None)
@@ -273,7 +293,7 @@ class TestTUIStoreEndToEnd:
         app.message_view.selected_messages = set([0])
 
         app._handle_store_operation(None)
-        assert "No commits selected" in app.status_message
+        assert "No commit selected" in app.status_message
 
 
 class TestTUIDynamicLayout:
@@ -443,13 +463,13 @@ class TestTUIDynamicLayout:
 
         # Set up messages with different content lengths
         app.message_view.messages = [
-            ("user", "Short message", None),
-            (
+            create_mock_message("user", "Short message", None),
+            create_mock_message(
                 "assistant",
                 "This is a very long response that should wrap to multiple lines when displayed in a narrow terminal window and take up more vertical space",
                 None,
             ),
-            ("user", "Multi\nline\nmessage\nwith\nbreaks", None),
+            create_mock_message("user", "Multi\nline\nmessage\nwith\nbreaks", None),
         ]
 
         # Test with narrow width
@@ -490,9 +510,9 @@ class TestTUIDynamicLayout:
             [f"This is line {i} of a very long message" for i in range(50)]
         )
         app.message_view.messages = [
-            ("user", "Normal message", None),
-            ("assistant", huge_content, None),
-            ("user", "Another normal message", None),
+            create_mock_message("user", "Normal message", None),
+            create_mock_message("assistant", huge_content, None),
+            create_mock_message("user", "Another normal message", None),
         ]
 
         # Focus on huge message
