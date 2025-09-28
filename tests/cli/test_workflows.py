@@ -574,6 +574,18 @@ messages:
                 capture_output=True,
             )
 
+            # Configure git user for the cloned repository
+            subprocess.run(
+                ["git", "config", "user.email", "test@example.com"],
+                cwd=repo2_path,
+                check=True
+            )
+            subprocess.run(
+                ["git", "config", "user.name", "Test User"],
+                cwd=repo2_path,
+                check=True
+            )
+
             # Verify clone has commits but no chats yet
             result = run_tigs(repo2_path, "list-chats")
             assert result.returncode == 0
