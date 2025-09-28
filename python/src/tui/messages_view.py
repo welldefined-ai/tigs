@@ -34,6 +34,7 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
         self._needs_message_view_init = True
         self._scroll_offset = 0  # Simple line-based scrolling offset
         self.read_only = False  # Flag for read-only mode
+        self.separator_map = {}  # Map of {message_index: log_uri} for separators
 
     def load_messages(self, log_uri: str) -> None:
         """Load messages for a specific log.
@@ -65,6 +66,54 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
             self._needs_message_view_init = True
         except Exception:
             self.messages = []
+
+    def prepare_messages_for_display(self):
+        """Prepare messages for display by grouping and ordering them if needed.
+
+        This method should be called by ViewApp after loading messages to handle
+        multiple log files. It reorders messages and creates separator map.
+        """
+        if not self.messages:
+            self.separator_map = {}
+            return
+
+        # Check if we have messages from multiple log files
+        log_uris = set()
+        for msg in self.messages:
+            log_uri = getattr(msg, 'log_uri', 'unknown')
+            log_uris.add(log_uri)
+
+        if len(log_uris) <= 1:
+            # Single log file or no messages - no separators needed
+            self.separator_map = {}
+            return
+
+        # Multiple log files - group and reorder messages
+        grouped_messages = {}
+        for msg in self.messages:
+            log_uri = getattr(msg, 'log_uri', 'unknown')
+            if log_uri not in grouped_messages:
+                grouped_messages[log_uri] = []
+            grouped_messages[log_uri].append(msg)
+
+        # Sort messages within each group by timestamp
+        for log_uri, message_list in grouped_messages.items():
+            message_list.sort(key=lambda x: x.timestamp or 0)
+
+        # Rebuild messages list in grouped order and create separator map
+        new_messages = []
+        separator_map = {}
+
+        for log_uri, message_list in grouped_messages.items():
+            # Add all messages for this log group
+            new_messages.extend(message_list)
+            # Mark where separator should go (after the last message of this group)
+            if len(new_messages) > 0:
+                separator_map[len(new_messages) - 1] = log_uri
+
+        self.messages = new_messages
+        self.items = self.messages  # Update items reference for mixin
+        self.separator_map = separator_map
 
     def _format_timestamp(self, timestamp) -> str:
         """Format timestamp with space separator for readability.
@@ -117,8 +166,9 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
         # Calculate message heights with current width
         self._calculate_message_heights(self.messages, width)
 
-        # Build ALL display lines for ALL messages first
+        # Build ALL display lines for ALL messages (unified logic)
         all_lines = []
+
         for i in range(len(self.messages)):
             msg = self.messages[i]
             role = msg.role.value if hasattr(msg.role, "value") else str(msg.role)
@@ -191,6 +241,36 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
                     all_lines.append([("", COLOR_DEFAULT)])
                 else:
                     all_lines.append("")
+
+            # Check if we need to add a log separator after this message
+            if i in self.separator_map:
+                log_uri = self.separator_map[i]
+                # Create full-width separator with centered log URI
+                center_text = f" log_uri: {log_uri} "
+                total_width = width - 4  # Account for borders
+
+                # Calculate padding needed
+                if len(center_text) >= total_width:
+                    # If text is too long, truncate
+                    separator_text = center_text[:total_width]
+                else:
+                    # Calculate how many chars on each side
+                    remaining = total_width - len(center_text)
+                    left_chars = remaining // 2
+                    right_chars = remaining - left_chars
+
+                    left_fill = ">" * left_chars
+                    right_fill = "<" * right_chars
+                    separator_text = f"{left_fill}{center_text}{right_fill}"
+
+                if colors_enabled:
+                    all_lines.append([("", COLOR_DEFAULT)])
+                    all_lines.append([(separator_text, COLOR_METADATA)])
+                    all_lines.append([("", COLOR_DEFAULT)])
+                else:
+                    all_lines.append("")
+                    all_lines.append(separator_text)
+                    all_lines.append("")
         # Add status line if in visual mode (only if not read-only)
         if self.visual_mode and not self.read_only:
             if colors_enabled:
@@ -207,10 +287,16 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
         start_line = self._scroll_offset
         end_line = start_line + content_height - 1  # Reserve 1 line for footer
 
-        # Ensure we don't scroll past the beginning
+        # Ensure we don't scroll past the beginning or end
         if start_line < 0:
             start_line = 0
             self._scroll_offset = 0
+
+        # Ensure we don't scroll past the end
+        max_start_line = max(0, len(all_lines) - content_height)
+        if start_line > max_start_line:
+            start_line = max_start_line
+            self._scroll_offset = start_line
 
         # Get the visible lines
         lines = all_lines[start_line:end_line]
