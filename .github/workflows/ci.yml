@@ -84,13 +84,11 @@ jobs:
 
       - name: Run comprehensive tests
         run: |
-          ./run_tests.sh
-
-      - name: Run tests with coverage
-        if: matrix.python-version == '3.11' && matrix.os == 'ubuntu-latest'
-        run: |
-          cd python
-          uv run pytest tests/ --cov=src --cov-report=xml --cov-report=term-missing
+          if [[ "${{ matrix.python-version }}" == "3.11" && "${{ matrix.os }}" == "ubuntu-latest" ]]; then
+            ./run_tests.sh --coverage
+          else
+            ./run_tests.sh
+          fi
 
       - name: Upload coverage to Codecov
         if: matrix.python-version == '3.11' && matrix.os == 'ubuntu-latest'
