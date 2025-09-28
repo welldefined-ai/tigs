@@ -357,8 +357,26 @@ messages:
                 cwd=repo_path,
                 check=True,
             )
+
+            # Get the current branch name
+            result = subprocess.run(
+                ["git", "branch", "--show-current"],
+                cwd=repo_path,
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            current_branch = result.stdout.strip()
+
+            # Configure the bare repository to accept pushes
             subprocess.run(
-                ["git", "push", "-u", "origin", "main"], cwd=repo_path, check=True
+                ["git", "config", "receive.denyCurrentBranch", "ignore"],
+                cwd=remote_path,
+                check=True,
+            )
+
+            subprocess.run(
+                ["git", "push", "-u", "origin", current_branch], cwd=repo_path, check=True
             )
 
             # Create an unpushed commit
@@ -388,7 +406,7 @@ messages:
             print("✓ Push validation detects unpushed commits")
 
             # Now push the commit and try again
-            subprocess.run(["git", "push", "origin", "main"], cwd=repo_path, check=True)
+            subprocess.run(["git", "push", "origin", current_branch], cwd=repo_path, check=True)
 
             # Add another chat to test normal push
             test_file2 = repo_path / "test2.txt"
@@ -397,7 +415,7 @@ messages:
             subprocess.run(
                 ["git", "commit", "-m", "Pushed commit"], cwd=repo_path, check=True
             )
-            subprocess.run(["git", "push", "origin", "main"], cwd=repo_path, check=True)
+            subprocess.run(["git", "push", "origin", current_branch], cwd=repo_path, check=True)
 
             content2 = "schema: tigs.chat/v1\nmessages:\n- role: user\n  content: Chat on pushed commit"
             result = run_tigs(repo_path, "add-chat", "HEAD", "-m", content2)
@@ -482,8 +500,27 @@ messages:
                 cwd=repo1_path,
                 check=True,
             )
+
+            # Get the current branch name (may be 'main' or 'master' depending on git version)
+            result = subprocess.run(
+                ["git", "branch", "--show-current"],
+                cwd=repo1_path,
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            current_branch = result.stdout.strip()
+
+            # Configure the bare repository to accept pushes to the current branch
             subprocess.run(
-                ["git", "push", "-u", "origin", "main"], cwd=repo1_path, check=True
+                ["git", "config", "receive.denyCurrentBranch", "ignore"],
+                cwd=remote_path,
+                check=True,
+            )
+
+            # Push using the actual current branch name
+            subprocess.run(
+                ["git", "push", "-u", "origin", current_branch], cwd=repo1_path, check=True
             )
 
             # Step 1: STORE - Add chats using add-chat commands
