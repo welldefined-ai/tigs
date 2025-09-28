@@ -322,9 +322,9 @@ class TigsViewApp:
         """
         # Context-sensitive status based on focused pane
         if self.focused_pane == 0:
-            status_text = "↑/↓: navigate commits | Tab: switch pane | q: quit <unified-logic>"
+            status_text = "↑/↓: navigate commits | Tab: switch pane | q: quit"
         else:
-            status_text = "↑/↓: scroll | Tab: switch pane | q: quit <unified-logic>"
+            status_text = "↑/↓: scroll | Tab: switch pane | q: quit"
 
         # Add terminal size info
         height = stdscr.getmaxyx()[0]
