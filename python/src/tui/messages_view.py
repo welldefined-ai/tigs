@@ -160,8 +160,6 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
         if self._needs_message_view_init:
             self._init_message_view(height)
             self._needs_message_view_init = False
-        # Reserve space for footer
-        content_height = height - 1  # -1 for footer
 
         # Calculate message heights with current width
         self._calculate_message_heights(self.messages, width)
