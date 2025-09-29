@@ -1,0 +1,39 @@
+schema: tigs.chat/v1
+messages:
+- role: user
+  content: |
+    current CI only covers /python/tests. There's actully a run_tests.sh under the root folder. Use that in CI to cover all tests
+  timestamp: '2025-09-28T06:45:52Z'
+  log_uri: '7301ce82-6ee4-4314-ae50-05ad26249420'
+- role: assistant
+  content: |
+    I'll help you update the CI configuration to use the `run_tests.sh` script from the root folder instead of only covering `/python/tests`. Let me first examine the current CI setup and the test script.
+  timestamp: '2025-09-28T06:45:58Z'
+  log_uri: '7301ce82-6ee4-4314-ae50-05ad26249420'
+- role: assistant
+  content: |
+    Now I'll update the CI configuration to use the `run_tests.sh` script from the root folder. I can see that the current CI only runs tests from the `python/tests/` directory, but the `run_tests.sh` script can run both Python tests (`python/tests/`) and E2E tests (`tests/`) comprehensively.
+  timestamp: '2025-09-28T06:46:32Z'
+  log_uri: '7301ce82-6ee4-4314-ae50-05ad26249420'
+- role: assistant
+  content: |
+    Now I need to also update the coverage file path since we're no longer running from the python directory:
+  timestamp: '2025-09-28T06:47:48Z'
+  log_uri: '7301ce82-6ee4-4314-ae50-05ad26249420'
+- role: assistant
+  content: |
+    I've successfully updated the CI configuration to use the `run_tests.sh` script from the root folder. Here are the key changes made:
+
+    1. **Removed the Python-specific working directory** from the test job so it runs from the root
+    2. **Added executable permissions** for `run_tests.sh` before running it
+    3. **Updated the test step** to use `./run_tests.sh` instead of just running `python/tests/`
+    4. **Fixed the coverage file path** to `./python/coverage.xml` since we're no longer in the python directory
+
+    The `run_tests.sh` script will now run comprehensive tests covering:
+    - Python tests (`python/tests/`)
+    - E2E tests (`tests/`)
+    - Any other test targets specified
+
+    This provides much better test coverage than the previous CI configuration which only ran `/python/tests`.
+  timestamp: '2025-09-28T06:48:08Z'
+  log_uri: '7301ce82-6ee4-4314-ae50-05ad26249420'
