@@ -73,6 +73,9 @@ class TigsViewApp:
                     # Load parsed messages into MessageView (store Message objects directly)
                     self.message_view.messages = list(chat.messages)
 
+                    # Prepare messages for display (handles grouping for multiple log files)
+                    self.message_view.prepare_messages_for_display()
+
                     # Update MessageView state
                     self.message_view.items = self.message_view.messages
                     self.message_view.cursor_idx = 0
