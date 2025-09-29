@@ -47,9 +47,6 @@ jobs:
   test:
     name: Test Python ${{ matrix.python-version }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
-    defaults:
-      run:
-        working-directory: python
     strategy:
       fail-fast: false
       matrix:
@@ -70,10 +67,6 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install dependencies
-        run: |
-          uv sync --dev
-
       - name: Install system dependencies (Linux)
         if: runner.os == 'Linux'
         run: |
@@ -86,20 +79,22 @@ jobs:
           # Git should already be available on macOS runners
           git --version
 
-      - name: Run tests
-        run: |
-          uv run pytest tests/ -v --tb=short --color=yes
+      - name: Make run_tests.sh executable
+        run: chmod +x run_tests.sh
 
-      - name: Run tests with coverage
-        if: matrix.python-version == '3.11' && matrix.os == 'ubuntu-latest'
+      - name: Run comprehensive tests
         run: |
-          uv run pytest tests/ --cov=src --cov-report=xml --cov-report=term-missing
+          if [[ "${{ matrix.python-version }}" == "3.11" && "${{ matrix.os }}" == "ubuntu-latest" ]]; then
+            ./run_tests.sh --coverage
+          else
+            ./run_tests.sh
+          fi
 
       - name: Upload coverage to Codecov
         if: matrix.python-version == '3.11' && matrix.os == 'ubuntu-latest'
         uses: codecov/codecov-action@v4
         with:
-          file: ./coverage.xml
+          file: ./python/coverage.xml
           fail_ci_if_error: false
           verbose: true
 

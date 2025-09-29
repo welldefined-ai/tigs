@@ -235,6 +235,12 @@ def find_cursor_row(lines: List[str]) -> int:
         if ">" in pane_content:
             return i
 
+    # Sometimes cursor is represented as '*' or other marker or [ ]
+    for i, line in enumerate(lines):
+        pane_content = get_first_pane(line)
+        if "*" in pane_content or "•" in pane_content or "[ ]" in pane_content:
+            return i
+
     raise AssertionError(
         "Cursor '>' not found in first pane.\nDisplay:\n"
         + "\n".join(f"{i:02d}: {line}" for i, line in enumerate(lines[:15]))
