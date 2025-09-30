@@ -160,8 +160,6 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
         if self._needs_message_view_init:
             self._init_message_view(height)
             self._needs_message_view_init = False
-        # Reserve space for footer
-        content_height = height - 1  # -1 for footer
 
         # Calculate message heights with current width
         self._calculate_message_heights(self.messages, width)
@@ -283,20 +281,26 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
                 all_lines.append(SelectionIndicators.VISUAL_MODE)
 
         # Apply simple scrolling: take a slice of all_lines based on scroll offset
-        content_height = height - 2  # Account for borders and footer
-        start_line = self._scroll_offset
-        end_line = start_line + content_height - 1  # Reserve 1 line for footer
+        # Account for borders and footer
+        available_content_height = height - 2  # Borders
+        if self.visual_mode and not self.read_only:
+            available_content_height -= 2  # Visual mode takes 2 lines
+        available_content_height -= 1  # Reserve 1 line for footer
 
-        # Ensure we don't scroll past the beginning or end
+        start_line = self._scroll_offset
+        end_line = start_line + available_content_height
+
+        # Ensure we don't scroll past the beginning
         if start_line < 0:
             start_line = 0
             self._scroll_offset = 0
 
-        # Ensure we don't scroll past the end
-        max_start_line = max(0, len(all_lines) - content_height)
+        # Ensure we don't scroll past the end (but allow scrolling to the very bottom)
+        max_start_line = max(0, len(all_lines) - available_content_height)
         if start_line > max_start_line:
             start_line = max_start_line
             self._scroll_offset = start_line
+            end_line = start_line + available_content_height
 
         # Get the visible lines
         lines = all_lines[start_line:end_line]
@@ -366,10 +370,16 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
             # Scroll down by one line, but check if there's more content below
             if hasattr(self, "_last_width"):
                 total_lines = self._calculate_total_content_lines(self._last_width)
-                content_height = pane_height - 3  # Account for borders and footer
 
-                # Only scroll if there's content below the current viewport
-                if self._scroll_offset + content_height < total_lines:
+                # Calculate available content height (consistent with get_display_lines)
+                available_content_height = pane_height - 2  # Borders
+                if self.visual_mode and not self.read_only:
+                    available_content_height -= 2  # Visual mode takes 2 lines
+                available_content_height -= 1  # Reserve 1 line for footer
+
+                # Only scroll if we haven't reached the maximum scroll position
+                max_scroll_offset = max(0, total_lines - available_content_height)
+                if self._scroll_offset < max_scroll_offset:
                     self._scroll_offset += 1
 
         elif key == ord("k"):
@@ -581,6 +591,10 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
             # Add separator line (except for last message)
             if i < len(self.messages) - 1:
                 total_lines += 1
+
+            # Add log separator lines if this message has a separator after it
+            if i in self.separator_map:
+                total_lines += 3  # blank line + separator + blank line
 
         # Add visual mode lines if applicable
         if self.visual_mode and not self.read_only:
