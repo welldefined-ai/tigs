@@ -10,6 +10,7 @@ from .messages_view import MessageView
 from .layout_manager import LayoutManager
 from .pane_renderer import PaneRenderer
 from .text_utils import clear_iterm2_scrollback
+from ..chat_providers import get_chat_parser
 
 
 class TigsViewApp:
@@ -34,9 +35,7 @@ class TigsViewApp:
 
         # Initialize chat parser like store_app does
         try:
-            from cligent import ChatParser
-
-            self.chat_parser = ChatParser("claude-code")
+            self.chat_parser = get_chat_parser()
         except Exception:
             self.chat_parser = None
 

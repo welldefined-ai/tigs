@@ -5,7 +5,7 @@ import os
 import sys
 from datetime import datetime, timedelta
 
-from cligent import ChatParser
+from ..chat_providers import get_chat_parser
 
 from .commits_view import CommitView
 from .messages_view import MessageView
@@ -36,10 +36,21 @@ class TigsStoreApp:
 
         # Initialize chat parser
         try:
-            self.chat_parser = ChatParser("claude-code")
+            self.chat_parser = get_chat_parser()
         except Exception:
             # Handle cligent initialization errors gracefully
             self.chat_parser = None
+
+        self.provider_warnings = getattr(self.chat_parser, "warnings", ())
+        self.provider_errors = getattr(self.chat_parser, "errors", {})
+        if (
+            self.chat_parser
+            and not getattr(self.chat_parser, "has_providers", False)
+            and not self.status_message
+        ):
+            warning = next(iter(self.provider_warnings), "No chat providers available")
+            self.status_message = warning
+            self.status_message_time = datetime.now()
 
         # Initialize layout manager
         self.layout_manager = LayoutManager()

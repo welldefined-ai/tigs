@@ -78,12 +78,21 @@ class LogsView:
         ):
             log_id, metadata = self.logs[i]
             timestamp = self._format_timestamp(metadata.get("modified", ""))
+            provider_label = metadata.get("provider_label") or metadata.get("provider", "")
+            display_parts = []
+            if timestamp:
+                display_parts.append(timestamp.strip())
+            if provider_label:
+                display_parts.append(str(provider_label))
+            display_text = " ".join(part for part in display_parts if part)
+            if not display_text:
+                display_text = metadata.get("project")
+            if not display_text:
+                display_text = log_id.split(":", 1)[-1] if ":" in log_id else log_id
 
-            # Format: "• timestamp" for selected, "  timestamp" for others
-            if i == self.selected_log_idx:
-                lines.append(f"• {timestamp}")
-            else:
-                lines.append(f"  {timestamp}")
+            # Format: "• details" for selected, "  details" for others
+            prefix = "•" if i == self.selected_log_idx else " "
+            lines.append(f"{prefix} {display_text}")
 
         # Pad to put footer at the bottom
         while len(lines) < available_lines:
