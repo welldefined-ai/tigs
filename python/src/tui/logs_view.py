@@ -79,7 +79,9 @@ class LogsView:
         ):
             log_id, metadata = self.logs[i]
             timestamp = self._format_timestamp(metadata.get("modified", ""))
-            provider_label = metadata.get("provider_label") or metadata.get("provider", "")
+            provider_label = metadata.get("provider_label") or metadata.get(
+                "provider", ""
+            )
 
             # Build display with provider and timestamp
             display_parts = []

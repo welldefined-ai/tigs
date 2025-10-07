@@ -260,21 +260,30 @@ class TestLogsDisplayFormat:
         # Create sample logs with provider metadata
         base_time = datetime.now()
         self.view.logs = [
-            ("claude-code:log_001", {
-                "modified": (base_time - timedelta(hours=0)).isoformat(),
-                "provider": "claude-code",
-                "provider_label": "Claude"
-            }),
-            ("gemini-cli:log_002", {
-                "modified": (base_time - timedelta(days=1)).isoformat(),
-                "provider": "gemini-cli",
-                "provider_label": "Gemini"
-            }),
-            ("qwen-code:log_003", {
-                "modified": (base_time - timedelta(days=2)).isoformat(),
-                "provider": "qwen-code",
-                "provider_label": "Qwen"
-            }),
+            (
+                "claude-code:log_001",
+                {
+                    "modified": (base_time - timedelta(hours=0)).isoformat(),
+                    "provider": "claude-code",
+                    "provider_label": "Claude",
+                },
+            ),
+            (
+                "gemini-cli:log_002",
+                {
+                    "modified": (base_time - timedelta(days=1)).isoformat(),
+                    "provider": "gemini-cli",
+                    "provider_label": "Gemini",
+                },
+            ),
+            (
+                "qwen-code:log_003",
+                {
+                    "modified": (base_time - timedelta(days=2)).isoformat(),
+                    "provider": "qwen-code",
+                    "provider_label": "Qwen",
+                },
+            ),
         ]
         self.view.selected_log_idx = 0
         self.view.log_scroll_offset = 0
@@ -306,10 +315,12 @@ class TestLogsDisplayFormat:
 
         # Line 0: "▶ Claude MM-DD"
         assert "Claude" in content_lines[0], "First line should have provider"
-        assert re.search(r'\d{2}-\d{2}', content_lines[0]), "First line should have date (MM-DD)"
+        assert re.search(r"\d{2}-\d{2}", content_lines[0]), (
+            "First line should have date (MM-DD)"
+        )
 
         # Line 1: "  HH:MM"
-        assert re.match(r'\s+\d{2}:\d{2}', content_lines[1]), (
+        assert re.match(r"\s+\d{2}:\d{2}", content_lines[1]), (
             f"Second line should have indented time (HH:MM), got: '{content_lines[1]}'"
         )
 
@@ -318,11 +329,17 @@ class TestLogsDisplayFormat:
         lines = self.view.get_display_lines(height=20, width=17)
 
         # First log should have ▶
-        assert lines[0].startswith("▶"), f"Selected log should start with ▶, got: '{lines[0]}'"
+        assert lines[0].startswith("▶"), (
+            f"Selected log should start with ▶, got: '{lines[0]}'"
+        )
 
         # Other logs should start with space
-        non_empty_lines = [line for line in lines[2:8] if line.strip() and "(" not in line]
-        for i, line in enumerate(non_empty_lines[::2]):  # Check every first line of log entries
+        non_empty_lines = [
+            line for line in lines[2:8] if line.strip() and "(" not in line
+        ]
+        for i, line in enumerate(
+            non_empty_lines[::2]
+        ):  # Check every first line of log entries
             if i > 0:  # Skip the selected one
                 assert line.startswith(" "), (
                     f"Non-selected log should start with space, got: '{line}'"
@@ -349,7 +366,8 @@ class TestLogsDisplayFormat:
         lines = self.view.get_display_lines(height=20, width=17)
 
         import re
-        date_pattern = re.compile(r'\d{2}-\d{2}')
+
+        date_pattern = re.compile(r"\d{2}-\d{2}")
 
         # Check that first lines of each log have MM-DD format
         content_lines = [line for line in lines if line.strip() and "(" not in line]
@@ -365,11 +383,14 @@ class TestLogsDisplayFormat:
         lines = self.view.get_display_lines(height=20, width=17)
 
         import re
-        time_pattern = re.compile(r'^\s+\d{2}:\d{2}')
+
+        time_pattern = re.compile(r"^\s+\d{2}:\d{2}")
 
         # Check that second lines of each log have indented HH:MM format
         content_lines = [line for line in lines if line.strip() and "(" not in line]
-        second_lines = content_lines[1::2]  # Every other line starting from 1 (second of each pair)
+        second_lines = content_lines[
+            1::2
+        ]  # Every other line starting from 1 (second of each pair)
 
         for line in second_lines:
             assert time_pattern.match(line), (
@@ -395,9 +416,12 @@ class TestLogsDisplayFormat:
         """Test logs that don't have provider_label metadata."""
         # Create log without provider_label
         self.view.logs = [
-            ("some-uri", {
-                "modified": datetime.now().isoformat(),
-            }),
+            (
+                "some-uri",
+                {
+                    "modified": datetime.now().isoformat(),
+                },
+            ),
         ]
         self.view.selected_log_idx = 0
 
@@ -405,7 +429,8 @@ class TestLogsDisplayFormat:
 
         # Should still display timestamp
         import re
-        assert any(re.search(r'\d{2}-\d{2}', line) for line in lines), (
+
+        assert any(re.search(r"\d{2}-\d{2}", line) for line in lines), (
             "Should display date even without provider label"
         )
 
@@ -417,10 +442,13 @@ class TestLogsDisplayFormat:
         # Create 10 logs
         base_time = datetime.now()
         self.view.logs = [
-            (f"log_{i}", {
-                "modified": (base_time - timedelta(hours=i)).isoformat(),
-                "provider_label": "Claude"
-            })
+            (
+                f"log_{i}",
+                {
+                    "modified": (base_time - timedelta(hours=i)).isoformat(),
+                    "provider_label": "Claude",
+                },
+            )
             for i in range(10)
         ]
         self.view.selected_log_idx = 0

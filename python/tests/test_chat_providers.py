@@ -54,7 +54,9 @@ class StubProvider:
         if not indices:
             self.selected_messages = []
             return
-        self.selected_messages = [chat.messages[i] for i in indices if i < len(chat.messages)]
+        self.selected_messages = [
+            chat.messages[i] for i in indices if i < len(chat.messages)
+        ]
 
     def clear_selection(self):
         self.selected_messages = []

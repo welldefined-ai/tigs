@@ -20,6 +20,8 @@ except ImportError:  # pragma: no cover - cligent is a runtime dependency
 KNOWN_PROVIDER_ALIASES: Dict[str, str] = {
     "claude": "claude-code",
     "claude-code": "claude-code",
+    "codex": "codex-cli",
+    "codex-cli": "codex-cli",
     "gemini": "gemini-cli",
     "gemini-cli": "gemini-cli",
     "qwen": "qwen-code",
@@ -28,12 +30,14 @@ KNOWN_PROVIDER_ALIASES: Dict[str, str] = {
 
 DEFAULT_PROVIDER_ORDER: Sequence[str] = (
     "claude-code",
+    "codex-cli",
     "gemini-cli",
     "qwen-code",
 )
 
 PROVIDER_LABELS: Dict[str, str] = {
     "claude-code": "Claude",
+    "codex-cli": "Codex",
     "gemini-cli": "Gemini",
     "qwen-code": "Qwen",
 }
@@ -140,7 +144,9 @@ class MultiProviderChatParser:
             except Exception:  # pragma: no cover - defensive guard
                 continue
 
-            short_name = PROVIDER_LABELS.get(provider, provider.replace("-", " ").title())
+            short_name = PROVIDER_LABELS.get(
+                provider, provider.replace("-", " ").title()
+            )
             for log_uri, metadata in provider_logs:
                 meta = dict(metadata or {})
                 meta["provider"] = provider
@@ -185,11 +191,15 @@ class MultiProviderChatParser:
         if args:
             for item in args:
                 if isinstance(item, Message):
-                    provider = self._infer_provider_from_log_uri(item.log_uri, item.provider)
+                    provider = self._infer_provider_from_log_uri(
+                        item.log_uri, item.provider
+                    )
                     messages.append(self._convert_message(item, provider))
                 elif isinstance(item, Chat):
                     for msg in item.messages:
-                        provider = self._infer_provider_from_log_uri(msg.log_uri, msg.provider)
+                        provider = self._infer_provider_from_log_uri(
+                            msg.log_uri, msg.provider
+                        )
                         messages.append(self._convert_message(msg, provider))
                 else:
                     raise ValueError("compose accepts Message or Chat instances")
@@ -201,13 +211,16 @@ class MultiProviderChatParser:
                 selected_messages = getattr(parser, "selected_messages", None)
                 if selected_messages:
                     messages.extend(
-                        self._convert_message(msg, provider) for msg in selected_messages
+                        self._convert_message(msg, provider)
+                        for msg in selected_messages
                     )
 
         if not messages:
             raise ValueError("No messages selected for composition")
 
-        merged = Chat(messages=sorted(messages, key=lambda m: m.timestamp or datetime.min))
+        merged = Chat(
+            messages=sorted(messages, key=lambda m: m.timestamp or datetime.min)
+        )
         return merged.export()
 
     def decompose(self, tigs_yaml: str) -> Chat:
@@ -220,7 +233,9 @@ class MultiProviderChatParser:
             raise ValueError("YAML must contain a dictionary")
 
         if data.get("schema") != "tigs.chat/v1":
-            raise ValueError(f"Expected schema 'tigs.chat/v1', got '{data.get('schema')}'")
+            raise ValueError(
+                f"Expected schema 'tigs.chat/v1', got '{data.get('schema')}'"
+            )
 
         messages_data = data.get("messages")
         if not isinstance(messages_data, list):
@@ -238,7 +253,9 @@ class MultiProviderChatParser:
             try:
                 role = Role(role_str)
             except ValueError as exc:
-                raise ValueError(f"Message {index} has invalid role '{role_str}'") from exc
+                raise ValueError(
+                    f"Message {index} has invalid role '{role_str}'"
+                ) from exc
 
             content = msg_data.get("content", "")
             if isinstance(content, str):
@@ -251,7 +268,9 @@ class MultiProviderChatParser:
 
             timestamp = self._parse_timestamp(msg_data.get("timestamp"))
             raw_log_uri = str(msg_data.get("log_uri", ""))
-            provider = self._infer_provider_from_log_uri(raw_log_uri, msg_data.get("provider"))
+            provider = self._infer_provider_from_log_uri(
+                raw_log_uri, msg_data.get("provider")
+            )
             log_uri = self._ensure_prefixed_log_uri(raw_log_uri, provider)
 
             message = Message(
@@ -351,7 +370,9 @@ class MultiProviderChatParser:
                 pass
         return datetime.min
 
-    def _convert_message(self, message: Message, provider_hint: Optional[str]) -> Message:
+    def _convert_message(
+        self, message: Message, provider_hint: Optional[str]
+    ) -> Message:
         provider = self._canonicalize(provider_hint or message.provider or "")
         if provider not in self._parsers:
             provider = self.providers[0] if self.providers else provider_hint or ""
@@ -369,12 +390,18 @@ class MultiProviderChatParser:
         if log_uri and ":" in log_uri:
             prefix = log_uri.split(":", 1)[0]
             canonical = self._canonicalize(prefix)
-            if canonical in self._parsers or canonical in KNOWN_PROVIDER_ALIASES.values():
+            if (
+                canonical in self._parsers
+                or canonical in KNOWN_PROVIDER_ALIASES.values()
+            ):
                 return canonical
 
         if provider_hint:
             canonical = self._canonicalize(str(provider_hint))
-            if canonical in self._parsers or canonical in KNOWN_PROVIDER_ALIASES.values():
+            if (
+                canonical in self._parsers
+                or canonical in KNOWN_PROVIDER_ALIASES.values()
+            ):
                 return canonical
 
         if self._order:
