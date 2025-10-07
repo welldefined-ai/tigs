@@ -38,13 +38,13 @@ class LogsView:
             self.logs = []
 
     def get_display_lines(
-        self, height: int, width: int = 17, colors_enabled: bool = False
+        self, height: int, width: int = 18, colors_enabled: bool = False
     ) -> List[Union[str, List[Tuple[str, int]]]]:
         """Get display lines for logs pane.
 
         Args:
             height: Available height for content
-            width: Available width for content (default 17 for logs pane)
+            width: Available width for content (default 18 for logs pane)
             colors_enabled: Whether to return colored output
 
         Returns:
@@ -62,8 +62,9 @@ class LogsView:
         # Reserve space for footer
         available_lines = height - 3  # -2 for borders, -1 for footer
 
-        # Calculate visible range with scrolling
-        visible_count = min(available_lines, len(self.logs))
+        # Each log entry takes 2 lines (provider+date on line 1, time on line 2)
+        lines_per_log = 2
+        visible_count = min(available_lines // lines_per_log, len(self.logs))
 
         # Adjust scroll offset if needed
         if self.selected_log_idx < self.log_scroll_offset:
@@ -78,12 +79,37 @@ class LogsView:
         ):
             log_id, metadata = self.logs[i]
             timestamp = self._format_timestamp(metadata.get("modified", ""))
+            provider_label = metadata.get("provider_label") or metadata.get(
+                "provider", ""
+            )
 
-            # Format: "• timestamp" for selected, "  timestamp" for others
-            if i == self.selected_log_idx:
-                lines.append(f"• {timestamp}")
+            # Build display with provider and timestamp
+            display_parts = []
+            if provider_label:
+                display_parts.append(str(provider_label))
+            if timestamp:
+                # Split timestamp into date and time for wrapping
+                ts = timestamp.strip()
+                if " " in ts:
+                    date_part, time_part = ts.split(" ", 1)
+                    display_parts.append(date_part)
+                else:
+                    display_parts.append(ts)
+                    time_part = None
             else:
-                lines.append(f"  {timestamp}")
+                time_part = None
+
+            first_line = " ".join(part for part in display_parts if part)
+            if not first_line:
+                first_line = log_id.split(":", 1)[-1] if ":" in log_id else log_id
+
+            # Format: "▶ details" for selected, "  details" for others
+            prefix = "▶" if i == self.selected_log_idx else " "
+            lines.append(f"{prefix} {first_line}")
+
+            # Add time on second line if present
+            if time_part:
+                lines.append(f"  {time_part}")
 
         # Pad to put footer at the bottom
         while len(lines) < available_lines:

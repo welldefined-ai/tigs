@@ -40,14 +40,14 @@ wheels = [
 
 [[package]]
 name = "cligent"
-version = "0.1.3"
+version = "0.1.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pyyaml" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/33/46/e7b408c329851e4d9ab8531c768621c85f8f7720f5af251feae0f805c21e/cligent-0.1.3.tar.gz", hash = "sha256:043cf122759ee83cb1983691178c58f8d95541bc8a161dc23827bcb7e7d5ba36", size = 15329, upload-time = "2025-09-22T11:26:39.73Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/c4/a9/cf2f651c3720b30128af97cc7d4fceedb098b7be19f3dc0cecce4c15dc0f/cligent-0.1.5.tar.gz", hash = "sha256:a8b98db3d224116439a38dd3b6bde6d73ccdabecbe1fbe09bcc7390077a8ca33", size = 16889, upload-time = "2025-10-07T01:18:34.24Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/9f/80/62126e7c2c17cbc4c937551c4854775458ab59b83b3209834bf05859392b/cligent-0.1.3-py3-none-any.whl", hash = "sha256:419565bd74a66cec7361896612115a7998d5fd452523e6d3047b6e645c304096", size = 21693, upload-time = "2025-09-22T11:26:38.185Z" },
+    { url = "https://files.pythonhosted.org/packages/03/fc/6095cd91dab857b479ec3fa83e493ff5179d1b4dc9b10e949e3d8e6ce777/cligent-0.1.5-py3-none-any.whl", hash = "sha256:f46ee62798fcf51e851fc1b2effd7c3367d853c8db44c0fd76c10eb90695d4f9", size = 24905, upload-time = "2025-10-07T01:18:32.642Z" },
 ]
 
 [[package]]
@@ -686,7 +686,7 @@ wheels = [
 
 [[package]]
 name = "tigs"
-version = "0.1.2"
+version = "0.1.3"
 source = { editable = "." }
 dependencies = [
     { name = "click", version = "8.1.8", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
@@ -714,7 +714,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "click", specifier = ">=8.0" },
-    { name = "cligent", specifier = ">=0.1.3" },
+    { name = "cligent", specifier = ">=0.1.5" },
     { name = "gitpython", specifier = ">=3.1.30" },
     { name = "pytest-timeout", specifier = ">=2.4.0" },
     { name = "wcwidth", specifier = ">=0.2.13" },

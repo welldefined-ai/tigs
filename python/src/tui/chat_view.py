@@ -2,7 +2,10 @@
 
 import curses
 from typing import List, Union, Tuple
-from cligent import ChatParser
+
+from cligent.core.models import Message, Role
+
+from ..chat_providers import get_chat_parser
 from .messages_view import MessageView
 
 
@@ -20,7 +23,7 @@ class ChatView:
 
         # Initialize chat parser
         try:
-            self.chat_parser = ChatParser("claude-code")
+            self.chat_parser = get_chat_parser()
         except Exception:
             # Handle cligent initialization errors gracefully
             self.chat_parser = None
@@ -43,84 +46,26 @@ class ChatView:
         try:
             # Try to get chat content
             content = self.store.show_chat(sha)
-            if content and self.chat_parser:
-                # Parse the YAML content using cligent with a temporary log ID
-                try:
-                    # Create a temporary directory and file that cligent can work with
-                    import tempfile
-                    import os
+            if content:
+                if self.chat_parser:
+                    try:
+                        chat = self.chat_parser.decompose(content)
 
-                    # Create temp directory structure that cligent expects
-                    with tempfile.TemporaryDirectory() as temp_dir:
-                        # Write the chat content to a temporary log file
-                        log_file = os.path.join(temp_dir, f"{sha}.yaml")
-                        with open(log_file, "w") as f:
-                            f.write(content)
-
-                        # Create a temporary cligent config that points to this directory
-                        # Use a different instance to avoid interfering with the main one
-                        temp_parser = ChatParser("claude-code")
-
-                        # Parse the file directly using parse_file method
-                        chat = temp_parser.parse_file(log_file)
-
-                        # Extract messages and load them into message view
-                        self.message_view.messages = []
-                        for msg in chat.messages:
-                            # Handle cligent Role enum or string exactly like in messages_view.py
-                            if hasattr(msg, "role"):
-                                role = msg.role
-                                # Convert Role enum to string if needed
-                                if hasattr(role, "value"):
-                                    role = role.value
-                                elif hasattr(role, "USER"):  # Check for Role enum
-                                    from cligent import Role
-
-                                    if role == Role.USER:
-                                        role = "user"
-                                    elif role == Role.ASSISTANT:
-                                        role = "assistant"
-                                    else:
-                                        role = str(role).lower()
-                                else:
-                                    role = str(role).lower()
-                            else:
-                                role = "unknown"
-
-                            content_text = (
-                                msg.content if hasattr(msg, "content") else str(msg)
-                            )
-                            timestamp = (
-                                msg.timestamp if hasattr(msg, "timestamp") else None
-                            )
-                            self.message_view.messages.append(
-                                (role, content_text, timestamp)
-                            )
-
-                        # Update items reference and reset cursor
+                        self.message_view.messages = list(chat.messages)
+                        self.message_view.prepare_messages_for_display()
                         self.message_view.items = self.message_view.messages
                         self.message_view.cursor_idx = 0
                         self.message_view.message_cursor_idx = 0
                         self.message_view._internal_scroll_offset = 0
                         self.message_view._needs_message_view_init = True
 
-                except Exception as e:
-                    # If parsing fails, fall back to raw content display
-                    # Create a debug message to show the error
-                    self.message_view.messages = [
-                        (
-                            "system",
-                            f"PARSING ERROR: {str(e)}\n\nRAW CONTENT:\n{content}",
-                            None,
+                    except Exception as e:
+                        self._show_raw_content(
+                            f"PARSING ERROR: {str(e)}\n\nRAW CONTENT:\n{content}"
                         )
-                    ]
-                    self.message_view.items = self.message_view.messages
-                    self.message_view.cursor_idx = 0
-                    self.message_view.message_cursor_idx = 0
-                    self.message_view._internal_scroll_offset = 0
-                    self.message_view._needs_message_view_init = True
+                else:
+                    self._show_raw_content(content)
             else:
-                # No content or no parser - show empty
                 self.message_view.messages = []
                 self.message_view.items = []
 
@@ -130,17 +75,18 @@ class ChatView:
             self.message_view.items = []
         except Exception as e:
             # Error loading chat - show debug info
-            self.message_view.messages = [("system", f"LOADING ERROR: {str(e)}", None)]
-            self.message_view.items = self.message_view.messages
-            self.message_view.cursor_idx = 0
-            self.message_view.message_cursor_idx = 0
-            self.message_view._internal_scroll_offset = 0
-            self.message_view._needs_message_view_init = True
+            self._show_raw_content(f"LOADING ERROR: {str(e)}")
 
     def _show_raw_content(self, content: str) -> None:
         """Fallback to show raw content if parsing fails."""
-        # Create a single "raw" message to display the content
-        self.message_view.messages = [("system", content, None)]
+        # Create a single system message to display the content
+        system_message = Message(
+            role=Role.SYSTEM,
+            content=content,
+            provider="system",
+            log_uri="system://local",
+        )
+        self.message_view.messages = [system_message]
         self.message_view.items = self.message_view.messages
         self.message_view.cursor_idx = 0
         self.message_view.message_cursor_idx = 0
