@@ -12,6 +12,7 @@ def create_mock_session_file(
     num_messages: int = 10,
     project_name: str = "test-project",
     start_time: datetime = None,
+    messages: List[tuple] = None,
 ) -> Dict[str, Any]:
     """Create a mock JSONL session file similar to Claude logs.
 
@@ -28,25 +29,36 @@ def create_mock_session_file(
         start_time = datetime.now() - timedelta(hours=2)
 
     session_id = str(uuid.uuid4())
-    messages = []
+    log_entries = []
     current_time = start_time
 
-    # Generate alternating user/assistant messages in Claude log format
-    for i in range(num_messages):
-        is_user = i % 2 == 0
+    if messages is None:
+        message_sequence = []
+        for i in range(num_messages):
+            is_user = i % 2 == 0
+            if is_user:
+                message_sequence.append(
+                    (
+                        "user",
+                        f"User message {i // 2 + 1}: Can you help me with task {i // 2 + 1}?",
+                    )
+                )
+            else:
+                message_sequence.append(
+                    (
+                        "assistant",
+                        "Assistant response {}: I'll help you with task {}. Here's what we need to do...".format(
+                            i // 2 + 1, i // 2 + 1
+                        ),
+                    )
+                )
+    else:
+        message_sequence = messages
 
-        if is_user:
-            content = (
-                f"User message {i // 2 + 1}: Can you help me with task {i // 2 + 1}?"
-            )
-            role = "user"
-            type_val = "user"
-        else:
-            content = f"Assistant response {i // 2 + 1}: I'll help you with task {i // 2 + 1}. Here's what we need to do..."
-            role = "assistant"
-            type_val = "assistant"
+    for i, (role, content) in enumerate(message_sequence):
+        is_user = role == "user"
+        type_val = role
 
-        # Create message in actual Claude log format with wrapper
         log_entry = {
             "parentUuid": None if i == 0 else f"msg_{uuid.uuid4().hex[:8]}",
             "isSidechain": False,
@@ -61,19 +73,16 @@ def create_mock_session_file(
             "timestamp": current_time.isoformat() + "Z",
         }
 
-        # Add model for assistant messages
         if role == "assistant":
             log_entry["message"]["model"] = "claude-3-5-sonnet-20241022"
 
-        messages.append(log_entry)
-
-        # Advance time for next message
+        log_entries.append(log_entry)
         current_time += timedelta(minutes=2)
 
     # Write JSONL file
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with open(output_path, "w") as f:
-        for msg in messages:
+        for msg in log_entries:
             f.write(json.dumps(msg) + "\n")
 
     # Return metadata
@@ -86,7 +95,10 @@ def create_mock_session_file(
 
 
 def create_mock_claude_home(
-    base_path: Path, num_sessions: int = 3, cwd: Path = None
+    base_path: Path,
+    sessions_data: List[List[tuple]] = None,
+    num_sessions: int = 3,
+    cwd: Path = None,
 ) -> List[tuple]:
     """Create a mock ~/.claude directory structure with session files.
 
@@ -111,21 +123,30 @@ def create_mock_claude_home(
     sessions = []
     start_time = datetime.now() - timedelta(days=1)
 
-    for i in range(num_sessions):
-        # Create project directory
+    if sessions_data is None:
+        message_sets = [None] * num_sessions
+    else:
+        message_sets = sessions_data
+
+    for i, messages in enumerate(message_sets):
         session_file = project_dir / f"session-{i + 1}.jsonl"
 
-        # Vary message counts for diversity
-        num_messages = 4 + i * 2  # 4, 6, 8 messages
+        if messages is None:
+            message_count = 4 + i * 2  # 4, 6, 8 messages
+            metadata = create_mock_session_file(
+                session_file,
+                num_messages=message_count,
+                project_name=project_dir_name,
+                start_time=start_time + timedelta(hours=i * 3),
+            )
+        else:
+            metadata = create_mock_session_file(
+                session_file,
+                messages=messages,
+                project_name=project_dir_name,
+                start_time=start_time + timedelta(hours=i * 3),
+            )
 
-        metadata = create_mock_session_file(
-            session_file,
-            num_messages=num_messages,
-            project_name=project_dir_name,
-            start_time=start_time + timedelta(hours=i * 3),
-        )
-
-        # Use relative path from home for compatibility
         relative_path = session_file.relative_to(base_path)
         sessions.append((str(relative_path), metadata))
 

@@ -82,9 +82,13 @@ class LogsView:
 
             display_parts = []
             if timestamp:
-                display_parts.append(timestamp.strip())
+                stripped = timestamp.strip()
+                if " " in stripped:
+                    display_parts.append(stripped.split()[1])
+                else:
+                    display_parts.append(stripped)
             if provider_label:
-                display_parts.append(str(provider_label))
+                display_parts.insert(0, str(provider_label))
 
             display_text = " ".join(part for part in display_parts if part)
             if not display_text:
