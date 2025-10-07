@@ -12,8 +12,8 @@ class LayoutManager:
     MIN_COMMIT_WIDTH = 27  # Minimum for short datetime + reasonable author name
     MAX_COMMIT_WIDTH = 48  # Cap to leave more space for messages
     MIN_MESSAGE_WIDTH = 25
-    MIN_LOG_WIDTH = 17  # Space for "• MM-DD HH:MM" (13 chars) + borders + padding
-    MAX_LOG_WIDTH = 17  # Keep minimal to avoid padding
+    MIN_LOG_WIDTH = 18  # Space for "▶ Claude 10-06" (14 chars) + borders (2) + padding (2)
+    MAX_LOG_WIDTH = 18  # Keep minimal to avoid padding
 
     # Indicators for scrollable content
     SCROLL_LEFT = "◀"
