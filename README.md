@@ -61,6 +61,33 @@ tigs pull --strategy=ours    # Keep local on conflict
 tigs pull --strategy=theirs  # Keep remote on conflict
 ```
 
+### Provider discovery
+
+Tigs now discovers every supported chat provider through
+[`cligent`](https://pypi.org/project/cligent/). By default the logs pane
+shows sessions from Claude Code, Gemini CLI, and Qwen Code if their local
+history is present, including nested Claude project folders that share the
+same prefix as your current working directory.
+
+To narrow the scan, set the `TIGS_CHAT_PROVIDERS` environment variable to a
+comma- or space-separated list of provider ids:
+
+```bash
+# Only load Claude and Gemini logs, skipping Qwen
+TIGS_CHAT_PROVIDERS="claude-code,gemini-cli" tigs store
+```
+
+Recursive project discovery can be disabled with
+`TIGS_CHAT_RECURSIVE=0` if you only want logs from the current project
+folder:
+
+```bash
+TIGS_CHAT_RECURSIVE=0 tigs store
+```
+
+The logs pane tags each entry with the provider name so mixed sessions are
+easy to spot.
+
 ## How It Works
 
 The TUI shows:

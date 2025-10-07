@@ -39,6 +39,7 @@ PROVIDER_LABELS: Dict[str, str] = {
 }
 
 ENV_VAR_NAME = "TIGS_CHAT_PROVIDERS"
+ENV_VAR_RECURSIVE = "TIGS_CHAT_RECURSIVE"
 
 
 class MultiProviderChatParser:
@@ -50,6 +51,7 @@ class MultiProviderChatParser:
         self._parsers: Dict[str, object] = {}
         self._order: List[str] = []
         self._has_providers = False
+        self._recursive = self._recursive_from_environment()
 
         if _create_parser is None:
             self._warnings.append("Cligent is not available; no chat providers loaded")
@@ -112,6 +114,10 @@ class MultiProviderChatParser:
     def has_providers(self) -> bool:
         return self._has_providers
 
+    @property
+    def recursive(self) -> bool:
+        return self._recursive
+
     # ------------------------------------------------------------------
     # Public API mirroring cligent ChatParser interface
     # ------------------------------------------------------------------
@@ -127,6 +133,9 @@ class MultiProviderChatParser:
                 continue
 
             try:
+                provider_logs = list_fn(recursive=self._recursive)
+            except TypeError:
+                # Older adapters without the new signature
                 provider_logs = list_fn()
             except Exception:  # pragma: no cover - defensive guard
                 continue
@@ -282,6 +291,23 @@ class MultiProviderChatParser:
                 continue
             providers.append(lower)
         return providers
+
+    def _recursive_from_environment(self) -> bool:
+        value = os.environ.get(ENV_VAR_RECURSIVE)
+        if value is None:
+            return True
+
+        normalized = value.strip().lower()
+        if normalized in {"0", "false", "no", "off"}:
+            return False
+        if normalized in {"1", "true", "yes", "on"}:
+            return True
+
+        # Unexpected value - keep default and warn
+        self._warnings.append(
+            f"Unrecognized {ENV_VAR_RECURSIVE} value '{value}', defaulting to recursive logs"
+        )
+        return True
 
     def _canonicalize(self, provider: str) -> Optional[str]:
         if not provider:

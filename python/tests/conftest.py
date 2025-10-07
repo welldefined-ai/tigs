@@ -8,6 +8,8 @@ import yaml
 import pytest
 from click.testing import CliRunner
 
+from cligent import ChatParser
+
 from tests.mock_sessions import create_mock_claude_home
 
 
@@ -26,15 +28,11 @@ def claude_logs(tmp_path, monkeypatch):
     monkeypatch.setenv("HOME", str(mock_home))
 
     # Create mock Claude sessions
-    sessions = create_mock_claude_home(mock_home, num_sessions=3)
+    create_mock_claude_home(mock_home, num_sessions=3)
 
-    # Convert to absolute paths for cligent
-    absolute_sessions = []
-    for relative_path, metadata in sessions:
-        absolute_path = mock_home / relative_path
-        absolute_sessions.append((str(absolute_path), metadata))
-
-    return absolute_sessions
+    # Use real cligent parser to retrieve log URIs compatible with current version
+    parser = ChatParser("claude-code")
+    return parser.list_logs()
 
 
 @pytest.fixture

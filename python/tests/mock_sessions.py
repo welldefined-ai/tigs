@@ -85,12 +85,15 @@ def create_mock_session_file(
     }
 
 
-def create_mock_claude_home(base_path: Path, num_sessions: int = 3) -> List[tuple]:
+def create_mock_claude_home(
+    base_path: Path, num_sessions: int = 3, cwd: Path = None
+) -> List[tuple]:
     """Create a mock ~/.claude directory structure with session files.
 
     Args:
         base_path: Base path for the mock home directory
         num_sessions: Number of session files to create
+        cwd: Optional working directory to mirror for project naming
 
     Returns:
         List of tuples (session_path, metadata) compatible with claude_logs fixture
@@ -98,16 +101,18 @@ def create_mock_claude_home(base_path: Path, num_sessions: int = 3) -> List[tupl
     claude_dir = base_path / ".claude" / "projects"
     claude_dir.mkdir(parents=True, exist_ok=True)
 
+    if cwd is None:
+        cwd = Path.cwd()
+
+    project_dir_name = str(cwd.resolve()).replace("/", "-")
+    project_dir = claude_dir / project_dir_name
+    project_dir.mkdir(parents=True, exist_ok=True)
+
     sessions = []
     start_time = datetime.now() - timedelta(days=1)
 
     for i in range(num_sessions):
         # Create project directory
-        project_id = f"project-{uuid.uuid4().hex[:8]}"
-        project_dir = claude_dir / project_id
-        project_dir.mkdir(exist_ok=True)
-
-        # Create session file
         session_file = project_dir / f"session-{i + 1}.jsonl"
 
         # Vary message counts for diversity
@@ -116,7 +121,7 @@ def create_mock_claude_home(base_path: Path, num_sessions: int = 3) -> List[tupl
         metadata = create_mock_session_file(
             session_file,
             num_messages=num_messages,
-            project_name=f"Test Project {i + 1}",
+            project_name=project_dir_name,
             start_time=start_time + timedelta(hours=i * 3),
         )
 

@@ -1,12 +1,13 @@
 """Unit tests for MultiProviderChatParser."""
 
-import os
 from datetime import datetime
+from typing import List
 
 import pytest
 
 from src.chat_providers import (
     ENV_VAR_NAME,
+    ENV_VAR_RECURSIVE,
     MultiProviderChatParser,
 )
 from cligent.core.models import Chat, Message, Role
@@ -18,6 +19,7 @@ class StubProvider:
     def __init__(self, name: str):
         self.name = name
         self.selected_messages = []
+        self.list_calls: List[bool] = []
         self._store = {
             "log-a": Chat(
                 messages=[
@@ -32,7 +34,8 @@ class StubProvider:
             )
         }
 
-    def list_logs(self):
+    def list_logs(self, recursive: bool = True):
+        self.list_calls.append(recursive)
         return [
             (
                 "log-a",
@@ -76,6 +79,7 @@ def test_default_provider_loading(monkeypatch):
     log_uri, metadata = logs[0]
     assert log_uri.startswith("claude-code:")
     assert metadata["provider_label"] == "Claude"
+    assert parser._parsers["claude-code"].list_calls == [True]
 
     chat = parser.parse(log_uri)
     assert chat.messages[0].log_uri.startswith("claude-code:")
@@ -106,6 +110,7 @@ def test_environment_provider_filter(monkeypatch):
     assert log_uri.startswith("gemini-cli:")
     assert metadata["provider_label"] == "Gemini"
     assert order == ["gemini-cli"]
+    assert parser._parsers["gemini-cli"].list_calls == [True]
 
 
 def test_compose_with_explicit_messages(monkeypatch):
@@ -137,3 +142,18 @@ def test_clear_selection(monkeypatch):
 
     with pytest.raises(ValueError):
         parser.compose()
+
+
+def test_recursive_env_toggle(monkeypatch):
+    def factory(provider):
+        return StubProvider(provider)
+
+    monkeypatch.setattr("src.chat_providers._create_parser", factory)
+    monkeypatch.setenv(ENV_VAR_RECURSIVE, "0")
+
+    parser = MultiProviderChatParser.from_environment()
+    assert parser.recursive is False
+
+    parser.list_logs()
+    stub = parser._parsers[parser.providers[0]]
+    assert stub.list_calls == [False]

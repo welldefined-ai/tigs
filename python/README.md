@@ -28,9 +28,10 @@ pip install tigs  # or: pipx install tigs
 
 ## Quick Start
 
-**Best with Claude Code**: Run `tigs` inside a Git repository that has Claude Code sessions. Your chat history will be automatically loaded and ready to store with commits!
-
 Tigs provides two main interactive TUI (Terminal User Interface) commands:
+
+With Claude Code, run `tigs` inside any directory of a Git repo that has Claude Code sessions.
+All your chat history associated with the repo will be loaded and ready to store with commits!
 
 ### `tigs store` - Select and Store Chats
 
@@ -64,6 +65,25 @@ The view interface displays:
 - **Three-column layout**: Commits list, Commit details, Chat content
 - **Navigation**: Browse through commits and view associated chats
 - **Read-only mode**: Safely explore without modifying data
+
+### Provider discovery
+
+Tigs reads chat histories through `cligent` adapters. Out of the box the
+logs pane surfaces sessions from Claude Code, Gemini CLI, and Qwen Code when
+those logs exist locally, including nested Claude project folders that match
+the current directory's prefix.
+
+To restrict the scan to specific adapters, set the `TIGS_CHAT_PROVIDERS`
+environment variable before launching the TUI:
+
+```bash
+# Example: only show Claude Code conversations
+TIGS_CHAT_PROVIDERS=claude-code tigs store
+```
+
+Every entry in the logs pane includes a provider label so you can quickly
+spot which tool produced a session. Set `TIGS_CHAT_RECURSIVE=0` if you prefer
+to limit discovery to the exact project directory you launched Tigs from.
 
 ## Syncing with Remote Repositories
 
