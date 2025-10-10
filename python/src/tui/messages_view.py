@@ -35,6 +35,7 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
         self._scroll_offset = 0  # Simple line-based scrolling offset
         self.read_only = False  # Flag for read-only mode
         self.separator_map = {}  # Map of {message_index: log_uri} for separators
+        self._last_key = None  # Track last key for multi-key shortcuts like gg/GG
 
     def load_messages(self, log_uri: str) -> None:
         """Load messages for a specific log.
@@ -347,6 +348,29 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
         """
         if not self.messages:
             return
+
+        # Handle 'gg' shortcut - jump to first message
+        if key == ord("g") and self._last_key == ord("g"):
+            # Jump to first message
+            self.cursor_idx = 0
+            self.message_cursor_idx = self.cursor_idx
+            # Scroll to show the first message
+            self._scroll_to_message(self.cursor_idx, pane_height)
+            self._last_key = None  # Reset for next shortcut
+            return
+
+        # Handle 'GG' shortcut (Shift+G twice) - jump to last message
+        elif key == ord("G") and self._last_key == ord("G"):
+            # Jump to last message
+            self.cursor_idx = len(self.messages) - 1
+            self.message_cursor_idx = self.cursor_idx
+            # Scroll to show the last message
+            self._scroll_to_message(self.cursor_idx, pane_height)
+            self._last_key = None  # Reset for next shortcut
+            return
+
+        # Store current key for next iteration (for gg/GG detection)
+        self._last_key = key
 
         # Up/Down arrows: Message navigation
         if key == curses.KEY_UP:
