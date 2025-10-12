@@ -56,7 +56,11 @@ def test_logs_show_claude_and_codex_sessions(monkeypatch):
                 while time.time() < deadline:
                     lines = tui.capture()
                     combined = "\n".join(lines)
-                    if "Logs" in combined and "Claude" in combined and "Codex" in combined:
+                    if (
+                        "Logs" in combined
+                        and "Claude" in combined
+                        and "Codex" in combined
+                    ):
                         break
                     time.sleep(0.25)
 

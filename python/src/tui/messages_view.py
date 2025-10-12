@@ -37,7 +37,9 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
         self.read_only = False  # Flag for read-only mode
         self.separator_map = {}  # Map of {message_index: log_uri} for separators
         self._last_key = None  # Track last key for multi-key shortcuts like gg/GG
-        self.default_to_first_message = default_to_first_message  # Control default cursor position
+        self.default_to_first_message = (
+            default_to_first_message  # Control default cursor position
+        )
 
     def load_messages(self, log_uri: str) -> None:
         """Load messages for a specific log.

@@ -43,11 +43,16 @@ class TestViewStatusFooter:
                         print(f"Found view status footer: {first_pane.strip()}")
                         # Should show (1/X) for first commit where X >= 1
                         import re
-                        match = re.search(r'\((\d+)/(\d+)\)', first_pane)
+
+                        match = re.search(r"\((\d+)/(\d+)\)", first_pane)
                         if match:
                             current, total = int(match.group(1)), int(match.group(2))
-                            assert current == 1, f"Expected current commit to be 1, got: {current}"
-                            assert total >= 1, f"Expected total commits >= 1, got: {total}"
+                            assert current == 1, (
+                                f"Expected current commit to be 1, got: {current}"
+                            )
+                            assert total >= 1, (
+                                f"Expected total commits >= 1, got: {total}"
+                            )
                         else:
                             assert False, f"Status footer format invalid: {first_pane}"
                         break
@@ -222,11 +227,16 @@ messages:
                         footer_found = True
                         # Should show (1/X) for first message where X >= 1
                         import re
-                        match = re.search(r'\((\d+)/(\d+)\)', second_pane)
+
+                        match = re.search(r"\((\d+)/(\d+)\)", second_pane)
                         if match:
                             current, total = int(match.group(1)), int(match.group(2))
-                            assert current == 1, f"Expected current message to be 1, got: {current}"
-                            assert total >= 1, f"Expected total messages >= 1, got: {total}"
+                            assert current == 1, (
+                                f"Expected current message to be 1, got: {current}"
+                            )
+                            assert total >= 1, (
+                                f"Expected total messages >= 1, got: {total}"
+                            )
                         else:
                             assert False, f"Status footer format invalid: {second_pane}"
                         break
@@ -292,7 +302,8 @@ messages:
                 assert initial_footer, "Initial footer not found"
                 # Check footer format is valid, but be flexible about message count
                 import re
-                match = re.search(r'\((\d+)/(\d+)\)', initial_footer)
+
+                match = re.search(r"\((\d+)/(\d+)\)", initial_footer)
                 assert match, f"Invalid footer format: {initial_footer}"
                 current, total = int(match.group(1)), int(match.group(2))
                 assert current == 1, f"Expected to start at message 1, got: {current}"
@@ -315,15 +326,19 @@ messages:
 
                 assert new_footer, "Updated footer not found"
                 # Check navigation worked (flexible about total count)
-                match = re.search(r'\((\d+)/(\d+)\)', new_footer)
+                match = re.search(r"\((\d+)/(\d+)\)", new_footer)
                 assert match, f"Invalid footer format: {new_footer}"
                 current, total = int(match.group(1)), int(match.group(2))
                 # If there are multiple messages, we should have navigated to the second one
                 # If there's only 1 message, we stay at message 1
                 if total > 1:
-                    assert current == 2, f"Expected to navigate to message 2, got: {current}"
+                    assert current == 2, (
+                        f"Expected to navigate to message 2, got: {current}"
+                    )
                 else:
-                    assert current == 1, f"Expected to stay at message 1 when only 1 total, got: {current}"
+                    assert current == 1, (
+                        f"Expected to stay at message 1 when only 1 total, got: {current}"
+                    )
 
                 # Move to last message
                 tui.send_arrow("down")
@@ -339,8 +354,10 @@ messages:
 
                 assert final_footer, "Final footer not found"
                 # Check we're at the last message (flexible about total count)
-                match = re.search(r'\((\d+)/(\d+)\)', final_footer)
+                match = re.search(r"\((\d+)/(\d+)\)", final_footer)
                 assert match, f"Invalid footer format: {final_footer}"
                 current, total = int(match.group(1)), int(match.group(2))
                 # We should be at the last message
-                assert current == total, f"Expected to be at message {total}, got: {current}"
+                assert current == total, (
+                    f"Expected to be at message {total}, got: {current}"
+                )

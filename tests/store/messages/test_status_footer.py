@@ -72,11 +72,16 @@ class TestMessagesStatusFooter:
                         footer_found = True
                         # Should show (1/X) for first message where X >= 1
                         import re
-                        match = re.search(r'\((\d+)/(\d+)\)', second_pane)
+
+                        match = re.search(r"\((\d+)/(\d+)\)", second_pane)
                         if match:
                             current, total = int(match.group(1)), int(match.group(2))
-                            assert current == 1, f"Expected current message to be 1, got: {current}"
-                            assert total >= 1, f"Expected total messages >= 1, got: {total}"
+                            assert current == 1, (
+                                f"Expected current message to be 1, got: {current}"
+                            )
+                            assert total >= 1, (
+                                f"Expected total messages >= 1, got: {total}"
+                            )
                         else:
                             assert False, f"Status footer format invalid: {second_pane}"
                         break
@@ -148,6 +153,7 @@ class TestMessagesStatusFooter:
 
                 # Give UI time to focus on messages pane
                 import time
+
                 time.sleep(0.2)
 
                 # Move cursor down
@@ -168,14 +174,19 @@ class TestMessagesStatusFooter:
                 assert new_footer, "Updated footer not found"
                 # If there's only 1 message total, that's okay - just check footer format is valid
                 import re
-                match = re.search(r'\((\d+)/(\d+)\)', new_footer)
+
+                match = re.search(r"\((\d+)/(\d+)\)", new_footer)
                 if match:
                     current, total = int(match.group(1)), int(match.group(2))
                     # Either we navigated to message 2, or if only 1 total, we stay at message 1
                     if total > 1:
-                        assert current == 2, f"Expected to navigate to message 2, got: {current}"
+                        assert current == 2, (
+                            f"Expected to navigate to message 2, got: {current}"
+                        )
                     else:
-                        assert current == 1, f"Expected to stay at message 1 when total=1, got: {current}"
+                        assert current == 1, (
+                            f"Expected to stay at message 1 when total=1, got: {current}"
+                        )
                 else:
                     assert False, f"Invalid footer format: {new_footer}"
 
@@ -246,7 +257,15 @@ class TestMessagesStatusFooter:
                 for line in lines:
                     second_pane = get_middle_pane(line)
                     # Look for actual message content (user/assistant messages)
-                    if any(keyword in second_pane.lower() for keyword in ['user:', 'assistant:', 'message 1', 'response 1']):
+                    if any(
+                        keyword in second_pane.lower()
+                        for keyword in [
+                            "user:",
+                            "assistant:",
+                            "message 1",
+                            "response 1",
+                        ]
+                    ):
                         has_actual_messages = True
                         break
 
@@ -256,10 +275,15 @@ class TestMessagesStatusFooter:
                     for line in lines[-5:]:
                         second_pane = get_middle_pane(line)
                         # Look for specific status footer pattern (X/Y) in messages pane
-                        if "(" in second_pane and "/" in second_pane and ")" in second_pane:
+                        if (
+                            "(" in second_pane
+                            and "/" in second_pane
+                            and ")" in second_pane
+                        ):
                             # Make sure it's a status footer pattern and not just any parentheses
                             import re
-                            if re.search(r'\(\d+/\d+\)', second_pane):
+
+                            if re.search(r"\(\d+/\d+\)", second_pane):
                                 # Make sure it's in the right area (messages pane, bottom)
                                 if second_pane.strip():  # Non-empty content
                                     footer_found = True
@@ -280,11 +304,17 @@ class TestMessagesStatusFooter:
                     second_pane = get_middle_pane(line)
                     if second_pane:
                         # Check for explicit "no messages" text
-                        if any(text in second_pane.lower() for text in ["no messages", "no messages to display"]):
+                        if any(
+                            text in second_pane.lower()
+                            for text in ["no messages", "no messages to display"]
+                        ):
                             has_no_messages_indication = True
                             break
                         # Check if we have actual message content
-                        if any(keyword in second_pane.lower() for keyword in ['user:', 'assistant:', 'message 1']):
+                        if any(
+                            keyword in second_pane.lower()
+                            for keyword in ["user:", "assistant:", "message 1"]
+                        ):
                             messages_content_found = True
 
                 # Either we should see explicit "no messages" text OR have no message content
