@@ -42,7 +42,7 @@ class TigsViewApp:
         # Initialize view components
         self.commit_view = CommitView(self.store, read_only=True)
         self.commit_details_view = CommitDetailsView(self.store)
-        self.message_view = MessageView(self.chat_parser)
+        self.message_view = MessageView(self.chat_parser, default_to_first_message=True)
         self.message_view.read_only = True  # Make it read-only for view mode
 
         # Give layout manager to commit view for horizontal scrolling

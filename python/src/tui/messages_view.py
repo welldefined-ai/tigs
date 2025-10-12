@@ -13,11 +13,12 @@ from .color_constants import get_role_color, COLOR_METADATA, COLOR_DEFAULT
 class MessageView(VisualSelectionMixin, ScrollableMixin):
     """Manages message display and interaction."""
 
-    def __init__(self, chat_parser):
+    def __init__(self, chat_parser, default_to_first_message: bool = False):
         """Initialize message view.
 
         Args:
             chat_parser: ChatParser instance for loading messages
+            default_to_first_message: If True, cursor starts at first message; if False, starts at last message
         """
         VisualSelectionMixin.__init__(self)  # Initialize selection mixin
         ScrollableMixin.__init__(self)  # Initialize scrollable mixin
@@ -36,6 +37,7 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
         self.read_only = False  # Flag for read-only mode
         self.separator_map = {}  # Map of {message_index: log_uri} for separators
         self._last_key = None  # Track last key for multi-key shortcuts like gg/GG
+        self.default_to_first_message = default_to_first_message  # Control default cursor position
 
     def load_messages(self, log_uri: str) -> None:
         """Load messages for a specific log.
@@ -582,10 +584,16 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
 
         self._visible_message_items(height)
 
-        # Start at the end of the conversation (last message)
-        self.cursor_idx = max(0, len(self.messages) - 1)
+        # Position cursor based on configuration
+        if self.default_to_first_message:
+            # Start at the beginning of the conversation (first message)
+            self.cursor_idx = 0
+        else:
+            # Start at the end of the conversation (last message)
+            self.cursor_idx = max(0, len(self.messages) - 1)
+
         self.message_cursor_idx = self.cursor_idx
-        # Scroll to show the last message
+        # Scroll to show the cursor position
         self._scroll_to_message(self.cursor_idx, height)
 
     def _calculate_total_content_lines(self, width: int) -> int:
