@@ -740,7 +740,9 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
         scroll_to_bottom = max(0, message_end_line - available_content_height)
 
         # Choose the option that requires less scrolling from current position
-        if abs(scroll_to_top - self._scroll_offset) <= abs(scroll_to_bottom - self._scroll_offset):
+        if abs(scroll_to_top - self._scroll_offset) <= abs(
+            scroll_to_bottom - self._scroll_offset
+        ):
             self._scroll_offset = scroll_to_top
         else:
             self._scroll_offset = scroll_to_bottom
