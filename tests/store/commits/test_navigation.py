@@ -76,6 +76,7 @@ def test_cursor_movement_and_scrolling(multiline_repo):
 
         # Give the UI extra time to fully render the cursor
         import time
+
         time.sleep(0.5)
 
         # === PHASE 1: Initial State ===

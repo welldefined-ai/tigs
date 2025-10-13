@@ -200,7 +200,9 @@ class TestViewNavigation:
 
             with TUI(command, cwd=PYTHON_DIR, dimensions=(30, 120)) as tui:
                 try:
-                    tui.wait_for("Scroll", timeout=10.0)  # Increased timeout for slower systems
+                    tui.wait_for(
+                        "Scroll", timeout=10.0
+                    )  # Increased timeout for slower systems
 
                     print("=== Scrolling Behavior Test ===")
 
@@ -211,6 +213,7 @@ class TestViewNavigation:
                         # Add small delay every few moves to prevent overwhelming slower systems
                         if i % 5 == 4:
                             import time
+
                             time.sleep(0.1)
 
                     lines = tui.capture()
@@ -223,7 +226,9 @@ class TestViewNavigation:
                         )
 
                         # Cursor should stay in viewport
-                        assert 0 <= cursor_row < 25, "Cursor should remain visible"  # Slightly more lenient
+                        assert 0 <= cursor_row < 25, (
+                            "Cursor should remain visible"
+                        )  # Slightly more lenient
 
                     except AssertionError:
                         print(
@@ -236,15 +241,20 @@ class TestViewNavigation:
                         # Add delay every few moves
                         if i % 5 == 4:
                             import time
+
                             time.sleep(0.1)
 
                     final_lines = tui.capture()
 
                     # Should be back near the top - check multiple lines for commit content
                     found_scroll_test = False
-                    for i in range(2, min(10, len(final_lines))):  # Check first few lines
+                    for i in range(
+                        2, min(10, len(final_lines))
+                    ):  # Check first few lines
                         line_content = get_first_pane(final_lines[i])
-                        if "Scroll test" in line_content or any(num in line_content for num in ["50", "49", "48"]):
+                        if "Scroll test" in line_content or any(
+                            num in line_content for num in ["50", "49", "48"]
+                        ):
                             found_scroll_test = True
                             break
 

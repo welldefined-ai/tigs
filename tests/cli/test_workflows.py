@@ -376,7 +376,9 @@ messages:
             )
 
             subprocess.run(
-                ["git", "push", "-u", "origin", current_branch], cwd=repo_path, check=True
+                ["git", "push", "-u", "origin", current_branch],
+                cwd=repo_path,
+                check=True,
             )
 
             # Create an unpushed commit
@@ -406,7 +408,9 @@ messages:
             print("✓ Push validation detects unpushed commits")
 
             # Now push the commit and try again
-            subprocess.run(["git", "push", "origin", current_branch], cwd=repo_path, check=True)
+            subprocess.run(
+                ["git", "push", "origin", current_branch], cwd=repo_path, check=True
+            )
 
             # Add another chat to test normal push
             test_file2 = repo_path / "test2.txt"
@@ -415,7 +419,9 @@ messages:
             subprocess.run(
                 ["git", "commit", "-m", "Pushed commit"], cwd=repo_path, check=True
             )
-            subprocess.run(["git", "push", "origin", current_branch], cwd=repo_path, check=True)
+            subprocess.run(
+                ["git", "push", "origin", current_branch], cwd=repo_path, check=True
+            )
 
             content2 = "schema: tigs.chat/v1\nmessages:\n- role: user\n  content: Chat on pushed commit"
             result = run_tigs(repo_path, "add-chat", "HEAD", "-m", content2)
@@ -520,7 +526,9 @@ messages:
 
             # Push using the actual current branch name
             subprocess.run(
-                ["git", "push", "-u", "origin", current_branch], cwd=repo1_path, check=True
+                ["git", "push", "-u", "origin", current_branch],
+                cwd=repo1_path,
+                check=True,
             )
 
             # Step 1: STORE - Add chats using add-chat commands
@@ -578,12 +586,10 @@ messages:
             subprocess.run(
                 ["git", "config", "user.email", "test@example.com"],
                 cwd=repo2_path,
-                check=True
+                check=True,
             )
             subprocess.run(
-                ["git", "config", "user.name", "Test User"],
-                cwd=repo2_path,
-                check=True
+                ["git", "config", "user.name", "Test User"], cwd=repo2_path, check=True
             )
 
             # Verify clone has commits but no chats yet

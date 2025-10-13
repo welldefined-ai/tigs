@@ -83,7 +83,9 @@ class TestViewScrolling:
 
                 # Content should have changed (scrolled), or if there's not enough content,
                 # it's okay for it to stay the same
-                if len(initial_details) > 25:  # Only expect scrolling if there's enough content
+                if (
+                    len(initial_details) > 25
+                ):  # Only expect scrolling if there's enough content
                     assert initial_details != after_down_details, (
                         "Details should scroll when pressing DOWN"
                     )

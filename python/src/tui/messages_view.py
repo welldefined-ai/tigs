@@ -13,11 +13,12 @@ from .color_constants import get_role_color, COLOR_METADATA, COLOR_DEFAULT
 class MessageView(VisualSelectionMixin, ScrollableMixin):
     """Manages message display and interaction."""
 
-    def __init__(self, chat_parser):
+    def __init__(self, chat_parser, default_to_first_message: bool = False):
         """Initialize message view.
 
         Args:
             chat_parser: ChatParser instance for loading messages
+            default_to_first_message: If True, cursor starts at first message; if False, starts at last message
         """
         VisualSelectionMixin.__init__(self)  # Initialize selection mixin
         ScrollableMixin.__init__(self)  # Initialize scrollable mixin
@@ -36,6 +37,9 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
         self.read_only = False  # Flag for read-only mode
         self.separator_map = {}  # Map of {message_index: log_uri} for separators
         self._last_key = None  # Track last key for multi-key shortcuts like gg/GG
+        self.default_to_first_message = (
+            default_to_first_message  # Control default cursor position
+        )
 
     def load_messages(self, log_uri: str) -> None:
         """Load messages for a specific log.
@@ -386,8 +390,8 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
             if self.cursor_idx < len(self.messages) - 1:
                 self.cursor_idx += 1
                 self.message_cursor_idx = self.cursor_idx
-                # Scroll to show the new current message
-                self._scroll_to_message(self.cursor_idx, pane_height)
+                # Smart scroll: only scroll if next message is not fully visible
+                self._smart_scroll_to_next_message(self.cursor_idx, pane_height)
 
         # Vim-like keys: j/k for scrolling
         elif key == ord("j"):
@@ -582,10 +586,16 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
 
         self._visible_message_items(height)
 
-        # Start at the end of the conversation (last message)
-        self.cursor_idx = max(0, len(self.messages) - 1)
+        # Position cursor based on configuration
+        if self.default_to_first_message:
+            # Start at the beginning of the conversation (first message)
+            self.cursor_idx = 0
+        else:
+            # Start at the end of the conversation (last message)
+            self.cursor_idx = max(0, len(self.messages) - 1)
+
         self.message_cursor_idx = self.cursor_idx
-        # Scroll to show the last message
+        # Scroll to show the cursor position
         self._scroll_to_message(self.cursor_idx, height)
 
     def _calculate_total_content_lines(self, width: int) -> int:
@@ -659,6 +669,83 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
         # Position the message header a few lines from the top for better visibility
         target_offset = max(0, line_offset - 2)
         self._scroll_offset = target_offset
+
+    def _smart_scroll_to_next_message(self, message_idx: int, pane_height: int) -> None:
+        """Smart scroll for navigating down to next message.
+
+        Only scrolls if the next message is not fully visible. Scrolls minimally
+        until either the first line of the message hits the top or the last line
+        aligns with the bottom.
+
+        Args:
+            message_idx: Index of the message to scroll to (already incremented)
+            pane_height: Height of the pane
+        """
+        if not self.messages or not hasattr(self, "_last_width"):
+            return
+
+        content_width = max(10, self._last_width - 6)
+
+        # Calculate available content height
+        available_content_height = pane_height - 2  # Borders
+        if self.visual_mode and not self.read_only:
+            available_content_height -= 2  # Visual mode takes 2 lines
+        available_content_height -= 1  # Reserve 1 line for footer
+
+        # Calculate the line range of the target message
+        message_start_line = 0
+        for i in range(message_idx):
+            # Add 1 line for header
+            message_start_line += 1
+
+            # Add lines for content
+            msg = self.messages[i]
+            content = msg.content if hasattr(msg, "content") else str(msg)
+            for line in content.split("\n"):
+                wrapped_lines = self._word_wrap(line, content_width)
+                message_start_line += len(wrapped_lines)
+
+            # Add separator line (except for last message)
+            if i < len(self.messages) - 1:
+                message_start_line += 1
+
+        # Calculate message height
+        message_height = 1  # Header line
+        msg = self.messages[message_idx]
+        content = msg.content if hasattr(msg, "content") else str(msg)
+        for line in content.split("\n"):
+            wrapped_lines = self._word_wrap(line, content_width)
+            message_height += len(wrapped_lines)
+
+        # Add separator line if not the last message
+        if message_idx < len(self.messages) - 1:
+            message_height += 1
+
+        message_end_line = message_start_line + message_height
+
+        # Calculate current viewport boundaries
+        viewport_start = self._scroll_offset
+        viewport_end = self._scroll_offset + available_content_height
+
+        # Check if the message is already fully visible
+        if message_start_line >= viewport_start and message_end_line <= viewport_end:
+            # Message is fully visible, don't scroll
+            return
+
+        # Message is not fully visible, scroll minimally
+        # Option 1: Scroll so the first line of the message hits the top
+        scroll_to_top = message_start_line
+
+        # Option 2: Scroll so the last line aligns with the bottom
+        scroll_to_bottom = max(0, message_end_line - available_content_height)
+
+        # Choose the option that requires less scrolling from current position
+        if abs(scroll_to_top - self._scroll_offset) <= abs(
+            scroll_to_bottom - self._scroll_offset
+        ):
+            self._scroll_offset = scroll_to_top
+        else:
+            self._scroll_offset = scroll_to_bottom
 
     def scroll_to_cursor(self, viewport_height: int, border_size: int = 2) -> None:
         """Ensure cursor is visible in viewport with variable message heights.
