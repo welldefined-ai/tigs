@@ -5,7 +5,16 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional, Dict, List, Any
 
-from .parsers import CapabilityDeltaParser, CapabilityMerger
+from .parsers import (
+    CapabilityDeltaParser,
+    CapabilityMerger,
+    DataModelDeltaParser,
+    DataModelMerger,
+    ApiDeltaParser,
+    ApiMerger,
+    ArchitectureDeltaParser,
+    ArchitectureMerger,
+)
 from .validators import (
     CapabilityValidator,
     DataModelValidator,
@@ -689,32 +698,43 @@ Demonstrates architecture specification format with component definitions and de
 
         merged_specs = []
 
-        # Process capability deltas
-        cap_delta_dir = change_dir / "capabilities"
-        if cap_delta_dir.exists():
-            for spec_dir in cap_delta_dir.iterdir():
+        # Map spec types to parsers and mergers
+        type_handlers = {
+            "capabilities": (CapabilityDeltaParser, CapabilityMerger, "spec.md"),
+            "data-models": (DataModelDeltaParser, DataModelMerger, "schema.md"),
+            "api": (ApiDeltaParser, ApiMerger, "spec.md"),
+            "architecture": (ArchitectureDeltaParser, ArchitectureMerger, "spec.md"),
+        }
+
+        # Process each spec type
+        for spec_type, (parser_class, merger_class, filename) in type_handlers.items():
+            delta_dir = change_dir / spec_type
+            if not delta_dir.exists():
+                continue
+
+            for spec_dir in delta_dir.iterdir():
                 if not spec_dir.is_dir():
                     continue
 
                 spec_name = spec_dir.name
-                delta_file = spec_dir / "spec.md"
+                delta_file = spec_dir / filename
 
                 if not delta_file.exists():
                     continue
 
                 # Parse delta
-                parser = CapabilityDeltaParser(delta_file)
+                parser = parser_class(delta_file)
                 delta = parser.parse()
 
                 # Get or create main spec
-                main_spec_dir = self.specs_path / "capabilities" / spec_name
-                main_spec_file = main_spec_dir / "spec.md"
+                main_spec_dir = self.specs_path / spec_type / spec_name
+                main_spec_file = main_spec_dir / filename
 
                 if not main_spec_dir.exists():
                     main_spec_dir.mkdir(parents=True)
 
                 # Merge changes
-                merger = CapabilityMerger(main_spec_file)
+                merger = merger_class(main_spec_file)
                 updated_content = merger.apply_changes(delta)
 
                 # Write updated spec
