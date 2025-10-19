@@ -1,5 +1,6 @@
 """Command-line interface for Tigs."""
 
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -346,6 +347,81 @@ def init_specs(examples: bool, path: Optional[Path]) -> None:
         sys.exit(1)
     except Exception as e:
         click.echo(f"Error initializing specs: {e}", err=True)
+        sys.exit(1)
+
+
+@main.command("list-specs")
+@click.option(
+    "--type",
+    "-t",
+    "spec_type",
+    type=click.Choice(["capabilities", "data-models", "api", "architecture"]),
+    help="Filter by specification type"
+)
+@click.option(
+    "--json",
+    "json_output",
+    is_flag=True,
+    help="Output in JSON format"
+)
+@click.option(
+    "--path",
+    "-p",
+    type=click.Path(exists=True, path_type=Path),
+    default=None,
+    help="Path to specs directory (defaults to current directory)"
+)
+def list_specs_command(spec_type: Optional[str], json_output: bool, path: Optional[Path]) -> None:
+    """List all specifications in the project.
+
+    Scans the specs/ directory and displays all discovered specifications,
+    grouped by type. Use --type to filter by a specific type.
+    """
+    root_path = path or Path.cwd()
+    manager = SpecsManager(root_path)
+
+    try:
+        specs = manager.list_specs(spec_type=spec_type)
+
+        if json_output:
+            # Output JSON format
+            click.echo(json.dumps(specs, indent=2))
+            return
+
+        # Human-readable format
+        total_count = sum(len(spec_list) for spec_list in specs.values())
+
+        if total_count == 0:
+            click.echo("No specifications found.")
+            click.echo("\nCreate your first spec:")
+            click.echo("  - Use an AI assistant with: /new-spec")
+            click.echo("  - Or manually create in specs/ directory")
+            return
+
+        click.echo(f"Found {total_count} specification(s):\n")
+
+        for stype, spec_list in specs.items():
+            if not spec_list:
+                continue
+
+            # Format type name nicely
+            type_display = stype.replace("-", " ").title()
+            click.echo(f"{type_display} ({len(spec_list)}):")
+
+            for spec in spec_list:
+                click.echo(f"  - {spec['name']}")
+                click.echo(f"    {spec['path']}")
+
+            click.echo()  # Empty line between types
+
+    except FileNotFoundError as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+    except ValueError as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+    except Exception as e:
+        click.echo(f"Error listing specs: {e}", err=True)
         sys.exit(1)
 
 

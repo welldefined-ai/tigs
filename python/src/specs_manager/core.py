@@ -2,7 +2,7 @@
 
 import shutil
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Dict, List
 
 
 class SpecsManager:
@@ -11,6 +11,14 @@ class SpecsManager:
     # Directory structure
     SPECS_DIR = "specs"
     SUBDIRS = ["capabilities", "data-models", "api", "architecture", "changes"]
+
+    # File naming conventions for each type
+    SPEC_FILES = {
+        "capabilities": "spec.md",
+        "data-models": "schema.md",
+        "api": "spec.md",
+        "architecture": "spec.md",
+    }
 
     def __init__(self, root_path: Path):
         """Initialize specs manager.
@@ -66,6 +74,67 @@ class SpecsManager:
             created.extend(example_paths)
 
         return {"created": created, "existed": []}
+
+    def list_specs(self, spec_type: Optional[str] = None) -> Dict[str, List[Dict[str, str]]]:
+        """List all specifications, optionally filtered by type.
+
+        Args:
+            spec_type: Optional type filter (capabilities, data-models, api, architecture)
+
+        Returns:
+            Dictionary mapping spec types to lists of spec info dicts.
+            Each spec info dict contains:
+                - name: The spec name (directory name)
+                - path: Relative path to the spec file
+                - file: The spec filename
+
+        Raises:
+            FileNotFoundError: If specs/ directory doesn't exist
+            ValueError: If spec_type is invalid
+        """
+        if not self.specs_path.exists():
+            raise FileNotFoundError(
+                f"Specs directory not found at {self.specs_path}. "
+                f"Run 'tigs init-specs' first."
+            )
+
+        # Validate spec_type if provided
+        if spec_type is not None:
+            valid_types = list(self.SPEC_FILES.keys())
+            if spec_type not in valid_types:
+                raise ValueError(
+                    f"Invalid spec type '{spec_type}'. "
+                    f"Must be one of: {', '.join(valid_types)}"
+                )
+
+        result: Dict[str, List[Dict[str, str]]] = {}
+        types_to_scan = [spec_type] if spec_type else list(self.SPEC_FILES.keys())
+
+        for stype in types_to_scan:
+            specs = []
+            type_dir = self.specs_path / stype
+
+            if not type_dir.exists():
+                result[stype] = []
+                continue
+
+            # Scan for spec directories
+            expected_filename = self.SPEC_FILES[stype]
+            for spec_dir in sorted(type_dir.iterdir()):
+                if not spec_dir.is_dir():
+                    continue
+
+                spec_file = spec_dir / expected_filename
+                if spec_file.exists():
+                    specs.append({
+                        "name": spec_dir.name,
+                        "path": str(spec_file.relative_to(self.root_path)),
+                        "file": expected_filename,
+                    })
+
+            result[stype] = specs
+
+        return result
 
     def _generate_readme(self, target_path: Path) -> None:
         """Generate README from template.
