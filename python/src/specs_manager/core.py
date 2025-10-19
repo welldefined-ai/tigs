@@ -136,6 +136,92 @@ class SpecsManager:
 
         return result
 
+    def show_spec(self, name: str, spec_type: Optional[str] = None) -> Dict[str, str]:
+        """Show content of a specification.
+
+        Args:
+            name: The spec name (directory name)
+            spec_type: Optional type to disambiguate (capabilities, data-models, api, architecture)
+
+        Returns:
+            Dictionary containing:
+                - name: The spec name
+                - type: The spec type
+                - path: Relative path to the spec file
+                - content: The spec file content
+
+        Raises:
+            FileNotFoundError: If specs/ directory doesn't exist or spec not found
+            ValueError: If spec_type is invalid or name is ambiguous
+        """
+        if not self.specs_path.exists():
+            raise FileNotFoundError(
+                f"Specs directory not found at {self.specs_path}. "
+                f"Run 'tigs init-specs' first."
+            )
+
+        # Validate spec_type if provided
+        if spec_type is not None:
+            valid_types = list(self.SPEC_FILES.keys())
+            if spec_type not in valid_types:
+                raise ValueError(
+                    f"Invalid spec type '{spec_type}'. "
+                    f"Must be one of: {', '.join(valid_types)}"
+                )
+
+        # Search for the spec
+        found_specs = []
+        types_to_search = [spec_type] if spec_type else list(self.SPEC_FILES.keys())
+
+        for stype in types_to_search:
+            type_dir = self.specs_path / stype
+            if not type_dir.exists():
+                continue
+
+            spec_dir = type_dir / name
+            expected_filename = self.SPEC_FILES[stype]
+            spec_file = spec_dir / expected_filename
+
+            if spec_file.exists():
+                found_specs.append({
+                    "name": name,
+                    "type": stype,
+                    "path": str(spec_file.relative_to(self.root_path)),
+                    "file": expected_filename,
+                    "full_path": spec_file,
+                })
+
+        # Handle results
+        if not found_specs:
+            if spec_type:
+                raise FileNotFoundError(
+                    f"Spec '{name}' not found in {spec_type}/. "
+                    f"Use 'tigs list-specs' to see available specs."
+                )
+            else:
+                raise FileNotFoundError(
+                    f"Spec '{name}' not found in any type. "
+                    f"Use 'tigs list-specs' to see available specs."
+                )
+
+        if len(found_specs) > 1:
+            types = [s["type"] for s in found_specs]
+            raise ValueError(
+                f"Spec name '{name}' is ambiguous. Found in: {', '.join(types)}. "
+                f"Use --type to specify which one to show."
+            )
+
+        # Read and return spec content
+        spec_info = found_specs[0]
+        content = spec_info["full_path"].read_text()
+
+        return {
+            "name": spec_info["name"],
+            "type": spec_info["type"],
+            "path": spec_info["path"],
+            "content": content,
+        }
+
     def _generate_readme(self, target_path: Path) -> None:
         """Generate README from template.
 

@@ -425,5 +425,64 @@ def list_specs_command(spec_type: Optional[str], json_output: bool, path: Option
         sys.exit(1)
 
 
+@main.command("show-spec")
+@click.argument("name", type=str)
+@click.option(
+    "--type",
+    "-t",
+    "spec_type",
+    type=click.Choice(["capabilities", "data-models", "api", "architecture"]),
+    help="Specify spec type to disambiguate"
+)
+@click.option(
+    "--json",
+    "json_output",
+    is_flag=True,
+    help="Output in JSON format with metadata"
+)
+@click.option(
+    "--path",
+    "-p",
+    type=click.Path(exists=True, path_type=Path),
+    default=None,
+    help="Path to specs directory (defaults to current directory)"
+)
+def show_spec_command(name: str, spec_type: Optional[str], json_output: bool, path: Optional[Path]) -> None:
+    """Show the content of a specification.
+
+    NAME is the specification name (directory name).
+
+    If multiple specs with the same name exist in different types,
+    use --type to specify which one to show.
+    """
+    root_path = path or Path.cwd()
+    manager = SpecsManager(root_path)
+
+    try:
+        spec_info = manager.show_spec(name, spec_type=spec_type)
+
+        if json_output:
+            # Output JSON format with metadata
+            click.echo(json.dumps(spec_info, indent=2))
+            return
+
+        # Human-readable format
+        type_display = spec_info["type"].replace("-", " ").title()
+        click.echo(f"Spec: {spec_info['name']} ({type_display})")
+        click.echo(f"Path: {spec_info['path']}")
+        click.echo("=" * 80)
+        click.echo(spec_info["content"], nl=False)
+
+    except FileNotFoundError as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+    except ValueError as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+    except Exception as e:
+        click.echo(f"Error showing spec: {e}", err=True)
+        sys.exit(1)
+
+
 if __name__ == "__main__":
     main()
