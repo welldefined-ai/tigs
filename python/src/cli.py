@@ -325,11 +325,31 @@ def init_specs(examples: bool, path: Optional[Path]) -> None:
         result = manager.init_structure(with_examples=examples)
 
         click.echo(f"✓ Initialized specs directory at {root_path / 'specs'}")
-        click.echo(f"\nCreated {len(result['created'])} items:")
-        for created_path in result['created']:
-            # Show relative path for cleaner output
-            rel_path = Path(created_path).relative_to(root_path)
-            click.echo(f"  - {rel_path}")
+
+        # Separate specs, AGENTS.md, and commands for clearer display
+        specs_items = [p for p in result['created'] if '/specs/' in str(p) or str(p).endswith('specs')]
+        claude_items = [p for p in result['created'] if '/.claude/' in str(p)]
+        agents_md = [p for p in result['created'] if str(p).endswith('AGENTS.md')]
+
+        if specs_items:
+            click.echo(f"\nCreated specs structure ({len(specs_items)} items):")
+            for created_path in specs_items:
+                rel_path = Path(created_path).relative_to(root_path)
+                click.echo(f"  - {rel_path}")
+
+        if agents_md:
+            click.echo(f"\n✓ Created AI assistant guide: AGENTS.md")
+
+        if claude_items:
+            click.echo(f"\n✓ Created Claude Code slash commands:")
+            for created_path in claude_items:
+                rel_path = Path(created_path).relative_to(root_path)
+                # Show command names more prominently
+                if created_path.endswith('.md'):
+                    command_name = Path(created_path).stem
+                    click.echo(f"  - /{command_name}")
+                else:
+                    click.echo(f"  - {rel_path}")
 
         if examples:
             click.echo("\n✓ Generated example specifications")
@@ -337,8 +357,12 @@ def init_specs(examples: bool, path: Optional[Path]) -> None:
 
         click.echo("\nNext steps:")
         click.echo("  1. Review specs/README.md for format guidelines")
-        click.echo("  2. Create your first spec: tig new-spec <name> --type <type>")
-        click.echo("  3. Start tracking changes: tig new-change <change-id>")
+        if claude_items:
+            click.echo("  2. Use AI slash commands: /new-spec, /validate, /change, /archive")
+            click.echo("  3. Or use CLI: tigs list-specs, tigs show-spec, tigs validate-specs")
+        else:
+            click.echo("  2. Create your first spec using an AI assistant")
+            click.echo("  3. Validate specs: tigs validate-specs --all")
 
     except FileExistsError as e:
         click.echo(f"Error: {e}", err=True)

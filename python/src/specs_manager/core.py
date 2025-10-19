@@ -40,7 +40,7 @@ class SpecsManager:
         self.specs_path = self.root_path / self.SPECS_DIR
 
     def init_structure(self, with_examples: bool = False) -> dict:
-        """Initialize specs directory structure.
+        """Initialize specs directory structure and Claude Code slash commands.
 
         Args:
             with_examples: Whether to generate example specs
@@ -77,6 +77,15 @@ class SpecsManager:
         readme_path = self.specs_path / "README.md"
         self._generate_readme(readme_path)
         created.append(str(readme_path))
+
+        # Generate AGENTS.md for AI assistants
+        agents_path = self.root_path / "AGENTS.md"
+        self._generate_agents_md(agents_path)
+        created.append(str(agents_path))
+
+        # Create .claude/commands/ directory and copy slash command templates
+        claude_commands_paths = self._create_claude_commands()
+        created.extend(claude_commands_paths)
 
         # Generate examples if requested
         if with_examples:
@@ -248,6 +257,66 @@ class SpecsManager:
 
         # Copy template (no variable substitution needed for README)
         shutil.copy(template_path, target_path)
+
+    def _generate_agents_md(self, target_path: Path) -> None:
+        """Generate AGENTS.md from template.
+
+        Args:
+            target_path: Where to write AGENTS.md
+        """
+        template_path = Path(__file__).parent / "templates" / "AGENTS_template.md"
+
+        if not template_path.exists():
+            # Fallback: create basic AGENTS.md
+            content = """# AI Assistant Guide
+
+This project uses Tigs for specification management.
+
+See the spec files in specs/ for details.
+"""
+            target_path.write_text(content)
+            return
+
+        # Copy template
+        shutil.copy(template_path, target_path)
+
+    def _create_claude_commands(self) -> list[str]:
+        """Create .claude/commands/ directory and copy slash command templates.
+
+        Returns:
+            List of created file paths
+        """
+        created = []
+
+        # Create .claude/commands/ directory in root (not in specs/)
+        claude_dir = self.root_path / ".claude"
+        commands_dir = claude_dir / "commands"
+        commands_dir.mkdir(parents=True, exist_ok=True)
+        created.append(str(commands_dir))
+
+        # Get templates directory
+        templates_dir = Path(__file__).parent / "templates" / "commands"
+
+        if not templates_dir.exists():
+            # No templates to copy
+            return created
+
+        # Copy all command templates
+        command_files = [
+            "new-spec.md",
+            "validate.md",
+            "change.md",
+            "archive.md",
+        ]
+
+        for command_file in command_files:
+            template_path = templates_dir / command_file
+            if template_path.exists():
+                target_path = commands_dir / command_file
+                shutil.copy(template_path, target_path)
+                created.append(str(target_path))
+
+        return created
 
     def _generate_examples(self) -> list[str]:
         """Generate example specs for each type.
