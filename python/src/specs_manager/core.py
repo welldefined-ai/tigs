@@ -6,6 +6,13 @@ from pathlib import Path
 from typing import Optional, Dict, List, Any
 
 from .parsers import CapabilityDeltaParser, CapabilityMerger
+from .validators import (
+    CapabilityValidator,
+    DataModelValidator,
+    ApiValidator,
+    ArchitectureValidator,
+    ValidationResult,
+)
 
 
 class SpecsManager:
@@ -715,3 +722,87 @@ Demonstrates architecture specification format with component definitions and de
         shutil.move(str(change_dir), str(archive_path))
 
         return archive_path
+
+    def validate_specs(
+        self,
+        spec_type: Optional[str] = None,
+        change_id: Optional[str] = None,
+        strict: bool = False
+    ) -> Dict[str, List[ValidationResult]]:
+        """Validate specifications.
+
+        Args:
+            spec_type: Optional type filter (capabilities, data-models, api, architecture)
+            change_id: Optional change ID to validate only specs in a change
+            strict: If True, warnings are treated as failures
+
+        Returns:
+            Dictionary mapping spec types to lists of ValidationResults
+
+        Raises:
+            FileNotFoundError: If specs/ directory doesn't exist
+            ValueError: If spec_type is invalid
+        """
+        if not self.specs_path.exists():
+            raise FileNotFoundError(
+                f"Specs directory not found at {self.specs_path}. "
+                f"Run 'tigs init-specs' first."
+            )
+
+        # Validate spec_type if provided
+        if spec_type is not None:
+            valid_types = list(self.SPEC_FILES.keys())
+            if spec_type not in valid_types:
+                raise ValueError(
+                    f"Invalid spec type '{spec_type}'. "
+                    f"Must be one of: {', '.join(valid_types)}"
+                )
+
+        # Determine base path
+        if change_id:
+            base_path = self.specs_path / "changes" / change_id
+            if not base_path.exists():
+                raise FileNotFoundError(f"Change '{change_id}' not found")
+        else:
+            base_path = self.specs_path
+
+        # Map spec types to validators
+        validators_map = {
+            "capabilities": CapabilityValidator,
+            "data-models": DataModelValidator,
+            "api": ApiValidator,
+            "architecture": ArchitectureValidator,
+        }
+
+        results: Dict[str, List[ValidationResult]] = {}
+        types_to_validate = [spec_type] if spec_type else list(self.SPEC_FILES.keys())
+
+        for stype in types_to_validate:
+            type_results = []
+            type_dir = base_path / stype
+
+            if not type_dir.exists():
+                results[stype] = []
+                continue
+
+            # Get validator class
+            validator_class = validators_map[stype]
+            expected_filename = self.SPEC_FILES[stype]
+
+            # Scan for spec files
+            for spec_dir in type_dir.iterdir():
+                if not spec_dir.is_dir():
+                    continue
+
+                spec_file = spec_dir / expected_filename
+                if not spec_file.exists():
+                    continue
+
+                # Validate the spec
+                validator = validator_class(spec_file)
+                result = validator.validate()
+                type_results.append(result)
+
+            results[stype] = type_results
+
+        return results

@@ -585,5 +585,155 @@ def archive_change_command(change_id: str, yes: bool, no_validate: bool, path: O
         sys.exit(1)
 
 
+@main.command("validate-specs")
+@click.option(
+    "--all",
+    "validate_all",
+    is_flag=True,
+    help="Validate all specifications"
+)
+@click.option(
+    "--type",
+    "-t",
+    "spec_type",
+    type=click.Choice(["capabilities", "data-models", "api", "architecture"]),
+    help="Validate only specific type"
+)
+@click.option(
+    "--change",
+    "-c",
+    "change_id",
+    type=str,
+    help="Validate specs in a specific change"
+)
+@click.option(
+    "--strict",
+    is_flag=True,
+    help="Treat warnings as errors"
+)
+@click.option(
+    "--path",
+    "-p",
+    type=click.Path(exists=True, path_type=Path),
+    default=None,
+    help="Path to specs directory (defaults to current directory)"
+)
+def validate_specs_command(
+    validate_all: bool,
+    spec_type: Optional[str],
+    change_id: Optional[str],
+    strict: bool,
+    path: Optional[Path]
+) -> None:
+    """Validate specification format and structure.
+
+    Checks that specifications follow the defined format rules:
+    - Required sections present
+    - Correct heading hierarchy
+    - Valid requirement/scenario format
+    - Proper use of modal verbs (SHALL/MUST)
+
+    Examples:
+      tigs validate-specs --all                # All specs
+      tigs validate-specs --type capabilities  # Only capabilities
+      tigs validate-specs --change my-change   # Only in change
+      tigs validate-specs --all --strict       # Warnings = errors
+    """
+    root_path = path or Path.cwd()
+    manager = SpecsManager(root_path)
+
+    try:
+        # Validate
+        results = manager.validate_specs(
+            spec_type=spec_type,
+            change_id=change_id,
+            strict=strict
+        )
+
+        # Count totals
+        total_specs = 0
+        total_errors = 0
+        total_warnings = 0
+        specs_with_errors = 0
+        specs_with_warnings = 0
+
+        # Display results
+        has_any_issues = False
+
+        for stype, type_results in results.items():
+            if not type_results:
+                continue
+
+            total_specs += len(type_results)
+
+            # Check if any specs have issues
+            specs_with_issues = [r for r in type_results if r.has_issues]
+            if not specs_with_issues:
+                continue
+
+            has_any_issues = True
+
+            # Display type header
+            type_display = stype.replace("-", " ").title()
+            click.echo(f"\n{type_display}:")
+            click.echo("=" * 60)
+
+            for result in specs_with_issues:
+                if result.errors:
+                    specs_with_errors += 1
+                    total_errors += len(result.errors)
+                if result.warnings:
+                    specs_with_warnings += 1
+                    total_warnings += len(result.warnings)
+
+                # Display spec path
+                click.echo(f"\n{result.spec_path}")
+
+                # Display errors
+                if result.errors:
+                    for issue in result.errors:
+                        click.echo(f"  {issue}", err=True)
+
+                # Display warnings
+                if result.warnings:
+                    for issue in result.warnings:
+                        # In strict mode, warnings are shown as errors
+                        if strict:
+                            click.echo(f"  {issue}", err=True)
+                        else:
+                            click.echo(f"  {issue}")
+
+        # Summary
+        click.echo("\n" + "=" * 60)
+        if not has_any_issues:
+            click.echo(f"✓ All {total_specs} specification(s) passed validation")
+            sys.exit(0)
+        else:
+            click.echo(f"✗ Validation completed with issues:")
+            click.echo(f"  Total specs: {total_specs}")
+            click.echo(f"  Specs with errors: {specs_with_errors}")
+            click.echo(f"  Specs with warnings: {specs_with_warnings}")
+            click.echo(f"  Total errors: {total_errors}")
+            click.echo(f"  Total warnings: {total_warnings}")
+
+            # Exit with error code if there are errors or strict mode warnings
+            if total_errors > 0 or (strict and total_warnings > 0):
+                sys.exit(1)
+            else:
+                sys.exit(0)
+
+    except FileNotFoundError as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+    except ValueError as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+    except Exception as e:
+        click.echo(f"Error validating specs: {e}", err=True)
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
+
+
 if __name__ == "__main__":
     main()
