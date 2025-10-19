@@ -484,5 +484,106 @@ def show_spec_command(name: str, spec_type: Optional[str], json_output: bool, pa
         sys.exit(1)
 
 
+@main.command("archive-change")
+@click.argument("change_id", type=str)
+@click.option(
+    "--yes",
+    "-y",
+    is_flag=True,
+    help="Skip confirmation prompt"
+)
+@click.option(
+    "--no-validate",
+    is_flag=True,
+    help="Skip validation checks"
+)
+@click.option(
+    "--path",
+    "-p",
+    type=click.Path(exists=True, path_type=Path),
+    default=None,
+    help="Path to specs directory (defaults to current directory)"
+)
+def archive_change_command(change_id: str, yes: bool, no_validate: bool, path: Optional[Path]) -> None:
+    """Archive a change by merging delta specs into main specs.
+
+    CHANGE_ID is the name of the change directory in specs/changes/.
+
+    This command:
+    1. Validates the change structure (unless --no-validate)
+    2. Parses delta specifications
+    3. Merges changes into main specifications
+    4. Moves the change to archive with date prefix
+
+    Example:
+      tigs archive-change add-user-authentication
+    """
+    root_path = path or Path.cwd()
+    manager = SpecsManager(root_path)
+
+    try:
+        # Get change directory info
+        change_dir = root_path / "specs" / "changes" / change_id
+
+        if not change_dir.exists():
+            click.echo(f"Error: Change '{change_id}' not found", err=True)
+            click.echo("\nAvailable changes:", err=True)
+            changes_dir = root_path / "specs" / "changes"
+            if changes_dir.exists():
+                changes = [d.name for d in changes_dir.iterdir() if d.is_dir() and d.name != "archive"]
+                if changes:
+                    for change in changes:
+                        click.echo(f"  - {change}", err=True)
+                else:
+                    click.echo("  (none)", err=True)
+            sys.exit(1)
+
+        # Show summary and confirm
+        if not yes:
+            click.echo(f"About to archive change: {change_id}")
+            click.echo(f"Change directory: {change_dir}")
+
+            # Show what will be merged
+            click.echo("\nDelta specifications found:")
+            found_any = False
+            for spec_type in ["capabilities", "data-models", "api", "architecture"]:
+                delta_dir = change_dir / spec_type
+                if delta_dir.exists():
+                    specs = [d.name for d in delta_dir.iterdir() if d.is_dir()]
+                    if specs:
+                        found_any = True
+                        click.echo(f"  {spec_type}:")
+                        for spec in specs:
+                            click.echo(f"    - {spec}")
+
+            if not found_any:
+                click.echo("  (none found)")
+
+            click.echo()
+            if not click.confirm("Proceed with archiving?"):
+                click.echo("Aborted.")
+                sys.exit(0)
+
+        # Perform archive
+        result = manager.archive_change(change_id, skip_validation=no_validate)
+
+        click.echo(f"✓ Archived change: {change_id}")
+        click.echo(f"\nMerged {len(result['merged'])} specification(s):")
+        for merged_path in result['merged']:
+            click.echo(f"  - {merged_path}")
+
+        click.echo(f"\nArchived to: {result['archive_path']}")
+
+    except FileNotFoundError as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+    except ValueError as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+    except Exception as e:
+        click.echo(f"Error archiving change: {e}", err=True)
+        sys.exit(1)
+
+
 if __name__ == "__main__":
     main()

@@ -1,8 +1,11 @@
 """Core specs management functionality."""
 
 import shutil
+from datetime import datetime
 from pathlib import Path
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Any
+
+from .parsers import CapabilityDeltaParser, CapabilityMerger
 
 
 class SpecsManager:
@@ -578,3 +581,137 @@ Demonstrates architecture specification format with component definitions and de
 - **APIs**: `api/example-api/spec.md`
 - **Data Models**: `data-models/example-model/schema.md`
 """
+
+    def archive_change(self, change_id: str, skip_validation: bool = False) -> Dict[str, Any]:
+        """Archive a change by merging delta specs into main specs.
+
+        Args:
+            change_id: The change directory name
+            skip_validation: Skip validation checks if True
+
+        Returns:
+            Dictionary with:
+                - change_id: The change ID
+                - merged: List of merged spec paths
+                - archive_path: Where the change was archived
+
+        Raises:
+            FileNotFoundError: If change directory doesn't exist
+            ValueError: If change validation fails
+        """
+        change_dir = self.specs_path / "changes" / change_id
+
+        if not change_dir.exists():
+            raise FileNotFoundError(
+                f"Change '{change_id}' not found at {change_dir}. "
+                f"Available changes: {self._list_changes()}"
+            )
+
+        # Validate change structure
+        if not skip_validation:
+            self._validate_change(change_dir)
+
+        merged_specs = []
+
+        # Process capability deltas
+        cap_delta_dir = change_dir / "capabilities"
+        if cap_delta_dir.exists():
+            for spec_dir in cap_delta_dir.iterdir():
+                if not spec_dir.is_dir():
+                    continue
+
+                spec_name = spec_dir.name
+                delta_file = spec_dir / "spec.md"
+
+                if not delta_file.exists():
+                    continue
+
+                # Parse delta
+                parser = CapabilityDeltaParser(delta_file)
+                delta = parser.parse()
+
+                # Get or create main spec
+                main_spec_dir = self.specs_path / "capabilities" / spec_name
+                main_spec_file = main_spec_dir / "spec.md"
+
+                if not main_spec_dir.exists():
+                    main_spec_dir.mkdir(parents=True)
+
+                # Merge changes
+                merger = CapabilityMerger(main_spec_file)
+                updated_content = merger.apply_changes(delta)
+
+                # Write updated spec
+                main_spec_file.write_text(updated_content)
+                merged_specs.append(str(main_spec_file.relative_to(self.root_path)))
+
+        # Archive the change directory
+        archive_path = self._archive_change_directory(change_dir, change_id)
+
+        return {
+            "change_id": change_id,
+            "merged": merged_specs,
+            "archive_path": str(archive_path.relative_to(self.root_path))
+        }
+
+    def _list_changes(self) -> List[str]:
+        """List all active changes."""
+        changes_dir = self.specs_path / "changes"
+        if not changes_dir.exists():
+            return []
+
+        changes = []
+        for item in changes_dir.iterdir():
+            if item.is_dir() and item.name != "archive":
+                changes.append(item.name)
+
+        return changes
+
+    def _validate_change(self, change_dir: Path) -> None:
+        """Validate change directory structure.
+
+        Raises:
+            ValueError: If validation fails
+        """
+        # Check for proposal.md
+        proposal_file = change_dir / "proposal.md"
+        if not proposal_file.exists():
+            raise ValueError(
+                f"Change validation failed: proposal.md not found in {change_dir.name}"
+            )
+
+        # Check for at least one delta spec
+        has_deltas = False
+        for spec_type in ["capabilities", "data-models", "api", "architecture"]:
+            delta_dir = change_dir / spec_type
+            if delta_dir.exists() and any(delta_dir.iterdir()):
+                has_deltas = True
+                break
+
+        if not has_deltas:
+            raise ValueError(
+                f"Change validation failed: No delta specifications found in {change_dir.name}"
+            )
+
+    def _archive_change_directory(self, change_dir: Path, change_id: str) -> Path:
+        """Move change directory to archive with date prefix.
+
+        Args:
+            change_dir: Path to the change directory
+            change_id: The change ID
+
+        Returns:
+            Path to the archived directory
+        """
+        archive_dir = self.specs_path / "changes" / "archive"
+        archive_dir.mkdir(parents=True, exist_ok=True)
+
+        # Add date prefix
+        date_prefix = datetime.now().strftime("%Y%m%d")
+        archived_name = f"{date_prefix}-{change_id}"
+        archive_path = archive_dir / archived_name
+
+        # Move the directory
+        shutil.move(str(change_dir), str(archive_path))
+
+        return archive_path
