@@ -9,6 +9,7 @@ import click
 
 from .storage import TigsRepo
 from .tui import TigsStoreApp, TigsViewApp, CURSES_AVAILABLE
+from .specs_manager import SpecsManager
 
 
 @click.group()
@@ -290,6 +291,61 @@ def view_command(ctx: click.Context) -> None:
         app.run()
     except Exception as e:
         click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+
+
+@main.command("init-specs")
+@click.option(
+    "--examples",
+    is_flag=True,
+    help="Generate example specifications for each type"
+)
+@click.option(
+    "--path",
+    "-p",
+    type=click.Path(exists=True, path_type=Path),
+    default=None,
+    help="Path to initialize specs (defaults to current directory)"
+)
+def init_specs(examples: bool, path: Optional[Path]) -> None:
+    """Initialize specs directory structure.
+
+    Creates a specs/ directory with subdirectories for:
+    - capabilities/  (behavioral specifications)
+    - data-models/   (database schemas and entities)
+    - api/          (REST/GraphQL endpoints)
+    - architecture/ (system design and ADRs)
+    - changes/      (incremental changes)
+    """
+    root_path = path or Path.cwd()
+    manager = SpecsManager(root_path)
+
+    try:
+        result = manager.init_structure(with_examples=examples)
+
+        click.echo(f"✓ Initialized specs directory at {root_path / 'specs'}")
+        click.echo(f"\nCreated {len(result['created'])} items:")
+        for created_path in result['created']:
+            # Show relative path for cleaner output
+            rel_path = Path(created_path).relative_to(root_path)
+            click.echo(f"  - {rel_path}")
+
+        if examples:
+            click.echo("\n✓ Generated example specifications")
+            click.echo("  Review examples in each subdirectory to understand the format")
+
+        click.echo("\nNext steps:")
+        click.echo("  1. Review specs/README.md for format guidelines")
+        click.echo("  2. Create your first spec: tig new-spec <name> --type <type>")
+        click.echo("  3. Start tracking changes: tig new-change <change-id>")
+
+    except FileExistsError as e:
+        click.echo(f"Error: {e}", err=True)
+        click.echo("\nThe specs/ directory already exists in this location.", err=True)
+        click.echo("If you want to reinitialize, please remove or rename the existing directory.", err=True)
+        sys.exit(1)
+    except Exception as e:
+        click.echo(f"Error initializing specs: {e}", err=True)
         sys.exit(1)
 
 
