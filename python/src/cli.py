@@ -326,19 +326,15 @@ def init_specs(examples: bool, path: Optional[Path]) -> None:
 
         click.echo(f"✓ Initialized specs directory at {root_path / 'specs'}")
 
-        # Separate specs, AGENTS.md, and commands for clearer display
+        # Separate specs and commands for clearer display
         specs_items = [p for p in result['created'] if '/specs/' in str(p) or str(p).endswith('specs')]
         claude_items = [p for p in result['created'] if '/.claude/' in str(p)]
-        agents_md = [p for p in result['created'] if str(p).endswith('AGENTS.md')]
 
         if specs_items:
             click.echo(f"\nCreated specs structure ({len(specs_items)} items):")
             for created_path in specs_items:
                 rel_path = Path(created_path).relative_to(root_path)
                 click.echo(f"  - {rel_path}")
-
-        if agents_md:
-            click.echo(f"\n✓ Created AI assistant guide: AGENTS.md")
 
         if claude_items:
             click.echo(f"\n✓ Created Claude Code slash commands:")

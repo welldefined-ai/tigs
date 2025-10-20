@@ -87,11 +87,6 @@ class SpecsManager:
         self._generate_readme(readme_path)
         created.append(str(readme_path))
 
-        # Generate AGENTS.md for AI assistants
-        agents_path = self.root_path / "AGENTS.md"
-        self._generate_agents_md(agents_path)
-        created.append(str(agents_path))
-
         # Create .claude/commands/ directory and copy slash command templates
         claude_commands_paths = self._create_claude_commands()
         created.extend(claude_commands_paths)
@@ -265,28 +260,6 @@ class SpecsManager:
             return
 
         # Copy template (no variable substitution needed for README)
-        shutil.copy(template_path, target_path)
-
-    def _generate_agents_md(self, target_path: Path) -> None:
-        """Generate AGENTS.md from template.
-
-        Args:
-            target_path: Where to write AGENTS.md
-        """
-        template_path = Path(__file__).parent / "templates" / "AGENTS_template.md"
-
-        if not template_path.exists():
-            # Fallback: create basic AGENTS.md
-            content = """# AI Assistant Guide
-
-This project uses Tigs for specification management.
-
-See the spec files in specs/ for details.
-"""
-            target_path.write_text(content)
-            return
-
-        # Copy template
         shutil.copy(template_path, target_path)
 
     def _create_claude_commands(self) -> list[str]:
