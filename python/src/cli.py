@@ -358,7 +358,11 @@ def init_specs(examples: bool, path: Optional[Path]) -> None:
         click.echo("\nNext steps:")
         click.echo("  1. Review specs/README.md for format guidelines")
         if claude_items:
-            click.echo("  2. Use AI slash commands: /change, /validate, /archive")
+            click.echo("  2. Use AI slash commands:")
+            click.echo("     /bootstrap - Bootstrap specs from existing code")
+            click.echo("     /change    - Plan new features")
+            click.echo("     /validate  - Check specs format")
+            click.echo("     /archive   - Merge completed changes")
             click.echo("  3. Or use CLI: tigs list-specs, tigs show-spec, tigs validate-specs")
         else:
             click.echo("  2. Create your first spec using an AI assistant")

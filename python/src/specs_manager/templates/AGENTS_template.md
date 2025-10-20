@@ -15,7 +15,19 @@ All new features and changes are tracked as **delta specifications** in `specs/c
 
 ## Core Workflow
 
-### 1. Create Change Proposal
+### For Existing Projects: Bootstrap Baseline Specs
+
+When introducing tigs to a project with existing code:
+
+```bash
+# Create main specifications directly
+specs/<type>/<name>/
+└── spec.md (or schema.md)  # Bootstrap from current implementation
+```
+
+**Use slash command**: `/bootstrap`
+
+### For New Features: Create Change Proposal
 
 When a user wants to add or modify features:
 
@@ -290,6 +302,29 @@ System design and Architecture Decision Records.
 
 ## Common Tasks
 
+### Task: User wants to bootstrap specs from existing code
+
+When introducing tigs to a project with working code:
+
+1. **Clarify scope** - "Which component/feature should I bootstrap?" "Where is the code?"
+2. **Analyze codebase** - Read implementation files, database schemas, API routes
+3. **Create main specs directly**:
+   ```
+   specs/<type>/<name>/
+   └── spec.md (or schema.md)  # NO delta operations, standard format
+   ```
+4. **Extract from code**:
+   - Capabilities: Behavioral requirements from code logic
+   - Data Models: Schemas from database/ORM
+   - API: Endpoints from route definitions
+   - Architecture: Components from code structure
+5. **Validate** - `tigs validate-specs --type <type>`
+6. **Report** - Summarize bootstrapped components
+
+**Use**: `/bootstrap`
+
+**Important**: Create in `specs/<type>/`, NOT `specs/changes/`. No delta operations (ADDED/MODIFIED).
+
 ### Task: User wants to add a new feature
 
 1. **Clarify requirements** - Ask 1-2 questions if needed
@@ -453,11 +488,16 @@ tigs archive-change CHANGE_ID [--no-validate] [--yes]
 
 When working in Claude Code, use these slash commands:
 
+- **/bootstrap** - Bootstrap baseline specs from existing code
 - **/change** - Create comprehensive change proposal with detailed specifications
 - **/validate** - Validate specification format and structure
 - **/archive** - Archive a completed change
 
-Each command provides step-by-step guidance for the task.
+**Choosing the right command:**
+- Use `/bootstrap` when introducing tigs to existing code (Code → Specs)
+- Use `/change` when planning new features or modifications (Specs → Code)
+- Use `/validate` to check specification format
+- Use `/archive` when implementation is complete and tested
 
 ## Working with OpenSpec Compatibility
 
