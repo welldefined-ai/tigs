@@ -312,9 +312,8 @@ See the spec files in specs/ for details.
 
         # Copy all command templates
         command_files = [
-            "new-spec.md",
-            "validate.md",
             "change.md",
+            "validate.md",
             "archive.md",
         ]
 

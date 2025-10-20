@@ -37,7 +37,7 @@ Delta specs use operations to describe changes:
 - `## REMOVED` - Deletions (with reason and migration path)
 - `## RENAMED` - Name changes only
 
-**Use slash command**: `/new-spec`
+**Note**: This is part of the `/change` workflow (Step 6: Write Detailed Delta Specs)
 
 ### 3. Validate Specifications
 
@@ -308,7 +308,7 @@ System design and Architecture Decision Records.
 5. **Validate** - `tigs validate-specs --change add-feature-name`
 6. **Report** - Summarize what was created and next steps
 
-**Use**: `/change` or `/new-spec`
+**Use**: `/change`
 
 ### Task: User wants to modify existing behavior
 
@@ -453,9 +453,8 @@ tigs archive-change CHANGE_ID [--no-validate] [--yes]
 
 When working in Claude Code, use these slash commands:
 
-- **/new-spec** - Create new specifications for a feature
+- **/change** - Create comprehensive change proposal with detailed specifications
 - **/validate** - Validate specification format and structure
-- **/change** - Create a change proposal with delta specs
 - **/archive** - Archive a completed change
 
 Each command provides step-by-step guidance for the task.
