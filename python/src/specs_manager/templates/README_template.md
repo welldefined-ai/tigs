@@ -52,9 +52,7 @@ System design and architectural decisions.
 ## Working with Specs
 
 ### Creating New Spec
-```bash
-tig new-spec [name] --type [capability|data-model|api|architecture]
-```
+Use `/change` with an AI assistant to create comprehensive change proposals that include new specifications, or manually create spec files in the `specs/` directory following the format rules below.
 
 ### Listing Specs
 ```bash

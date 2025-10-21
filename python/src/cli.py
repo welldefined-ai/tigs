@@ -418,7 +418,7 @@ def list_specs_command(spec_type: Optional[str], json_output: bool, path: Option
         if total_count == 0:
             click.echo("No specifications found.")
             click.echo("\nCreate your first spec:")
-            click.echo("  - Use an AI assistant with: /new-spec")
+            click.echo("  - Use an AI assistant with: /change")
             click.echo("  - Or manually create in specs/ directory")
             return
 

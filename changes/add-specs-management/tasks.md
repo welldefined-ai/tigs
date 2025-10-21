@@ -120,14 +120,14 @@
   - [ ] 8.1.6 Move to archive with date prefix
   - [ ] 8.1.7 Support `--yes` and `--skip-specs` flags
 
-## 9. Template Generation Command
+## 9. Template Generation via /change Slash Command
 
-- [ ] 9.1 Implement `tig new-spec` command:
-  - [ ] 9.1.1 Validate spec name
-  - [ ] 9.1.2 Support `--type` parameter (required)
-  - [ ] 9.1.3 Check if spec already exists
-  - [ ] 9.1.4 Generate from appropriate template
-  - [ ] 9.1.5 Display success message with file path
+- [ ] 9.1 Implement `/change` slash command:
+  - [ ] 9.1.1 Guide user through change proposal creation
+  - [ ] 9.1.2 Identify affected spec types
+  - [ ] 9.1.3 Generate delta specs in changes directory
+  - [ ] 9.1.4 Create proposal.md and tasks.md
+  - [ ] 9.1.5 Validate all generated specs
 
 ## 10. Testing
 

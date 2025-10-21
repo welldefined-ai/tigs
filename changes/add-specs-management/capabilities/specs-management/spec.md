@@ -427,29 +427,29 @@ The system SHALL provide templates for creating new specifications.
 
 #### Scenario: Generating capability template
 
-- **WHEN** user runs `tig new-spec user-auth --type capability`
-- **THEN** create `specs/capabilities/user-auth/spec.md`
+- **WHEN** user uses `/change` to create a new capability specification
+- **THEN** create delta spec in `changes/[change-id]/capabilities/[name]/spec.md`
 - **AND** populate with template including Purpose and Requirements sections
 - **AND** include example requirement and scenario
 
 #### Scenario: Generating data model template
 
-- **WHEN** user runs `tig new-spec user --type data-model`
-- **THEN** create `specs/data-models/user/schema.md`
+- **WHEN** user uses `/change` to create a new data model specification
+- **THEN** create delta spec in `changes/[change-id]/data-models/[name]/schema.md`
 - **AND** populate with template including Schema section
 - **AND** include example field definitions and validation rules
 
 #### Scenario: Generating API template
 
-- **WHEN** user runs `tig new-spec auth --type api`
-- **THEN** create `specs/api/auth/spec.md`
+- **WHEN** user uses `/change` to create a new API specification
+- **THEN** create delta spec in `changes/[change-id]/api/[name]/spec.md`
 - **AND** populate with template including Endpoints section
 - **AND** include example endpoint with request/response
 
 #### Scenario: Generating architecture template
 
-- **WHEN** user runs `tig new-spec auth-service --type architecture`
-- **THEN** create `specs/architecture/auth-service/spec.md`
+- **WHEN** user uses `/change` to create a new architecture specification
+- **THEN** create delta spec in `changes/[change-id]/architecture/[name]/spec.md`
 - **AND** populate with template including Components and Design Decisions
 - **AND** include example component and ADR
 

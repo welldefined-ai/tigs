@@ -26,7 +26,7 @@ This change adds a comprehensive specification management system to tig, support
 - `tig list-specs` - List existing specifications
 - `tig show-spec` - Display specification content
 - `tig validate-specs` - Validate specifications and changes
-- `tig new-spec` - Generate template for new specification
+- `/change` - AI-assisted slash command to create comprehensive change proposals
 - `tig archive-change` - Merge completed changes into main specs
 
 **Key Features**:
