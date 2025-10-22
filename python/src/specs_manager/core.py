@@ -270,7 +270,7 @@ class SpecsManager:
         # Copy template (no variable substitution needed for README)
         shutil.copy(template_path, target_path)
 
-    def _create_claude_commands(self) -> list[str]:
+    def _create_claude_commands(self) -> List[str]:
         """Create .claude/commands/ directory and copy slash command templates.
 
         Returns:
@@ -308,7 +308,7 @@ class SpecsManager:
 
         return created
 
-    def _generate_examples(self) -> list[str]:
+    def _generate_examples(self) -> List[str]:
         """Generate example specs for each type.
 
         Returns:

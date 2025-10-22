@@ -6,7 +6,7 @@ conversation by using YAML multi-document format.
 """
 
 from pathlib import Path
-from typing import Any
+from typing import Any, Dict, List, Tuple
 
 import yaml
 
@@ -68,7 +68,7 @@ class ChatNotesMerger:
         except Exception as e:
             raise RuntimeError(f"Failed to resolve {note_file}: {e}") from e
 
-    def _parse_conflict_content(self, content: str) -> tuple[list[dict], list[dict]]:
+    def _parse_conflict_content(self, content: str) -> Tuple[List[dict], List[dict]]:
         """Parse conflicting note content.
 
         Git notes merge creates files with conflict markers or simply
@@ -119,7 +119,7 @@ class ChatNotesMerger:
 
         return local_docs, remote_docs
 
-    def _parse_multidoc_yaml(self, content: str) -> list[dict[str, Any]]:
+    def _parse_multidoc_yaml(self, content: str) -> List[Dict[str, Any]]:
         """Parse YAML multi-document format.
 
         Args:
@@ -141,7 +141,7 @@ class ChatNotesMerger:
 
         return docs
 
-    def _dedup_conversations(self, docs: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    def _dedup_conversations(self, docs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Deduplicate only if entire conversation is identical.
 
         This does NOT deduplicate individual messages - it only removes
@@ -166,7 +166,7 @@ class ChatNotesMerger:
 
         return unique
 
-    def _serialize_multidoc_yaml(self, docs: list[dict[str, Any]]) -> str:
+    def _serialize_multidoc_yaml(self, docs: List[Dict[str, Any]]) -> str:
         """Serialize to YAML multi-document format.
 
         Args:
