@@ -24,12 +24,7 @@ class ArchitectureDeltaParser:
             Dictionary with keys: added, modified, removed, renamed
             Each value is a list of component dicts with 'name' and 'content'
         """
-        result = {
-            "added": [],
-            "modified": [],
-            "removed": [],
-            "renamed": []
-        }
+        result = {"added": [], "modified": [], "removed": [], "renamed": []}
 
         # Split by major sections
         sections = self._split_sections()
@@ -55,7 +50,7 @@ class ArchitectureDeltaParser:
             "added": r"##\s+ADDED\s+Components",
             "modified": r"##\s+MODIFIED\s+Components",
             "removed": r"##\s+REMOVED\s+Components",
-            "renamed": r"##\s+RENAMED\s+Components"
+            "renamed": r"##\s+RENAMED\s+Components",
         }
 
         for key, pattern in patterns.items():
@@ -65,7 +60,9 @@ class ArchitectureDeltaParser:
                 # Find next section or end of file
                 next_section = None
                 for other_pattern in patterns.values():
-                    other_match = re.search(other_pattern, self.content[start:], re.IGNORECASE)
+                    other_match = re.search(
+                        other_pattern, self.content[start:], re.IGNORECASE
+                    )
                     if other_match:
                         if next_section is None or other_match.start() < next_section:
                             next_section = other_match.start()
@@ -87,12 +84,9 @@ class ArchitectureDeltaParser:
         matches = re.finditer(component_pattern, section_content, re.DOTALL)
 
         for match in matches:
-            component_name = match.group(1).split('\n')[0].strip()
+            component_name = match.group(1).split("\n")[0].strip()
             component_content = match.group(0).strip()
-            components.append({
-                "name": component_name,
-                "content": component_content
-            })
+            components.append({"name": component_name, "content": component_content})
 
         return components
 
@@ -106,10 +100,12 @@ class ArchitectureDeltaParser:
 
         for match in matches:
             component_name = match.group(1).strip()
-            components.append({
-                "name": component_name,
-                "content": ""  # No content needed for removal
-            })
+            components.append(
+                {
+                    "name": component_name,
+                    "content": "",  # No content needed for removal
+                }
+            )
 
         return components
 
@@ -127,10 +123,12 @@ class ArchitectureDeltaParser:
         for match in matches:
             old_name = match.group(1).strip()
             new_name = match.group(2).strip()
-            components.append({
-                "old_name": old_name,
-                "new_name": new_name,
-                "name": new_name  # For consistency
-            })
+            components.append(
+                {
+                    "old_name": old_name,
+                    "new_name": new_name,
+                    "name": new_name,  # For consistency
+                }
+            )
 
         return components

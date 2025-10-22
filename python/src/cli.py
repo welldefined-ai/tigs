@@ -297,16 +297,14 @@ def view_command(ctx: click.Context) -> None:
 
 @main.command("init-specs")
 @click.option(
-    "--examples",
-    is_flag=True,
-    help="Generate example specifications for each type"
+    "--examples", is_flag=True, help="Generate example specifications for each type"
 )
 @click.option(
     "--path",
     "-p",
     type=click.Path(exists=True, path_type=Path),
     default=None,
-    help="Path to initialize specs (defaults to current directory)"
+    help="Path to initialize specs (defaults to current directory)",
 )
 def init_specs(examples: bool, path: Optional[Path]) -> None:
     """Initialize specs directory structure.
@@ -327,8 +325,12 @@ def init_specs(examples: bool, path: Optional[Path]) -> None:
         click.echo(f"✓ Initialized specs directory at {root_path / 'specs'}")
 
         # Separate specs and commands for clearer display
-        specs_items = [p for p in result['created'] if '/specs/' in str(p) or str(p).endswith('specs')]
-        claude_items = [p for p in result['created'] if '/.claude/' in str(p)]
+        specs_items = [
+            p
+            for p in result["created"]
+            if "/specs/" in str(p) or str(p).endswith("specs")
+        ]
+        claude_items = [p for p in result["created"] if "/.claude/" in str(p)]
 
         if specs_items:
             click.echo(f"\nCreated specs structure ({len(specs_items)} items):")
@@ -337,11 +339,11 @@ def init_specs(examples: bool, path: Optional[Path]) -> None:
                 click.echo(f"  - {rel_path}")
 
         if claude_items:
-            click.echo(f"\n✓ Created Claude Code slash commands:")
+            click.echo("\n✓ Created Claude Code slash commands:")
             for created_path in claude_items:
                 rel_path = Path(created_path).relative_to(root_path)
                 # Show command names more prominently
-                if created_path.endswith('.md'):
+                if created_path.endswith(".md"):
                     command_name = Path(created_path).stem
                     click.echo(f"  - /{command_name}")
                 else:
@@ -349,7 +351,9 @@ def init_specs(examples: bool, path: Optional[Path]) -> None:
 
         if examples:
             click.echo("\n✓ Generated example specifications")
-            click.echo("  Review examples in each subdirectory to understand the format")
+            click.echo(
+                "  Review examples in each subdirectory to understand the format"
+            )
 
         click.echo("\nNext steps:")
         click.echo("  1. Review specs/README.md for format guidelines")
@@ -359,7 +363,9 @@ def init_specs(examples: bool, path: Optional[Path]) -> None:
             click.echo("     /change    - Plan new features")
             click.echo("     /validate  - Check specs format")
             click.echo("     /archive   - Merge completed changes")
-            click.echo("  3. Or use CLI: tigs list-specs, tigs show-spec, tigs validate-specs")
+            click.echo(
+                "  3. Or use CLI: tigs list-specs, tigs show-spec, tigs validate-specs"
+            )
         else:
             click.echo("  2. Create your first spec using an AI assistant")
             click.echo("  3. Validate specs: tigs validate-specs --all")
@@ -367,7 +373,10 @@ def init_specs(examples: bool, path: Optional[Path]) -> None:
     except FileExistsError as e:
         click.echo(f"Error: {e}", err=True)
         click.echo("\nThe specs/ directory already exists in this location.", err=True)
-        click.echo("If you want to reinitialize, please remove or rename the existing directory.", err=True)
+        click.echo(
+            "If you want to reinitialize, please remove or rename the existing directory.",
+            err=True,
+        )
         sys.exit(1)
     except Exception as e:
         click.echo(f"Error initializing specs: {e}", err=True)
@@ -380,22 +389,19 @@ def init_specs(examples: bool, path: Optional[Path]) -> None:
     "-t",
     "spec_type",
     type=click.Choice(["capabilities", "data-models", "api", "architecture"]),
-    help="Filter by specification type"
+    help="Filter by specification type",
 )
-@click.option(
-    "--json",
-    "json_output",
-    is_flag=True,
-    help="Output in JSON format"
-)
+@click.option("--json", "json_output", is_flag=True, help="Output in JSON format")
 @click.option(
     "--path",
     "-p",
     type=click.Path(exists=True, path_type=Path),
     default=None,
-    help="Path to specs directory (defaults to current directory)"
+    help="Path to specs directory (defaults to current directory)",
 )
-def list_specs_command(spec_type: Optional[str], json_output: bool, path: Optional[Path]) -> None:
+def list_specs_command(
+    spec_type: Optional[str], json_output: bool, path: Optional[Path]
+) -> None:
     """List all specifications in the project.
 
     Scans the specs/ directory and displays all discovered specifications,
@@ -456,22 +462,21 @@ def list_specs_command(spec_type: Optional[str], json_output: bool, path: Option
     "-t",
     "spec_type",
     type=click.Choice(["capabilities", "data-models", "api", "architecture"]),
-    help="Specify spec type to disambiguate"
+    help="Specify spec type to disambiguate",
 )
 @click.option(
-    "--json",
-    "json_output",
-    is_flag=True,
-    help="Output in JSON format with metadata"
+    "--json", "json_output", is_flag=True, help="Output in JSON format with metadata"
 )
 @click.option(
     "--path",
     "-p",
     type=click.Path(exists=True, path_type=Path),
     default=None,
-    help="Path to specs directory (defaults to current directory)"
+    help="Path to specs directory (defaults to current directory)",
 )
-def show_spec_command(name: str, spec_type: Optional[str], json_output: bool, path: Optional[Path]) -> None:
+def show_spec_command(
+    name: str, spec_type: Optional[str], json_output: bool, path: Optional[Path]
+) -> None:
     """Show the content of a specification.
 
     NAME is the specification name (directory name).
@@ -510,25 +515,18 @@ def show_spec_command(name: str, spec_type: Optional[str], json_output: bool, pa
 
 @main.command("archive-change")
 @click.argument("change_id", type=str)
-@click.option(
-    "--yes",
-    "-y",
-    is_flag=True,
-    help="Skip confirmation prompt"
-)
-@click.option(
-    "--no-validate",
-    is_flag=True,
-    help="Skip validation checks"
-)
+@click.option("--yes", "-y", is_flag=True, help="Skip confirmation prompt")
+@click.option("--no-validate", is_flag=True, help="Skip validation checks")
 @click.option(
     "--path",
     "-p",
     type=click.Path(exists=True, path_type=Path),
     default=None,
-    help="Path to specs directory (defaults to current directory)"
+    help="Path to specs directory (defaults to current directory)",
 )
-def archive_change_command(change_id: str, yes: bool, no_validate: bool, path: Optional[Path]) -> None:
+def archive_change_command(
+    change_id: str, yes: bool, no_validate: bool, path: Optional[Path]
+) -> None:
     """Archive a change by merging delta specs into main specs.
 
     CHANGE_ID is the name of the change directory in specs/changes/.
@@ -554,7 +552,11 @@ def archive_change_command(change_id: str, yes: bool, no_validate: bool, path: O
             click.echo("\nAvailable changes:", err=True)
             changes_dir = root_path / "specs" / "changes"
             if changes_dir.exists():
-                changes = [d.name for d in changes_dir.iterdir() if d.is_dir() and d.name != "archive"]
+                changes = [
+                    d.name
+                    for d in changes_dir.iterdir()
+                    if d.is_dir() and d.name != "archive"
+                ]
                 if changes:
                     for change in changes:
                         click.echo(f"  - {change}", err=True)
@@ -593,7 +595,7 @@ def archive_change_command(change_id: str, yes: bool, no_validate: bool, path: O
 
         click.echo(f"✓ Archived change: {change_id}")
         click.echo(f"\nMerged {len(result['merged'])} specification(s):")
-        for merged_path in result['merged']:
+        for merged_path in result["merged"]:
             click.echo(f"  - {merged_path}")
 
         click.echo(f"\nArchived to: {result['archive_path']}")
@@ -610,44 +612,31 @@ def archive_change_command(change_id: str, yes: bool, no_validate: bool, path: O
 
 
 @main.command("validate-specs")
-@click.option(
-    "--all",
-    "validate_all",
-    is_flag=True,
-    help="Validate all specifications"
-)
+@click.option("--all", "validate_all", is_flag=True, help="Validate all specifications")
 @click.option(
     "--type",
     "-t",
     "spec_type",
     type=click.Choice(["capabilities", "data-models", "api", "architecture"]),
-    help="Validate only specific type"
+    help="Validate only specific type",
 )
 @click.option(
-    "--change",
-    "-c",
-    "change_id",
-    type=str,
-    help="Validate specs in a specific change"
+    "--change", "-c", "change_id", type=str, help="Validate specs in a specific change"
 )
-@click.option(
-    "--strict",
-    is_flag=True,
-    help="Treat warnings as errors"
-)
+@click.option("--strict", is_flag=True, help="Treat warnings as errors")
 @click.option(
     "--path",
     "-p",
     type=click.Path(exists=True, path_type=Path),
     default=None,
-    help="Path to specs directory (defaults to current directory)"
+    help="Path to specs directory (defaults to current directory)",
 )
 def validate_specs_command(
     validate_all: bool,
     spec_type: Optional[str],
     change_id: Optional[str],
     strict: bool,
-    path: Optional[Path]
+    path: Optional[Path],
 ) -> None:
     """Validate specification format and structure.
 
@@ -669,9 +658,7 @@ def validate_specs_command(
     try:
         # Validate
         results = manager.validate_specs(
-            spec_type=spec_type,
-            change_id=change_id,
-            strict=strict
+            spec_type=spec_type, change_id=change_id, strict=strict
         )
 
         # Count totals
@@ -733,7 +720,7 @@ def validate_specs_command(
             click.echo(f"✓ All {total_specs} specification(s) passed validation")
             sys.exit(0)
         else:
-            click.echo(f"✗ Validation completed with issues:")
+            click.echo("✗ Validation completed with issues:")
             click.echo(f"  Total specs: {total_specs}")
             click.echo(f"  Specs with errors: {specs_with_errors}")
             click.echo(f"  Specs with warnings: {specs_with_warnings}")
@@ -755,6 +742,7 @@ def validate_specs_command(
     except Exception as e:
         click.echo(f"Error validating specs: {e}", err=True)
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
 

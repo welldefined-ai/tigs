@@ -103,8 +103,16 @@ class DataModelMerger:
             insert_pos = len(content)
 
         # Insert all added entities
-        added_content = "\n\n".join(item.get("content", "") for item in added if item.get("content"))
+        added_content = "\n\n".join(
+            item.get("content", "") for item in added if item.get("content")
+        )
         if added_content:
-            content = content[:insert_pos] + "\n\n" + added_content + "\n" + content[insert_pos:]
+            content = (
+                content[:insert_pos]
+                + "\n\n"
+                + added_content
+                + "\n"
+                + content[insert_pos:]
+            )
 
         return content

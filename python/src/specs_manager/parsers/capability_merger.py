@@ -10,7 +10,7 @@ class CapabilityMerger:
 
     def __init__(self, main_spec_file: Path):
         """Initialize merger with main spec file.
-        
+
         Args:
             main_spec_file: Path to the main specification file
         """
@@ -19,10 +19,10 @@ class CapabilityMerger:
 
     def apply_changes(self, delta: Dict[str, List[Dict[str, str]]]) -> str:
         """Apply delta changes to main specification.
-        
+
         Args:
             delta: Parsed delta from CapabilityDeltaParser
-        
+
         Returns:
             Updated specification content
         """
@@ -41,7 +41,7 @@ class CapabilityMerger:
         for item in renamed:
             old_name = item.get("old_name", "")
             new_name = item.get("new_name", "")
-            
+
             if not old_name or not new_name:
                 continue
 
@@ -71,7 +71,7 @@ class CapabilityMerger:
         for item in modified:
             req_name = item.get("name", "")
             new_content = item.get("content", "")
-            
+
             if not req_name or not new_content:
                 continue
 
@@ -96,15 +96,23 @@ class CapabilityMerger:
         # Find the end of Requirements section (next ## header or end of file)
         start_pos = req_section_match.end()
         next_section = re.search(r"\n##\s+(?!#)", content[start_pos:])
-        
+
         if next_section:
             insert_pos = start_pos + next_section.start()
         else:
             insert_pos = len(content)
 
         # Insert all added requirements
-        added_content = "\n\n".join(item.get("content", "") for item in added if item.get("content"))
+        added_content = "\n\n".join(
+            item.get("content", "") for item in added if item.get("content")
+        )
         if added_content:
-            content = content[:insert_pos] + "\n\n" + added_content + "\n" + content[insert_pos:]
+            content = (
+                content[:insert_pos]
+                + "\n\n"
+                + added_content
+                + "\n"
+                + content[insert_pos:]
+            )
 
         return content

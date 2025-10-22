@@ -4,7 +4,6 @@ import tempfile
 from pathlib import Path
 
 import pytest
-
 from framework.fixtures import create_test_repo
 from framework.mock_claude_logs import create_mock_claude_home
 from framework.mock_codex_logs import create_mock_codex_home

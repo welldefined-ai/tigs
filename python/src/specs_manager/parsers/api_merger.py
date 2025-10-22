@@ -63,7 +63,9 @@ class ApiMerger:
 
             # Find and replace the entire endpoint block
             pattern = rf"###\s+{re.escape(method)}\s+{re.escape(path)}.*?(?=###\s+(?:GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)|##\s+(?!#)|$)"
-            content = re.sub(pattern, new_content + "\n\n", content, flags=re.DOTALL | re.IGNORECASE)
+            content = re.sub(
+                pattern, new_content + "\n\n", content, flags=re.DOTALL | re.IGNORECASE
+            )
 
         return content
 
@@ -89,8 +91,16 @@ class ApiMerger:
             insert_pos = len(content)
 
         # Insert all added endpoints
-        added_content = "\n\n".join(item.get("content", "") for item in added if item.get("content"))
+        added_content = "\n\n".join(
+            item.get("content", "") for item in added if item.get("content")
+        )
         if added_content:
-            content = content[:insert_pos] + "\n\n" + added_content + "\n" + content[insert_pos:]
+            content = (
+                content[:insert_pos]
+                + "\n\n"
+                + added_content
+                + "\n"
+                + content[insert_pos:]
+            )
 
         return content

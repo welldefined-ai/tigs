@@ -24,12 +24,7 @@ class DataModelDeltaParser:
             Dictionary with keys: added, modified, removed, renamed
             Each value is a list of entity dicts with 'name' and 'content'
         """
-        result = {
-            "added": [],
-            "modified": [],
-            "removed": [],
-            "renamed": []
-        }
+        result = {"added": [], "modified": [], "removed": [], "renamed": []}
 
         # Split by major sections
         sections = self._split_sections()
@@ -55,7 +50,7 @@ class DataModelDeltaParser:
             "added": r"##\s+ADDED\s+Entities",
             "modified": r"##\s+MODIFIED\s+Entities",
             "removed": r"##\s+REMOVED\s+Entities",
-            "renamed": r"##\s+RENAMED\s+Entities"
+            "renamed": r"##\s+RENAMED\s+Entities",
         }
 
         for key, pattern in patterns.items():
@@ -65,7 +60,9 @@ class DataModelDeltaParser:
                 # Find next section or end of file
                 next_section = None
                 for other_pattern in patterns.values():
-                    other_match = re.search(other_pattern, self.content[start:], re.IGNORECASE)
+                    other_match = re.search(
+                        other_pattern, self.content[start:], re.IGNORECASE
+                    )
                     if other_match:
                         if next_section is None or other_match.start() < next_section:
                             next_section = other_match.start()
@@ -87,12 +84,9 @@ class DataModelDeltaParser:
         matches = re.finditer(entity_pattern, section_content, re.DOTALL)
 
         for match in matches:
-            entity_name = match.group(1).split('\n')[0].strip()
+            entity_name = match.group(1).split("\n")[0].strip()
             entity_content = match.group(0).strip()
-            entities.append({
-                "name": entity_name,
-                "content": entity_content
-            })
+            entities.append({"name": entity_name, "content": entity_content})
 
         return entities
 
@@ -106,10 +100,12 @@ class DataModelDeltaParser:
 
         for match in matches:
             entity_name = match.group(1).strip()
-            entities.append({
-                "name": entity_name,
-                "content": ""  # No content needed for removal
-            })
+            entities.append(
+                {
+                    "name": entity_name,
+                    "content": "",  # No content needed for removal
+                }
+            )
 
         return entities
 
@@ -127,10 +123,12 @@ class DataModelDeltaParser:
         for match in matches:
             old_name = match.group(1).strip()
             new_name = match.group(2).strip()
-            entities.append({
-                "old_name": old_name,
-                "new_name": new_name,
-                "name": new_name  # For consistency
-            })
+            entities.append(
+                {
+                    "old_name": old_name,
+                    "new_name": new_name,
+                    "name": new_name,  # For consistency
+                }
+            )
 
         return entities

@@ -24,11 +24,7 @@ class ApiDeltaParser:
             Dictionary with keys: added, modified, removed
             Each value is a list of endpoint dicts with 'method', 'path', and 'content'
         """
-        result = {
-            "added": [],
-            "modified": [],
-            "removed": []
-        }
+        result = {"added": [], "modified": [], "removed": []}
 
         # Split by major sections
         sections = self._split_sections()
@@ -51,7 +47,7 @@ class ApiDeltaParser:
         patterns = {
             "added": r"##\s+ADDED\s+Endpoints",
             "modified": r"##\s+MODIFIED\s+Endpoints",
-            "removed": r"##\s+REMOVED\s+Endpoints"
+            "removed": r"##\s+REMOVED\s+Endpoints",
         }
 
         for key, pattern in patterns.items():
@@ -61,7 +57,9 @@ class ApiDeltaParser:
                 # Find next section or end of file
                 next_section = None
                 for other_pattern in patterns.values():
-                    other_match = re.search(other_pattern, self.content[start:], re.IGNORECASE)
+                    other_match = re.search(
+                        other_pattern, self.content[start:], re.IGNORECASE
+                    )
                     if other_match:
                         if next_section is None or other_match.start() < next_section:
                             next_section = other_match.start()
@@ -81,18 +79,22 @@ class ApiDeltaParser:
         # Split by ### METHOD /path headers
         # Valid HTTP methods: GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS
         endpoint_pattern = r"###\s+(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+(/[^\n]*)(?=###\s+(?:GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)|\Z)"
-        matches = re.finditer(endpoint_pattern, section_content, re.DOTALL | re.IGNORECASE)
+        matches = re.finditer(
+            endpoint_pattern, section_content, re.DOTALL | re.IGNORECASE
+        )
 
         for match in matches:
             method = match.group(1).upper()
             path = match.group(2).strip()
             endpoint_content = match.group(0).strip()
-            endpoints.append({
-                "method": method,
-                "path": path,
-                "signature": f"{method} {path}",  # For matching
-                "content": endpoint_content
-            })
+            endpoints.append(
+                {
+                    "method": method,
+                    "path": path,
+                    "signature": f"{method} {path}",  # For matching
+                    "content": endpoint_content,
+                }
+            )
 
         return endpoints
 
@@ -107,11 +109,13 @@ class ApiDeltaParser:
         for match in matches:
             method = match.group(1).upper()
             path = match.group(2).strip()
-            endpoints.append({
-                "method": method,
-                "path": path,
-                "signature": f"{method} {path}",
-                "content": ""  # No content needed for removal
-            })
+            endpoints.append(
+                {
+                    "method": method,
+                    "path": path,
+                    "signature": f"{method} {path}",
+                    "content": "",  # No content needed for removal
+                }
+            )
 
         return endpoints

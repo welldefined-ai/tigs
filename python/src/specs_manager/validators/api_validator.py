@@ -1,7 +1,6 @@
 """Validator for API specifications."""
 
 import re
-from pathlib import Path
 
 from .base import SpecValidator, ValidationResult
 
@@ -14,13 +13,13 @@ class ApiValidator(SpecValidator):
 
     # HTTP methods
     HTTP_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]
-    
+
     # Pattern for endpoint headers
     ENDPOINT_PATTERN = r"^###\s+(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+/.+"
 
     def validate(self) -> ValidationResult:
         """Validate the API specification.
-        
+
         Returns:
             ValidationResult with any errors or warnings
         """
@@ -42,8 +41,7 @@ class ApiValidator(SpecValidator):
         for section in self.REQUIRED_SECTIONS:
             if not self._has_section(section):
                 result.add_error(
-                    f"Missing required section: {section}",
-                    section=section
+                    f"Missing required section: {section}", section=section
                 )
 
     def _validate_endpoints(self, result: ValidationResult) -> None:
@@ -68,25 +66,23 @@ class ApiValidator(SpecValidator):
             # Check endpoint headers
             if stripped.startswith("### "):
                 endpoint_count += 1
-                
+
                 if not re.match(self.ENDPOINT_PATTERN, stripped):
                     result.add_error(
                         "Endpoint must follow format: '### METHOD /path' (e.g., '### GET /users')",
-                        line=line_no
+                        line=line_no,
                     )
 
         # Check if any endpoints exist
         if in_endpoints_section and endpoint_count == 0:
             line = self._get_section_line("## Endpoints")
             result.add_warning(
-                "Endpoints section exists but contains no endpoints",
-                line=line
+                "Endpoints section exists but contains no endpoints", line=line
             )
 
     def _validate_responses(self, result: ValidationResult) -> None:
         """Validate response definitions."""
         in_endpoints_section = False
-        current_endpoint = None
 
         for i, line in enumerate(self.lines):
             line_no = i + 1
@@ -103,25 +99,37 @@ class ApiValidator(SpecValidator):
                 continue
 
             # Track current endpoint
-            if stripped.startswith("### ") and re.match(self.ENDPOINT_PATTERN, stripped):
-                current_endpoint = stripped
-                
+            if stripped.startswith("### ") and re.match(
+                self.ENDPOINT_PATTERN, stripped
+            ):
                 # Check for response definitions after endpoint
                 has_responses = False
                 for j in range(i + 1, min(i + 50, len(self.lines))):
                     check_line = self.lines[j].strip()
-                    
+
                     # Stop at next endpoint or section
                     if check_line.startswith("### ") or check_line.startswith("## "):
                         break
-                    
+
                     # Look for response headers (#### 200 OK, etc.)
-                    if check_line.startswith("#### ") and any(code in check_line for code in ["200", "201", "204", "400", "401", "403", "404", "500"]):
+                    if check_line.startswith("#### ") and any(
+                        code in check_line
+                        for code in [
+                            "200",
+                            "201",
+                            "204",
+                            "400",
+                            "401",
+                            "403",
+                            "404",
+                            "500",
+                        ]
+                    ):
                         has_responses = True
                         break
-                
+
                 if not has_responses:
                     result.add_warning(
                         "Endpoint should define response codes (#### 200 OK, etc.)",
-                        line=line_no
+                        line=line_no,
                     )

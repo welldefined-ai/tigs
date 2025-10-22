@@ -1,7 +1,6 @@
 """Validator for data model specifications."""
 
 import re
-from pathlib import Path
 
 from .base import SpecValidator, ValidationResult
 
@@ -14,13 +13,13 @@ class DataModelValidator(SpecValidator):
 
     # Pattern for entity headers
     ENTITY_PATTERN = r"^###\s+Entity:\s+.+"
-    
+
     # Pattern for table definition
     TABLE_PATTERN = r"^\*\*Table\*\*:\s+`.+`"
 
     def validate(self) -> ValidationResult:
         """Validate the data model specification.
-        
+
         Returns:
             ValidationResult with any errors or warnings
         """
@@ -42,8 +41,7 @@ class DataModelValidator(SpecValidator):
         for section in self.REQUIRED_SECTIONS:
             if not self._has_section(section):
                 result.add_error(
-                    f"Missing required section: {section}",
-                    section=section
+                    f"Missing required section: {section}", section=section
                 )
 
     def _validate_entities(self, result: ValidationResult) -> None:
@@ -68,11 +66,10 @@ class DataModelValidator(SpecValidator):
             # Check entity headers
             if stripped.startswith("### "):
                 entity_count += 1
-                
+
                 if not re.match(self.ENTITY_PATTERN, stripped):
                     result.add_error(
-                        "Entity must follow format: '### Entity: <Name>'",
-                        line=line_no
+                        "Entity must follow format: '### Entity: <Name>'", line=line_no
                     )
                 else:
                     # Check for table definition
@@ -84,19 +81,18 @@ class DataModelValidator(SpecValidator):
                         # Stop at next heading
                         if self.lines[j].strip().startswith("#"):
                             break
-                    
+
                     if not has_table:
                         result.add_warning(
                             "Entity should include table definition: **Table**: `table_name`",
-                            line=line_no
+                            line=line_no,
                         )
 
         # Check if any entities exist
         if in_schema_section and entity_count == 0:
             line = self._get_section_line("## Schema")
             result.add_warning(
-                "Schema section exists but contains no entities",
-                line=line
+                "Schema section exists but contains no entities", line=line
             )
 
     def _validate_field_tables(self, result: ValidationResult) -> None:
@@ -124,11 +120,7 @@ class DataModelValidator(SpecValidator):
                     next_line = self.lines[i + 1].strip()
                     if not next_line.startswith("|---"):
                         result.add_error(
-                            "Field table missing separator line",
-                            line=line_no + 1
+                            "Field table missing separator line", line=line_no + 1
                         )
                 else:
-                    result.add_error(
-                        "Field table incomplete",
-                        line=line_no
-                    )
+                    result.add_error("Field table incomplete", line=line_no)

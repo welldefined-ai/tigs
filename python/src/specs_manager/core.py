@@ -98,7 +98,9 @@ class SpecsManager:
 
         return {"created": created, "existed": []}
 
-    def list_specs(self, spec_type: Optional[str] = None) -> Dict[str, List[Dict[str, str]]]:
+    def list_specs(
+        self, spec_type: Optional[str] = None
+    ) -> Dict[str, List[Dict[str, str]]]:
         """List all specifications, optionally filtered by type.
 
         Args:
@@ -149,11 +151,13 @@ class SpecsManager:
 
                 spec_file = spec_dir / expected_filename
                 if spec_file.exists():
-                    specs.append({
-                        "name": spec_dir.name,
-                        "path": str(spec_file.relative_to(self.root_path)),
-                        "file": expected_filename,
-                    })
+                    specs.append(
+                        {
+                            "name": spec_dir.name,
+                            "path": str(spec_file.relative_to(self.root_path)),
+                            "file": expected_filename,
+                        }
+                    )
 
             result[stype] = specs
 
@@ -206,13 +210,15 @@ class SpecsManager:
             spec_file = spec_dir / expected_filename
 
             if spec_file.exists():
-                found_specs.append({
-                    "name": name,
-                    "type": stype,
-                    "path": str(spec_file.relative_to(self.root_path)),
-                    "file": expected_filename,
-                    "full_path": spec_file,
-                })
+                found_specs.append(
+                    {
+                        "name": name,
+                        "type": stype,
+                        "path": str(spec_file.relative_to(self.root_path)),
+                        "file": expected_filename,
+                        "full_path": spec_file,
+                    }
+                )
 
         # Handle results
         if not found_specs:
@@ -255,7 +261,9 @@ class SpecsManager:
 
         if not template_path.exists():
             # Fallback: create basic README
-            content = "# Specifications\n\nThis directory contains project specifications.\n"
+            content = (
+                "# Specifications\n\nThis directory contains project specifications.\n"
+            )
             target_path.write_text(content)
             return
 
@@ -640,7 +648,9 @@ Demonstrates architecture specification format with component definitions and de
 - **Data Models**: `data-models/example-model/schema.md`
 """
 
-    def archive_change(self, change_id: str, skip_validation: bool = False) -> Dict[str, Any]:
+    def archive_change(
+        self, change_id: str, skip_validation: bool = False
+    ) -> Dict[str, Any]:
         """Archive a change by merging delta specs into main specs.
 
         Args:
@@ -720,7 +730,7 @@ Demonstrates architecture specification format with component definitions and de
         return {
             "change_id": change_id,
             "merged": merged_specs,
-            "archive_path": str(archive_path.relative_to(self.root_path))
+            "archive_path": str(archive_path.relative_to(self.root_path)),
         }
 
     def _list_changes(self) -> List[str]:
@@ -789,7 +799,7 @@ Demonstrates architecture specification format with component definitions and de
         self,
         spec_type: Optional[str] = None,
         change_id: Optional[str] = None,
-        strict: bool = False
+        strict: bool = False,
     ) -> Dict[str, List[ValidationResult]]:
         """Validate specifications.
 
