@@ -4,7 +4,8 @@
 
 Tig currently focuses on storing and versioning AI chat conversations with Git commits. However, modern AI-assisted development requires managing not just conversations but also comprehensive specifications that evolve alongside code.
 
-OpenSpec provides excellent behavioral specification support but has limitations in describing:
+Existing specification approaches often focus on a single dimension (behavioral, API, or data), limiting their ability to describe complete systems. Teams need a way to manage:
+- Behavioral requirements and scenarios
 - Data models and database schemas
 - API contracts and endpoint definitions
 - System architecture and design decisions
@@ -16,7 +17,7 @@ By extending tig with multi-dimensional specification management, we enable team
 
 This change adds a comprehensive specification management system to tig, supporting four types of specifications:
 
-1. **Capabilities** (behavioral specs) - OpenSpec-compatible format for requirements and scenarios
+1. **Capabilities** (behavioral specs) - Structured format for requirements and scenarios
 2. **Data Models** - Structured schemas for entities, fields, constraints, and relationships
 3. **API Specifications** - Endpoint definitions with request/response formats and status codes
 4. **Architecture** - System design, components, and architectural decision records (ADRs)
@@ -30,7 +31,7 @@ This change adds a comprehensive specification management system to tig, support
 - `tig archive-change` - Merge completed changes into main specs
 
 **Key Features**:
-- Incremental change management (OpenSpec-style deltas)
+- Incremental change management with delta-based operations
 - Type-specific validation for each spec category
 - Cross-reference validation between specs
 - Template generation for new specs

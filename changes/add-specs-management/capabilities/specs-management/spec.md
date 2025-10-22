@@ -30,7 +30,7 @@ The system SHALL support four distinct types of specifications, each with its ow
 
 ### Requirement: Capabilities Specification Format
 
-The system SHALL support behavioral specifications using OpenSpec-compatible format.
+The system SHALL support behavioral specifications using structured requirements and scenarios.
 
 #### Scenario: Validating capabilities spec structure
 
@@ -275,7 +275,7 @@ The system SHALL support delta-based changes across all specification types.
 #### Scenario: Capabilities change uses delta format
 
 - **WHEN** creating change in `changes/[id]/capabilities/[name]/spec.md`
-- **THEN** support OpenSpec delta operations:
+- **THEN** support delta operations:
   - `## ADDED Requirements` for new requirements
   - `## MODIFIED Requirements` for updated requirements
   - `## REMOVED Requirements` for deleted requirements
@@ -481,7 +481,7 @@ The system SHALL detect and report broken references between specifications.
 
 **Four-type taxonomy**: Separates concerns - behavior, data, interface, design - allowing each to use optimal format without compromising others.
 
-**OpenSpec compatibility for capabilities**: Maintains interoperability with existing OpenSpec tooling and allows gradual adoption.
+**Structured format for capabilities**: Uses clear requirements and scenarios format that's both human-readable and AI-parseable, enabling effective collaboration between developers and AI assistants.
 
 **Delta-based changes**: Preserves change history and enables review of what changed, not just the new state.
 

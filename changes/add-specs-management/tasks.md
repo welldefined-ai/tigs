@@ -76,7 +76,7 @@
 
 ## 6. Change Management - Parsing
 
-- [ ] 6.1 Implement `DeltaParser` for capabilities (OpenSpec format):
+- [ ] 6.1 Implement `DeltaParser` for capabilities:
   - [ ] 6.1.1 Parse ADDED requirements
   - [ ] 6.1.2 Parse MODIFIED requirements
   - [ ] 6.1.3 Parse REMOVED requirements

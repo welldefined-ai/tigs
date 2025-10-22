@@ -26,7 +26,7 @@ specs/
 ## Specification Types
 
 ### Capabilities
-Behavioral requirements using OpenSpec-compatible format.
+Behavioral requirements with structured scenarios.
 - Focus: What the system does
 - Format: Requirements with Scenarios (WHEN/THEN/AND)
 - Example: `capabilities/user-auth/spec.md`

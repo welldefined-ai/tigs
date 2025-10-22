@@ -6,7 +6,7 @@ from typing import Dict, List
 
 
 class CapabilityDeltaParser:
-    """Parses capability delta specifications following OpenSpec format."""
+    """Parses capability delta specifications with incremental change operations."""
 
     def __init__(self, delta_file: Path):
         """Initialize parser with delta file.
