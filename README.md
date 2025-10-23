@@ -13,7 +13,11 @@ Linus coded Git. Now, let's talk about Tigs.
 
 ## What is Tigs?
 
-Tigs is a Git-based chat management system that captures and versions your AI development conversations alongside your code. In the LLM era, the "why" behind code lives in chats—prompts, design debates, and micro-discoveries that vanish across tools and tabs. Tigs preserves this context as traceable dev artifacts in your Git repository.
+Tigs is a Git-based development context management system that bridges AI conversations and structured specifications. It captures and versions both:
+- **AI chats** - Your development conversations, prompts, and design debates
+- **Specifications** - Multi-dimensional specs for capabilities, data models, APIs, and architecture
+
+In the LLM era, the "why" behind code lives in chats and evolves through specs. Tigs preserves this context as traceable, version-controlled artifacts in your Git repository.
 
 "Tig" in the name is simply "git" spelled in reverse.
 
@@ -29,11 +33,18 @@ Tigs solves this by:
 
 ## Key Features
 
+### Chat Management
 - **Non-invasive storage** - Uses Git notes; never rewrites your commits
 - **Fast TUI interface** - Navigate commits, select chats, and link them effortlessly
 - **Tool-agnostic** - Works with chats from Claude Code, Gemini CLI, Qwen Code and more
 - **Version-controlled context** - Your reasoning becomes greppable, diffable, and reviewable
-- **Future: Auto-generated specs** - AI will read commits + chats to generate precise system specifications
+
+### Specification Management
+- **Multi-dimensional specs** - Support for capabilities, data models, APIs, and architecture
+- **Delta-based changes** - Track incremental changes with ADDED/MODIFIED/REMOVED operations
+- **Type-specific validation** - Automated format checking for each specification type
+- **AI-assisted workflows** - Claude Code slash commands for creating and managing specs
+- **Spec generation** - Bootstrap specs from existing codebase
 
 ## Quick Start
 
@@ -46,6 +57,7 @@ pip install tigs  # or: pipx install tigs
 # In your Git repository
 cd /path/to/your/repo
 
+# === Chat Management ===
 # Launch the TUI to attach chats to commits
 tigs store
 
@@ -59,6 +71,29 @@ tigs push   # Push your chats to remote
 # Or specify merge strategy
 tigs pull --strategy=ours    # Keep local on conflict
 tigs pull --strategy=theirs  # Keep remote on conflict
+
+# === Specification Management ===
+# Initialize specs structure in your project
+tigs init-specs [--examples]
+
+# List all specifications
+tigs list-specs [--type <type>] [--json]
+
+# Display specification content
+tigs show-spec <name> [--type <type>]
+
+# Validate specifications
+tigs validate-specs [--all] [--strict]
+
+# Archive completed changes
+tigs archive-change <change-id>
+
+# === Claude Code Integration ===
+# Use these slash commands in Claude Code:
+# /change     - Create comprehensive change proposals
+# /bootstrap  - Generate specs from existing code
+# /validate   - Validate specs format
+# /archive    - Merge completed changes
 ```
 
 ### Provider discovery
@@ -88,7 +123,69 @@ TIGS_CHAT_RECURSIVE=0 tigs store
 The logs pane tags each entry with the provider name so mixed sessions are
 easy to spot.
 
+## Specification Management
+
+Tigs provides a comprehensive specification management system supporting four types of specifications:
+
+### Specification Types
+
+1. **Capabilities** - Behavioral requirements with structured scenarios (WHEN/THEN/AND)
+2. **Data Models** - Database schemas with entities, fields, constraints, and relationships
+3. **API Specifications** - Endpoint definitions with request/response formats and status codes
+4. **Architecture** - System design, components, and architectural decision records (ADRs)
+
+### Delta-Based Change Management
+
+Changes are managed incrementally using delta operations, isolated in `specs/changes/<change-id>/` until validated and archived:
+
+```markdown
+## ADDED Requirements
+### Requirement: User Authentication
+The system SHALL authenticate users via OAuth.
+
+## MODIFIED Requirements
+### Requirement: Session Management
+[Updated content...]
+
+## REMOVED Requirements
+### Requirement: Legacy Auth
+
+## RENAMED Requirements
+### Requirement: Old Name → New Name
+```
+
+### Directory Structure
+
+```
+specs/
+├── capabilities/     # Behavioral specifications
+├── data-models/      # Data structure specifications
+├── api/              # API endpoint specifications
+├── architecture/     # Architecture and design specifications
+└── changes/          # Incremental changes
+    ├── [change-id]/  # Active changes
+    └── archive/      # Completed changes
+```
+
+### Usage Example
+
+```bash
+# Initialize specs in your project
+tigs init-specs --examples
+
+# Create a new change using AI assistance (Claude Code)
+/change
+
+# Validate all specifications
+tigs validate-specs --all
+
+# Archive a completed change
+tigs archive-change add-user-auth
+```
+
 ## How It Works
+
+### Chat Management TUI
 
 The TUI shows:
 - **Left panel**: Your repository's commit history
@@ -109,7 +206,7 @@ In your repository as log files and Git notes. You maintain full control through
 Tigs operates locally. Treat chat notes like any code history when pushing to remotes.
 
 **Is this production-ready?**
-Yes for chat curation and traceability. The auto-spec generation module is in active development.
+Yes. Chat management is stable and widely used. Specification management is feature-complete with validation, change tracking, and archival.
 
 **How does sync work with multiple users?**
 Tigs uses `tigs pull` to fetch and merge remote chats. The default `union` strategy preserves all conversations separately (no message mixing). Each user's chat remains an independent conversation. If conflicts occur, the custom merger auto-resolves by combining all chats as separate YAML documents.
@@ -120,6 +217,9 @@ Tigs uses `tigs pull` to fetch and merge remote chats. The default `union` strat
 - `theirs`: Keep remote chats on conflict
 - `manual`: Require manual conflict resolution
 
+**How do specs relate to chats?**
+Chats capture your development conversations and AI interactions. Specs formalize those conversations into structured, validated documentation. Together, they provide complete development context: the informal reasoning (chats) and the formal requirements (specs).
+
 ## Development Philosophy
 
 Tigs is developed in [this LLM-native way](https://github.com/sublang-ai/sublang): its requirements and design are expressed through talks with an LLM and translated into code. By bootstrapping itself, Tigs will manage its own talks and define its own specifications.
@@ -128,10 +228,15 @@ The specifications are language-agnostic and can be translated into different pr
 
 ## Roadmap
 
-- [ ] Direct integrations with popular AI tools and IDEs
-- [ ] Auto-generated specifications from commits + chats
-- [ ] CI/CD hooks for "talk coverage" in PRs
+- [x] Specification management system with validation
+- [x] Delta-based change tracking and archival
+- [x] Claude Code integration with slash commands
+- [ ] Direct integrations with more AI tools and IDEs
+- [ ] Enhanced spec generation from commits + chats (bootstrap available)
+- [ ] CI/CD hooks for "talk coverage" and spec validation in PRs
 - [ ] Multi-language implementations beyond Python/Node.js
+- [ ] Spec dependency graph visualization
+- [ ] Cross-reference validation and broken link detection
 
 ## Contributing
 

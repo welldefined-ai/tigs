@@ -1,5 +1,6 @@
 """Command-line interface for Tigs."""
 
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -9,6 +10,7 @@ import click
 
 from .storage import TigsRepo
 from .tui import TigsStoreApp, TigsViewApp, CURSES_AVAILABLE
+from .specs_manager import SpecsManager
 
 
 @click.group()
@@ -290,6 +292,458 @@ def view_command(ctx: click.Context) -> None:
         app.run()
     except Exception as e:
         click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+
+
+@main.command("init-specs")
+@click.option(
+    "--examples", is_flag=True, help="Generate example specifications for each type"
+)
+@click.option(
+    "--path",
+    "-p",
+    type=click.Path(exists=True, path_type=Path),
+    default=None,
+    help="Path to initialize specs (defaults to current directory)",
+)
+def init_specs(examples: bool, path: Optional[Path]) -> None:
+    """Initialize specs directory structure.
+
+    Creates a specs/ directory with subdirectories for:
+    - capabilities/  (behavioral specifications)
+    - data-models/   (database schemas and entities)
+    - api/          (REST/GraphQL endpoints)
+    - architecture/ (system design and ADRs)
+    - changes/      (incremental changes)
+    """
+    root_path = path or Path.cwd()
+    manager = SpecsManager(root_path)
+
+    try:
+        result = manager.init_structure(with_examples=examples)
+
+        click.echo(f"✓ Initialized specs directory at {root_path / 'specs'}")
+
+        # Separate specs and commands for clearer display
+        specs_items = [
+            p
+            for p in result["created"]
+            if "/specs/" in str(p) or str(p).endswith("specs")
+        ]
+        claude_items = [p for p in result["created"] if "/.claude/" in str(p)]
+
+        if specs_items:
+            click.echo(f"\nCreated specs structure ({len(specs_items)} items):")
+            for created_path in specs_items:
+                rel_path = Path(created_path).relative_to(root_path)
+                click.echo(f"  - {rel_path}")
+
+        if claude_items:
+            click.echo("\n✓ Created Claude Code slash commands:")
+            for created_path in claude_items:
+                rel_path = Path(created_path).relative_to(root_path)
+                # Show command names more prominently
+                if created_path.endswith(".md"):
+                    command_name = Path(created_path).stem
+                    click.echo(f"  - /{command_name}")
+                else:
+                    click.echo(f"  - {rel_path}")
+
+        if examples:
+            click.echo("\n✓ Generated example specifications")
+            click.echo(
+                "  Review examples in each subdirectory to understand the format"
+            )
+
+        click.echo("\nNext steps:")
+        click.echo("  1. Review specs/README.md for format guidelines")
+        if claude_items:
+            click.echo("  2. Use AI slash commands:")
+            click.echo("     /bootstrap - Bootstrap specs from existing code")
+            click.echo("     /change    - Plan new features")
+            click.echo("     /validate  - Check specs format")
+            click.echo("     /archive   - Merge completed changes")
+            click.echo(
+                "  3. Or use CLI: tigs list-specs, tigs show-spec, tigs validate-specs"
+            )
+        else:
+            click.echo("  2. Create your first spec using an AI assistant")
+            click.echo("  3. Validate specs: tigs validate-specs --all")
+
+    except FileExistsError as e:
+        click.echo(f"Error: {e}", err=True)
+        click.echo("\nThe specs/ directory already exists in this location.", err=True)
+        click.echo(
+            "If you want to reinitialize, please remove or rename the existing directory.",
+            err=True,
+        )
+        sys.exit(1)
+    except Exception as e:
+        click.echo(f"Error initializing specs: {e}", err=True)
+        sys.exit(1)
+
+
+@main.command("list-specs")
+@click.option(
+    "--type",
+    "-t",
+    "spec_type",
+    type=click.Choice(["capabilities", "data-models", "api", "architecture"]),
+    help="Filter by specification type",
+)
+@click.option("--json", "json_output", is_flag=True, help="Output in JSON format")
+@click.option(
+    "--path",
+    "-p",
+    type=click.Path(exists=True, path_type=Path),
+    default=None,
+    help="Path to specs directory (defaults to current directory)",
+)
+def list_specs_command(
+    spec_type: Optional[str], json_output: bool, path: Optional[Path]
+) -> None:
+    """List all specifications in the project.
+
+    Scans the specs/ directory and displays all discovered specifications,
+    grouped by type. Use --type to filter by a specific type.
+    """
+    root_path = path or Path.cwd()
+    manager = SpecsManager(root_path)
+
+    try:
+        specs = manager.list_specs(spec_type=spec_type)
+
+        if json_output:
+            # Output JSON format
+            click.echo(json.dumps(specs, indent=2))
+            return
+
+        # Human-readable format
+        total_count = sum(len(spec_list) for spec_list in specs.values())
+
+        if total_count == 0:
+            click.echo("No specifications found.")
+            click.echo("\nCreate your first spec:")
+            click.echo("  - Use an AI assistant with: /change")
+            click.echo("  - Or manually create in specs/ directory")
+            return
+
+        click.echo(f"Found {total_count} specification(s):\n")
+
+        for stype, spec_list in specs.items():
+            if not spec_list:
+                continue
+
+            # Format type name nicely
+            type_display = stype.replace("-", " ").title()
+            click.echo(f"{type_display} ({len(spec_list)}):")
+
+            for spec in spec_list:
+                click.echo(f"  - {spec['name']}")
+                click.echo(f"    {spec['path']}")
+
+            click.echo()  # Empty line between types
+
+    except FileNotFoundError as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+    except ValueError as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+    except Exception as e:
+        click.echo(f"Error listing specs: {e}", err=True)
+        sys.exit(1)
+
+
+@main.command("show-spec")
+@click.argument("name", type=str)
+@click.option(
+    "--type",
+    "-t",
+    "spec_type",
+    type=click.Choice(["capabilities", "data-models", "api", "architecture"]),
+    help="Specify spec type to disambiguate",
+)
+@click.option(
+    "--json", "json_output", is_flag=True, help="Output in JSON format with metadata"
+)
+@click.option(
+    "--path",
+    "-p",
+    type=click.Path(exists=True, path_type=Path),
+    default=None,
+    help="Path to specs directory (defaults to current directory)",
+)
+def show_spec_command(
+    name: str, spec_type: Optional[str], json_output: bool, path: Optional[Path]
+) -> None:
+    """Show the content of a specification.
+
+    NAME is the specification name (directory name).
+
+    If multiple specs with the same name exist in different types,
+    use --type to specify which one to show.
+    """
+    root_path = path or Path.cwd()
+    manager = SpecsManager(root_path)
+
+    try:
+        spec_info = manager.show_spec(name, spec_type=spec_type)
+
+        if json_output:
+            # Output JSON format with metadata
+            click.echo(json.dumps(spec_info, indent=2))
+            return
+
+        # Human-readable format
+        type_display = spec_info["type"].replace("-", " ").title()
+        click.echo(f"Spec: {spec_info['name']} ({type_display})")
+        click.echo(f"Path: {spec_info['path']}")
+        click.echo("=" * 80)
+        click.echo(spec_info["content"], nl=False)
+
+    except FileNotFoundError as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+    except ValueError as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+    except Exception as e:
+        click.echo(f"Error showing spec: {e}", err=True)
+        sys.exit(1)
+
+
+@main.command("archive-change")
+@click.argument("change_id", type=str)
+@click.option("--yes", "-y", is_flag=True, help="Skip confirmation prompt")
+@click.option("--no-validate", is_flag=True, help="Skip validation checks")
+@click.option(
+    "--path",
+    "-p",
+    type=click.Path(exists=True, path_type=Path),
+    default=None,
+    help="Path to specs directory (defaults to current directory)",
+)
+def archive_change_command(
+    change_id: str, yes: bool, no_validate: bool, path: Optional[Path]
+) -> None:
+    """Archive a change by merging delta specs into main specs.
+
+    CHANGE_ID is the name of the change directory in specs/changes/.
+
+    This command:
+    1. Validates the change structure (unless --no-validate)
+    2. Parses delta specifications
+    3. Merges changes into main specifications
+    4. Moves the change to archive with date prefix
+
+    Example:
+      tigs archive-change add-user-authentication
+    """
+    root_path = path or Path.cwd()
+    manager = SpecsManager(root_path)
+
+    try:
+        # Get change directory info
+        change_dir = root_path / "specs" / "changes" / change_id
+
+        if not change_dir.exists():
+            click.echo(f"Error: Change '{change_id}' not found", err=True)
+            click.echo("\nAvailable changes:", err=True)
+            changes_dir = root_path / "specs" / "changes"
+            if changes_dir.exists():
+                changes = [
+                    d.name
+                    for d in changes_dir.iterdir()
+                    if d.is_dir() and d.name != "archive"
+                ]
+                if changes:
+                    for change in changes:
+                        click.echo(f"  - {change}", err=True)
+                else:
+                    click.echo("  (none)", err=True)
+            sys.exit(1)
+
+        # Show summary and confirm
+        if not yes:
+            click.echo(f"About to archive change: {change_id}")
+            click.echo(f"Change directory: {change_dir}")
+
+            # Show what will be merged
+            click.echo("\nDelta specifications found:")
+            found_any = False
+            for spec_type in ["capabilities", "data-models", "api", "architecture"]:
+                delta_dir = change_dir / spec_type
+                if delta_dir.exists():
+                    specs = [d.name for d in delta_dir.iterdir() if d.is_dir()]
+                    if specs:
+                        found_any = True
+                        click.echo(f"  {spec_type}:")
+                        for spec in specs:
+                            click.echo(f"    - {spec}")
+
+            if not found_any:
+                click.echo("  (none found)")
+
+            click.echo()
+            if not click.confirm("Proceed with archiving?"):
+                click.echo("Aborted.")
+                sys.exit(0)
+
+        # Perform archive
+        result = manager.archive_change(change_id, skip_validation=no_validate)
+
+        click.echo(f"✓ Archived change: {change_id}")
+        click.echo(f"\nMerged {len(result['merged'])} specification(s):")
+        for merged_path in result["merged"]:
+            click.echo(f"  - {merged_path}")
+
+        click.echo(f"\nArchived to: {result['archive_path']}")
+
+    except FileNotFoundError as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+    except ValueError as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+    except Exception as e:
+        click.echo(f"Error archiving change: {e}", err=True)
+        sys.exit(1)
+
+
+@main.command("validate-specs")
+@click.option("--all", "validate_all", is_flag=True, help="Validate all specifications")
+@click.option(
+    "--type",
+    "-t",
+    "spec_type",
+    type=click.Choice(["capabilities", "data-models", "api", "architecture"]),
+    help="Validate only specific type",
+)
+@click.option(
+    "--change", "-c", "change_id", type=str, help="Validate specs in a specific change"
+)
+@click.option("--strict", is_flag=True, help="Treat warnings as errors")
+@click.option(
+    "--path",
+    "-p",
+    type=click.Path(exists=True, path_type=Path),
+    default=None,
+    help="Path to specs directory (defaults to current directory)",
+)
+def validate_specs_command(
+    validate_all: bool,
+    spec_type: Optional[str],
+    change_id: Optional[str],
+    strict: bool,
+    path: Optional[Path],
+) -> None:
+    """Validate specification format and structure.
+
+    Checks that specifications follow the defined format rules:
+    - Required sections present
+    - Correct heading hierarchy
+    - Valid requirement/scenario format
+    - Proper use of modal verbs (SHALL/MUST)
+
+    Examples:
+      tigs validate-specs --all                # All specs
+      tigs validate-specs --type capabilities  # Only capabilities
+      tigs validate-specs --change my-change   # Only in change
+      tigs validate-specs --all --strict       # Warnings = errors
+    """
+    root_path = path or Path.cwd()
+    manager = SpecsManager(root_path)
+
+    try:
+        # Validate
+        results = manager.validate_specs(
+            spec_type=spec_type, change_id=change_id, strict=strict
+        )
+
+        # Count totals
+        total_specs = 0
+        total_errors = 0
+        total_warnings = 0
+        specs_with_errors = 0
+        specs_with_warnings = 0
+
+        # Display results
+        has_any_issues = False
+
+        for stype, type_results in results.items():
+            if not type_results:
+                continue
+
+            total_specs += len(type_results)
+
+            # Check if any specs have issues
+            specs_with_issues = [r for r in type_results if r.has_issues]
+            if not specs_with_issues:
+                continue
+
+            has_any_issues = True
+
+            # Display type header
+            type_display = stype.replace("-", " ").title()
+            click.echo(f"\n{type_display}:")
+            click.echo("=" * 60)
+
+            for result in specs_with_issues:
+                if result.errors:
+                    specs_with_errors += 1
+                    total_errors += len(result.errors)
+                if result.warnings:
+                    specs_with_warnings += 1
+                    total_warnings += len(result.warnings)
+
+                # Display spec path
+                click.echo(f"\n{result.spec_path}")
+
+                # Display errors
+                if result.errors:
+                    for issue in result.errors:
+                        click.echo(f"  {issue}", err=True)
+
+                # Display warnings
+                if result.warnings:
+                    for issue in result.warnings:
+                        # In strict mode, warnings are shown as errors
+                        if strict:
+                            click.echo(f"  {issue}", err=True)
+                        else:
+                            click.echo(f"  {issue}")
+
+        # Summary
+        click.echo("\n" + "=" * 60)
+        if not has_any_issues:
+            click.echo(f"✓ All {total_specs} specification(s) passed validation")
+            sys.exit(0)
+        else:
+            click.echo("✗ Validation completed with issues:")
+            click.echo(f"  Total specs: {total_specs}")
+            click.echo(f"  Specs with errors: {specs_with_errors}")
+            click.echo(f"  Specs with warnings: {specs_with_warnings}")
+            click.echo(f"  Total errors: {total_errors}")
+            click.echo(f"  Total warnings: {total_warnings}")
+
+            # Exit with error code if there are errors or strict mode warnings
+            if total_errors > 0 or (strict and total_warnings > 0):
+                sys.exit(1)
+            else:
+                sys.exit(0)
+
+    except FileNotFoundError as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+    except ValueError as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+    except Exception as e:
+        click.echo(f"Error validating specs: {e}", err=True)
+        import traceback
+
+        traceback.print_exc()
         sys.exit(1)
 
 

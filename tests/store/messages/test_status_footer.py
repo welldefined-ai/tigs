@@ -244,7 +244,6 @@ class TestMessagesStatusFooter:
 
                 # Should not have status footer in messages pane when no messages
                 footer_found = False
-                has_no_messages_display = False
 
                 # The key insight: when there are no messages selected, there should be no
                 # messages-related status footer. The (1/1) we're seeing is from the commits pane.
