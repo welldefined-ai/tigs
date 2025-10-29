@@ -297,6 +297,7 @@ class SpecsManager:
             "change.md",
             "validate.md",
             "archive.md",
+            "tigs::commit.md",
         ]
 
         for command_file in command_files:
