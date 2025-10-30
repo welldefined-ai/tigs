@@ -21,14 +21,20 @@ class TigsStoreApp:
     MIN_WIDTH = 80
     MIN_HEIGHT = 24
 
-    def __init__(self, store):
+    def __init__(self, store, target_commit=None, suggestions=None):
         """Initialize the TUI application.
 
         Args:
             store: TigsRepo instance for Git operations
+            target_commit: Optional commit SHA to focus on (enables 2-pane layout)
+            suggestions: Optional dict mapping log_uri to list of message indices to pre-select
         """
         self.store = store
-        self.focused_pane = 0  # 0=commits, 1=messages, 2=logs
+        self.target_commit = target_commit
+        self.suggestions = suggestions or {}
+        self.focused_pane = (
+            0 if target_commit else 0
+        )  # 0=messages (2-pane), 0=commits (3-pane)
         self.running = True
         self.status_message = ""  # Status message to display
         self.status_message_time = None  # When status was set
@@ -63,13 +69,27 @@ class TigsStoreApp:
         # Give layout manager to commit view for horizontal scrolling
         self.commit_view.layout_manager = self.layout_manager
 
+        # If target_commit is specified, filter commits to only show that one
+        if self.target_commit:
+            self.commit_view.filter_to_commit(self.target_commit)
+
         # Load initial data
         if self.chat_parser:
             self.log_view.load_logs()
+
+            # Mark logs that have suggestions
+            if self.suggestions:
+                self.log_view.mark_suggested_logs(set(self.suggestions.keys()))
+
             # Auto-load messages for the first log
             log_uri = self.log_view.get_selected_log_uri()
             if log_uri:
                 self.message_view.load_messages(log_uri)
+
+                # Apply suggestions if provided
+                if self.suggestions and log_uri in self.suggestions:
+                    self.message_view.pre_select_messages(self.suggestions[log_uri])
+
                 # Update message selection for any initially selected commits
                 self._update_message_selection_for_selected_commits()
 
@@ -189,87 +209,141 @@ class TigsStoreApp:
             # Calculate pane dimensions
             pane_height = height - 1  # Reserve bottom for status bar
 
-            # Get commit titles for width calculation
-            commit_titles = [c["subject"] for c in self.commit_view.commits]
-            log_count = len(self.log_view.logs) if self.log_view.logs else 0
+            # Determine layout mode: 2-pane or 3-pane
+            is_2_pane_mode = self.target_commit is not None
 
-            # Calculate dynamic widths
-            if self.layout_manager.needs_recalculation(width):
-                commit_width, message_width, log_width = (
-                    self.layout_manager.calculate_column_widths(
-                        width,
-                        commit_titles,
-                        log_count,
-                        read_only_mode=False,  # Full prefix with checkboxes
-                    )
+            if is_2_pane_mode:
+                # 2-PANE LAYOUT (Messages | Logs)
+                # Calculate widths for 2 panes
+                log_count = len(self.log_view.logs) if self.log_view.logs else 0
+
+                if log_count == 0:
+                    message_width = width
+                    log_pane_width = 0
+                else:
+                    # Simple split: 60% messages, 40% logs
+                    message_width = int(width * 0.6)
+                    log_pane_width = width - message_width
+
+                # Get message display lines
+                message_lines = self.message_view.get_display_lines(
+                    pane_height, message_width, self._colors_enabled
                 )
-            else:
-                commit_width, message_width, log_width = (
-                    self.layout_manager.cached_widths
-                )
 
-            # Handle no logs case - give extra space to messages
-            if log_count == 0:
-                message_width = width - commit_width
-                log_pane_width = 0
-            else:
-                log_pane_width = log_width
-
-            # Get commit display lines (now with width and colors parameters)
-            commit_lines = self.commit_view.get_display_lines(
-                pane_height, commit_width, self._colors_enabled
-            )
-
-            # DEBUG: Add status to see if commits are loading
-            if not commit_lines:
-                commit_lines = [f"DEBUG: {len(self.commit_view.commits)} commits"]
-
-            # Draw panes using PaneRenderer
-            PaneRenderer.draw_pane(
-                stdscr,
-                0,
-                0,
-                pane_height,
-                commit_width,
-                "Commits",
-                self.focused_pane == 0,
-                commit_lines,
-                self._colors_enabled,
-            )
-
-            # Get message display lines (now with width and colors parameters)
-            message_lines = self.message_view.get_display_lines(
-                pane_height, message_width, self._colors_enabled
-            )
-
-            PaneRenderer.draw_pane(
-                stdscr,
-                0,
-                commit_width,
-                pane_height,
-                message_width,
-                "Messages",
-                self.focused_pane == 1,
-                message_lines,
-                self._colors_enabled,
-            )
-
-            # Get log display lines and draw logs pane only if wide enough
-            if log_pane_width >= 2:
-                log_lines = self.log_view.get_display_lines(
-                    pane_height, log_pane_width, self._colors_enabled
-                )
+                # Draw messages pane (starts at x=0)
                 PaneRenderer.draw_pane(
                     stdscr,
                     0,
-                    commit_width + message_width,
+                    0,
                     pane_height,
-                    log_pane_width,
-                    "Logs",
-                    self.focused_pane == 2,
-                    log_lines,
+                    message_width,
+                    "Messages",
+                    self.focused_pane == 0,
+                    message_lines,
                     self._colors_enabled,
                 )
+
+                # Draw logs pane if wide enough
+                if log_pane_width >= 2:
+                    log_lines = self.log_view.get_display_lines(
+                        pane_height, log_pane_width, self._colors_enabled
+                    )
+                    PaneRenderer.draw_pane(
+                        stdscr,
+                        0,
+                        message_width,
+                        pane_height,
+                        log_pane_width,
+                        "Logs",
+                        self.focused_pane == 1,
+                        log_lines,
+                        self._colors_enabled,
+                    )
+
+            else:
+                # 3-PANE LAYOUT (Commits | Messages | Logs)
+                # Get commit titles for width calculation
+                commit_titles = [c["subject"] for c in self.commit_view.commits]
+                log_count = len(self.log_view.logs) if self.log_view.logs else 0
+
+                # Calculate dynamic widths
+                if self.layout_manager.needs_recalculation(width):
+                    commit_width, message_width, log_width = (
+                        self.layout_manager.calculate_column_widths(
+                            width,
+                            commit_titles,
+                            log_count,
+                            read_only_mode=False,  # Full prefix with checkboxes
+                        )
+                    )
+                else:
+                    commit_width, message_width, log_width = (
+                        self.layout_manager.cached_widths
+                    )
+
+                # Handle no logs case - give extra space to messages
+                if log_count == 0:
+                    message_width = width - commit_width
+                    log_pane_width = 0
+                else:
+                    log_pane_width = log_width
+
+                # Get commit display lines
+                commit_lines = self.commit_view.get_display_lines(
+                    pane_height, commit_width, self._colors_enabled
+                )
+
+                # DEBUG: Add status to see if commits are loading
+                if not commit_lines:
+                    commit_lines = [f"DEBUG: {len(self.commit_view.commits)} commits"]
+
+                # Draw commits pane
+                PaneRenderer.draw_pane(
+                    stdscr,
+                    0,
+                    0,
+                    pane_height,
+                    commit_width,
+                    "Commits",
+                    self.focused_pane == 0,
+                    commit_lines,
+                    self._colors_enabled,
+                )
+
+                # Get message display lines
+                message_lines = self.message_view.get_display_lines(
+                    pane_height, message_width, self._colors_enabled
+                )
+
+                # Draw messages pane
+                PaneRenderer.draw_pane(
+                    stdscr,
+                    0,
+                    commit_width,
+                    pane_height,
+                    message_width,
+                    "Messages",
+                    self.focused_pane == 1,
+                    message_lines,
+                    self._colors_enabled,
+                )
+
+                # Draw logs pane if wide enough
+                if log_pane_width >= 2:
+                    log_lines = self.log_view.get_display_lines(
+                        pane_height, log_pane_width, self._colors_enabled
+                    )
+                    PaneRenderer.draw_pane(
+                        stdscr,
+                        0,
+                        commit_width + message_width,
+                        pane_height,
+                        log_pane_width,
+                        "Logs",
+                        self.focused_pane == 2,
+                        log_lines,
+                        self._colors_enabled,
+                    )
 
             # Draw status bar
             self._draw_status_bar(stdscr, height - 1, width)
@@ -279,31 +353,51 @@ class TigsStoreApp:
 
             # Handle input
             key = stdscr.getch()
+            num_panes = 2 if is_2_pane_mode else 3
+
             if key == ord("q") or key == ord("Q"):
                 self.running = False
             elif key == ord("\n") or key == 10:  # Enter key
                 self._handle_store_operation(stdscr)
             elif key == ord("\t"):  # Tab
-                self.focused_pane = (self.focused_pane + 1) % 3
+                self.focused_pane = (self.focused_pane + 1) % num_panes
             elif key == curses.KEY_BTAB or key == 353:  # Shift-Tab
-                self.focused_pane = (self.focused_pane - 1) % 3
+                self.focused_pane = (self.focused_pane - 1) % num_panes
             elif key == curses.KEY_RESIZE:
                 self._handle_resize(stdscr)
                 continue  # Redraw with new dimensions
-            elif self.focused_pane == 0:  # Commits pane focused
-                if self.commit_view.handle_input(key, pane_height):
-                    # Commit selection changed (Space was pressed), update message selection
-                    self._update_message_selection_for_selected_commits()
-            elif self.focused_pane == 1:  # Messages pane focused
-                self.message_view.handle_input(stdscr, key, pane_height)
-            elif self.focused_pane == 2:  # Logs pane focused
-                if self.log_view.handle_input(key):
-                    # Log selection changed, reload messages
-                    log_uri = self.log_view.get_selected_log_uri()
-                    if log_uri:
-                        self.message_view.load_messages(log_uri)
-                        # After loading new messages, update selection based on selected commits
+            elif is_2_pane_mode:
+                # 2-pane mode: pane 0 = messages, pane 1 = logs
+                if self.focused_pane == 0:  # Messages pane focused
+                    self.message_view.handle_input(stdscr, key, pane_height)
+                elif self.focused_pane == 1:  # Logs pane focused
+                    if self.log_view.handle_input(key):
+                        # Log selection changed, reload messages
+                        log_uri = self.log_view.get_selected_log_uri()
+                        if log_uri:
+                            self.message_view.load_messages(log_uri)
+
+                            # Apply suggestions if provided for this log
+                            if self.suggestions and log_uri in self.suggestions:
+                                self.message_view.pre_select_messages(
+                                    self.suggestions[log_uri]
+                                )
+            else:
+                # 3-pane mode: pane 0 = commits, pane 1 = messages, pane 2 = logs
+                if self.focused_pane == 0:  # Commits pane focused
+                    if self.commit_view.handle_input(key, pane_height):
+                        # Commit selection changed (Space was pressed), update message selection
                         self._update_message_selection_for_selected_commits()
+                elif self.focused_pane == 1:  # Messages pane focused
+                    self.message_view.handle_input(stdscr, key, pane_height)
+                elif self.focused_pane == 2:  # Logs pane focused
+                    if self.log_view.handle_input(key):
+                        # Log selection changed, reload messages
+                        log_uri = self.log_view.get_selected_log_uri()
+                        if log_uri:
+                            self.message_view.load_messages(log_uri)
+                            # After loading new messages, update selection based on selected commits
+                            self._update_message_selection_for_selected_commits()
 
     def _draw_status_bar(self, stdscr, y: int, width: int) -> None:
         """Draw the status bar.

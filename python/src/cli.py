@@ -1,16 +1,20 @@
 """Command-line interface for Tigs."""
 
 import json
+import re
 import subprocess
 import sys
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
 
 import click
+import yaml
 
 from .storage import TigsRepo
 from .tui import TigsStoreApp, TigsViewApp, CURSES_AVAILABLE
 from .specs_manager import SpecsManager
+from .chat_providers import get_chat_parser
 
 
 @click.group()
@@ -262,15 +266,37 @@ def fetch_chats(ctx: click.Context, remote: str) -> None:
 
 
 @main.command("store")
+@click.option(
+    "--commit",
+    type=str,
+    default=None,
+    help="Focus on specific commit (shows 2-pane layout)",
+)
+@click.option(
+    "--suggest",
+    type=str,
+    default=None,
+    help='Pre-select suggested messages (format: "<log_uri>:<idx>,<idx>;<log_uri>:<idx>")',
+)
 @click.pass_context
-def store_command(ctx: click.Context) -> None:
+def store_command(ctx: click.Context, commit: str, suggest: str) -> None:
     """Launch interactive TUI for selecting commits and messages."""
     if not CURSES_AVAILABLE:
         click.echo("Error: curses library not available", err=True)
         sys.exit(1)
 
     store = ctx.obj["store"]
-    app = TigsStoreApp(store)
+
+    # Parse suggestions if provided
+    suggestions = None
+    if suggest:
+        try:
+            suggestions = _parse_suggestions(suggest)
+        except ValueError as e:
+            click.echo(f"Error: {e}", err=True)
+            sys.exit(1)
+
+    app = TigsStoreApp(store, target_commit=commit, suggestions=suggestions)
     try:
         app.run()
     except Exception as e:
@@ -745,6 +771,233 @@ def validate_specs_command(
 
         traceback.print_exc()
         sys.exit(1)
+
+
+@main.command("list-messages")
+@click.option(
+    "--recent",
+    type=int,
+    default=10,
+    help="Number of most recent logs to fetch. Default: 10",
+)
+@click.option(
+    "--since",
+    type=str,
+    default=None,
+    help='Time window for messages (e.g., "3h", "1d", "2025-10-29T10:00:00"). Overrides --recent if provided.',
+)
+def list_messages(recent: int, since: str) -> None:
+    """List chat messages from configured providers for AI analysis.
+
+    Fetches messages from all configured chat providers (controlled by
+    TIGS_CHAT_PROVIDERS environment variable).
+
+    By default, fetches the most recent 10 logs (--recent 10).
+    Use --since for time-based filtering instead.
+
+    Examples:
+      tigs list-messages                    # Most recent 10 logs (default)
+      tigs list-messages --recent 5         # Most recent 5 logs
+      tigs list-messages --since 3h         # Last 3 hours
+      tigs list-messages --since "2025-10-29T10:00:00"  # Since specific time
+    """
+    try:
+        # Determine filtering mode: time-based or count-based
+        use_time_filter = since is not None
+
+        if use_time_filter:
+            # Parse the since parameter
+            cutoff_time = _parse_since_parameter(since)
+        else:
+            cutoff_time = None
+
+        # Get chat parser
+        parser = get_chat_parser()
+
+        # List all logs (already sorted by modification time, newest first)
+        logs_data = parser.list_logs()
+
+        # Filter logs based on mode
+        if use_time_filter:
+            # Time-based filtering: filter by cutoff time
+            filtered_logs = []
+            for log_uri, metadata in logs_data:
+                modified_str = metadata.get("modified", "")
+                if not modified_str:
+                    continue
+
+                try:
+                    modified_time = datetime.fromisoformat(
+                        modified_str.replace("Z", "+00:00")
+                    )
+                except (ValueError, AttributeError):
+                    continue
+
+                # Filter by cutoff time
+                if modified_time >= cutoff_time:
+                    filtered_logs.append((log_uri, metadata))
+        else:
+            # Count-based filtering: take most recent N logs
+            filtered_logs = logs_data[:recent]
+
+        # Process each filtered log and extract messages
+        output_logs = []
+        for log_uri, metadata in filtered_logs:
+            # Parse the log to get messages
+            try:
+                chat = parser.parse(log_uri)
+                if not chat or not chat.messages:
+                    continue
+
+                # Include ALL messages from this log
+                messages_list = []
+                for index, message in enumerate(chat.messages):
+                    msg_dict = {
+                        "index": index,
+                        "role": message.role.value,
+                        "content": message.content,
+                    }
+                    # Include timestamp if available
+                    if message.timestamp:
+                        msg_dict["timestamp"] = message.timestamp.isoformat()
+                    messages_list.append(msg_dict)
+
+                # Add log entry
+                log_entry = {
+                    "uri": log_uri,
+                    "provider": metadata.get("provider", ""),
+                    "modified": metadata.get("modified", ""),
+                    "messages": messages_list,
+                }
+                output_logs.append(log_entry)
+
+            except Exception:
+                # Skip logs that fail to parse
+                continue
+
+        # Output YAML
+        output = {"logs": output_logs}
+        click.echo(yaml.dump(output, default_flow_style=False, sort_keys=False))
+
+    except Exception as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+
+
+def _parse_suggestions(suggest: str):
+    """Parse the --suggest parameter into a dictionary.
+
+    Format: "<log_uri>:<idx>,<idx>;<log_uri>:<idx>,<idx>"
+    Multiple logs separated by ';'
+    Multiple indices per log separated by ','
+
+    Example:
+        "claude-code:/path/to/log:0,5,7;codex-cli:/path/to/log2:2,8"
+
+    Returns:
+        Dict[str, List[int]]: Mapping of log_uri to list of message indices
+
+    Raises:
+        ValueError: If the format is invalid
+    """
+    suggestions = {}
+
+    # Split by semicolon to get individual log entries
+    log_entries = suggest.split(";")
+
+    for entry in log_entries:
+        entry = entry.strip()
+        if not entry:
+            continue
+
+        # Split by colon to separate log_uri and indices
+        if ":" not in entry:
+            raise ValueError(
+                f"Invalid suggestion format: '{entry}'. "
+                "Expected format: '<log_uri>:<index>,<index>'"
+            )
+
+        # Find the last colon to split (log_uri may contain colons like "claude-code:/path")
+        last_colon_idx = entry.rfind(":")
+        log_uri = entry[:last_colon_idx]
+        indices_str = entry[last_colon_idx + 1 :]
+
+        if not log_uri:
+            raise ValueError(f"Empty log URI in suggestion: '{entry}'")
+
+        if not indices_str:
+            raise ValueError(f"No indices provided for log: '{log_uri}'")
+
+        # Parse indices
+        try:
+            indices = [
+                int(idx.strip()) for idx in indices_str.split(",") if idx.strip()
+            ]
+        except ValueError as e:
+            raise ValueError(
+                f"Invalid index in suggestion for log '{log_uri}': {e}"
+            ) from e
+
+        if not indices:
+            raise ValueError(f"No valid indices for log: '{log_uri}'")
+
+        suggestions[log_uri] = indices
+
+    return suggestions
+
+
+def _parse_since_parameter(since: str) -> datetime:
+    """Parse the --since parameter into a datetime cutoff.
+
+    Supports:
+    - Relative: "3h", "30m", "2d", "1w"
+    - Absolute: "2025-10-29T10:00:00" or "2025-10-29"
+
+    Returns:
+        datetime object representing the cutoff time
+
+    Raises:
+        ValueError: If the format is invalid
+    """
+    # Try parsing as relative time (e.g., "3h", "2d")
+    relative_pattern = r"^(\d+)([mhdw])$"
+    match = re.match(relative_pattern, since.strip())
+
+    if match:
+        value = int(match.group(1))
+        unit = match.group(2)
+
+        now = datetime.now()
+        if unit == "m":
+            delta = timedelta(minutes=value)
+        elif unit == "h":
+            delta = timedelta(hours=value)
+        elif unit == "d":
+            delta = timedelta(days=value)
+        elif unit == "w":
+            delta = timedelta(weeks=value)
+        else:
+            raise ValueError(f"Invalid time unit: {unit}")
+
+        return now - delta
+
+    # Try parsing as absolute timestamp
+    try:
+        # Try with time component
+        return datetime.fromisoformat(since)
+    except ValueError:
+        pass
+
+    try:
+        # Try as date only (add time 00:00:00)
+        return datetime.fromisoformat(f"{since}T00:00:00")
+    except ValueError:
+        pass
+
+    raise ValueError(
+        f"Invalid --since format: '{since}'. "
+        "Use relative (e.g., '3h', '2d') or absolute (e.g., '2025-10-29T10:00:00')"
+    )
 
 
 if __name__ == "__main__":

@@ -20,6 +20,7 @@ class LogsView:
         self.logs = []  # List of (log_uri, metadata) tuples
         self.selected_log_idx = 0
         self.log_scroll_offset = 0
+        self.suggested_log_uris = set()  # Set of log URIs that have suggestions
 
     def load_logs(self) -> None:
         """Load logs from cligent."""
@@ -36,6 +37,14 @@ class LogsView:
                 self.selected_log_idx = 0
         except Exception:
             self.logs = []
+
+    def mark_suggested_logs(self, log_uris: set) -> None:
+        """Mark logs that have AI suggestions.
+
+        Args:
+            log_uris: Set of log URIs that have suggestions
+        """
+        self.suggested_log_uris = log_uris
 
     def get_display_lines(
         self, height: int, width: int = 18, colors_enabled: bool = False
@@ -103,9 +112,10 @@ class LogsView:
             if not first_line:
                 first_line = log_id.split(":", 1)[-1] if ":" in log_id else log_id
 
-            # Format: "▶ details" for selected, "  details" for others
+            # Format: "▶ details *" for selected with suggestions, "▶ details" for selected, "  details *" for suggestions, "  details" for others
             prefix = "▶" if i == self.selected_log_idx else " "
-            lines.append(f"{prefix} {first_line}")
+            suffix = " *" if log_id in self.suggested_log_uris else ""
+            lines.append(f"{prefix} {first_line}{suffix}")
 
             # Add time on second line if present
             if time_part:
