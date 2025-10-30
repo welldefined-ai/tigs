@@ -19,16 +19,15 @@ Display the changes to the user.
 
 ### Step 2: Stage Files (if needed)
 
-**If nothing is staged and nothing is unstaged (clean working tree):**
-- Inform the user: "No changes to commit. Will link chats to the most recent commit (HEAD)."
-- Set `COMMIT_SHA` to HEAD's SHA (get it with `git rev-parse HEAD`)
-- Skip to Step 4 (analyze and suggest messages for HEAD)
-
-**If there are unstaged changes that should be committed:**
+If there are unstaged changes that should be committed:
 - Use AskUserQuestion to ask ONCE: "Which files should we stage?"
   - Options: "All files", "Modified files only", "Let me specify"
 - Run `git add <files>` to stage the selected files
 - **Do NOT ask for confirmation again** - proceed directly to Step 3
+
+If nothing is staged and nothing is unstaged:
+- Use AskUserQuestion to ask if they want to link chats to HEAD instead
+- If yes, skip to Step 4 (launch TUI for HEAD)
 
 ### Step 3: Create Commit
 
@@ -44,48 +43,157 @@ Create a descriptive commit message following the repository's style:
 
 ### Step 4: Analyze and Suggest Relevant Messages
 
-**Fetch recent chat messages:**
+**Step 4.1: Get commit context**
 ```bash
-tigs list-messages --recent 5
+git show --stat <commit_sha>
+git show <commit_sha>
+```
+- Understand what files were changed
+- Extract commit message
+- Identify key terms, features, file names to search for
+
+**Step 4.2: Get log metadata (lightweight)**
+```bash
+tigs list-logs --recent 10
+```
+This returns metadata for the 10 most recent logs (log IDs, timestamps, message counts) - minimal token cost.
+
+**Step 4.3: Progressive message analysis**
+
+Search logs one at a time, starting with the most recent:
+
+```bash
+# Fetch messages from most recent log
+tigs list-messages <log-id-1>
 ```
 
-This fetches the most recent 5 logs (regardless of time) and returns YAML with their messages. Parse the output and analyze:
+For each log:
+1. **Analyze messages** - Look for conversation related to this commit
+2. **Assess completeness** - Do you have the full story (start → middle → end)?
+3. **Decision:**
+   - If **complete** → Stop searching, build suggestions
+   - If **incomplete** → Fetch next log's messages and continue
+   - If **no relevant messages found yet** → Fetch next log
+4. **Stop after 10 logs** maximum
 
-1. **Get commit context:**
-   - Run `git show --stat <commit_sha>` to see files changed
-   - Run `git show <commit_sha>` to see the diff
-   - Extract commit message
+This progressive approach minimizes token usage - only fetch what you need!
 
-2. **Analyze each message for relevance:**
-   - Match keywords from commit message/diff with message content
-   - Check timestamps (messages close to commit time are more relevant)
-   - Look for code snippets, file names, function names mentioned
-   - Score each message (0-10) based on relevance
+**Step 4.4: Identify relevant messages**
 
-3. **Select ALL relevant messages per log (score > 6):**
-   - Group messages by log_uri
-   - For each log, include ALL messages with score > 6
-   - Skip logs that have no messages scoring > 6
-   - Build suggestion format: `"<log_uri>:<idx>,<idx>,...;<log_uri>:<idx>,..."`
+Within each log you fetch, look for:
 
-**Example analysis:**
+   **Conversation start** - Messages where:
+   - User explicitly requests the feature/change (e.g., "add dark mode", "implement authentication")
+   - User describes the problem this commit solves
+   - User initiates the task that led to these changes
+   - Assistant proposes or begins planning the feature
+
+   **Look for conversation middle** - Messages showing:
+   - Implementation steps and progress updates
+   - Code changes to files included in the commit
+   - Design decisions and technical discussions
+   - Debugging, testing, or refinement activities
+   - File reads, edits, or writes related to commit files
+
+   **Look for conversation end** - Messages where:
+   - The work is completed and tested
+   - The commit is created or prepared
+   - Assistant summarizes what was accomplished
+   - User approves or moves to a different topic
+
+   **Important**: Conversations may be **interrupted and scattered**:
+   - User might ask unrelated questions mid-conversation (skip those)
+   - Work might pause and resume in the same log (include both parts)
+   - Conversation might span multiple logs (continue searching)
+
+**Step 4.5: Build complete conversation history**
+
+As you progressively fetch and analyze logs:
+   - Identify ALL relevant message segments across logs (up to 10 logs)
+   - Within each log, find all segments (can be multiple non-contiguous ranges)
+   - Group segments by log_id
+   - Stop searching when you believe you have the complete story from start to finish
+   - If uncertain, err on the side of including more context
+
+**Step 4.6: Build suggestion string**
+
+Once you have the complete conversation history:
+   - Format with ranges for efficiency: `<start>-<end>` for contiguous messages
+   - Format with commas for scattered messages: `<idx>,<idx>,...`
+   - Combine both: `<start>-<end>,<idx>,<other_start>-<other_end>`
+   - Full format: `"<log_id>:<ranges>;<log_id>:<ranges>"`
+   - Order logs chronologically (oldest first) to tell the story in order
+   - Use the log IDs from `tigs list-logs` output
+
+**Example 1: Complete conversation in single log (scattered messages)**
+
 ```
-Commit: "Add JWT authentication to API"
-Diff includes: auth.py, token.py, added jwt library
+Commit: "feat: add dark mode theme support"
+Files changed: ThemeContext.tsx, index.css, Settings.tsx
 
-Relevant messages found:
-- Log: claude-code:/path/to/log
-  - Message 5 (score 9): "Let's add JWT authentication"
-  - Message 6 (score 8): "I'll implement the token generation"
-  - Message 7 (score 7): "Need to add jwt library"
-  - Message 10 (score 7): "Testing the auth endpoints"
-- Log: codex-cli:/path/to/other
-  - Message 3 (score 8): "Reviewing auth implementation"
+Step 1: Get log metadata
+→ tigs list-logs --recent 10
+→ Found: claude-code:e8f7d11f.jsonl (modified today, 50 messages)
 
-Suggestion string: "claude-code:/path/to/log:5,6,7,10;codex-cli:/path/to/other:3"
+Step 2: Fetch most recent log
+→ tigs list-messages claude-code:e8f7d11f.jsonl
+
+Analysis:
+- Messages 5-12: User requests dark mode, planning discussion [START]
+- Messages 13-18: UNRELATED - User asks about deployment (skip)
+- Messages 19-35: Implementation of ThemeContext and CSS [MIDDLE]
+- Messages 36-40: UNRELATED - Quick question about API (skip)
+- Messages 41-47: Testing, fixing bugs, finalizing [END]
+- Message 48: Commit created
+
+Assessment: COMPLETE! All phases found in one log.
+
+Suggestion string: "claude-code:e8f7d11f.jsonl:5-12,19-35,41-48"
 ```
 
-**If no messages score > 6:** Don't pass `--suggest` flag at all.
+**Example 2: Conversation spanning multiple logs (progressive search)**
+
+```
+Commit: "fix: resolve authentication timeout issue"
+Files changed: auth.py, session.py
+
+Step 1: Get log metadata
+→ tigs list-logs --recent 10
+→ Found 10 logs, starting with most recent
+
+Step 2: Fetch log 1 (most recent)
+→ tigs list-messages claude-code:xyz789.jsonl
+
+Analysis of xyz789.jsonl:
+- Messages 0-5: Final testing and verification [END phase]
+- Messages 6-10: Creating the commit
+- No START or MIDDLE phases found
+Assessment: INCOMPLETE - need earlier context
+
+Step 3: Fetch log 2
+→ tigs list-messages claude-code:def456.jsonl
+
+Analysis of def456.jsonl:
+- Messages 0-8: UNRELATED - Different feature work (skip)
+- Messages 9-22: Root cause analysis, implementing fix [MIDDLE phase]
+- Messages 23-30: UNRELATED - Documentation update (skip)
+- Still no START phase
+Assessment: INCOMPLETE - need to find initiation
+
+Step 4: Fetch log 3
+→ tigs list-messages claude-code:abc123.jsonl
+
+Analysis of abc123.jsonl:
+- Messages 25-40: User reports timeout bug, initial investigation [START phase]
+Assessment: COMPLETE! Found all phases across 3 logs
+
+Stopped after 3 logs (saved 7 log fetches).
+
+Suggestion string (ordered oldest→newest):
+"claude-code:abc123.jsonl:25-40;claude-code:def456.jsonl:9-22;claude-code:xyz789.jsonl:0-10"
+```
+
+**If no coherent conversation found:** Don't pass `--suggest` flag at all.
 
 ### Step 5: Launch Interactive TUI with Suggestions
 
@@ -215,9 +323,15 @@ The tigs store TUI is now open in a separate terminal window.
 - Do NOT use the Claude Code co-author format
 
 ### Error Handling
-- **No changes to commit**: Automatically use HEAD (most recent commit) and proceed to analyze/link chats
+- **No changes to commit**: Ask if they want to link chats to HEAD instead (using AskUserQuestion)
 - **tigs store not available**: Inform user they can link chats later by running `tigs store` manually
 - **Terminal fails to open**: Fall back to telling user to run `tigs store` manually in their terminal
+
+### Alternative: Link Chats to Existing Commit
+
+If the user doesn't want to create a new commit but just wants to link chats to an existing commit:
+1. Use AskUserQuestion to ask which commit (with options like "HEAD", "Previous commit", "Specify SHA")
+2. Skip directly to Step 4 (launching terminal with `tigs store`)
 
 ## Example Flow
 
@@ -239,18 +353,32 @@ Creating commit...
 ✓ Created commit a3f7d21: Add user authentication with JWT tokens
 ```
 
-3. Analyze messages (run `tigs list-messages --recent 5`):
+3. Get log metadata (run `tigs list-logs --recent 10`):
 ```
-Analyzing most recent 5 logs for relevance...
+Retrieved 10 log files (metadata only):
+- claude-code:log1.jsonl (modified: 2025-10-30 19:31, 25 messages)
+- claude-code:log2.jsonl (modified: 2025-10-30 18:45, 42 messages)
+- claude-code:log3.jsonl (modified: 2025-10-30 17:20, 38 messages)
+...
 ```
 
-4. Parse YAML, score messages, build suggestions:
+4. Progressive search with early stopping:
 ```
-Found 6 relevant messages across 2 logs:
-- claude-code:/path/to/log: messages 12,13,14,15
-- codex-cli:/path/to/log2: messages 3,7
+Fetching messages from log1.jsonl (most recent)...
+→ Found: final testing and commit creation (messages 0-5)
+→ Assessment: Incomplete - no feature start found
 
-Building suggestion string: "claude-code:/path/to/log:12,13,14,15;codex-cli:/path/to/log2:3,7"
+Fetching messages from log2.jsonl...
+→ Found: main implementation work (messages 12-28)
+→ Assessment: Incomplete - still no feature initiation
+
+Fetching messages from log3.jsonl...
+→ Found: user request and initial planning (messages 40-45)
+→ Assessment: COMPLETE! Have full story from start to finish
+
+Stopping search (found complete conversation in 3 logs, saved 7 log fetches)
+
+Suggestion string: "claude-code:log3.jsonl:40-45;claude-code:log2.jsonl:12-28;claude-code:log1.jsonl:0-5"
 ```
 
 5. Open terminal with suggestions:
@@ -279,28 +407,6 @@ The tigs store TUI is now open in a separate terminal window.
 ```
 
 **Key**: AI analyzes and suggests relevant messages automatically. User can adjust before linking.
-
----
-
-**Alternative flow - Nothing to commit:**
-
-**User runs**: `/tigs::commit` (after already creating a commit)
-
-**You respond**:
-
-1. Check git status:
-```
-No changes to commit. Will link chats to the most recent commit (HEAD).
-
-Getting commit info...
-✓ Target commit: a3f7d21 - Add user authentication with JWT tokens
-```
-
-2. Skip directly to Step 4 - analyze messages and launch TUI with suggestions for HEAD
-
-3. Continue with normal flow (analyze, suggest, open TUI)
-
-**Key**: When nothing to commit, automatically links chats to HEAD without asking.
 
 ## Tips
 

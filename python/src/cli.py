@@ -773,35 +773,149 @@ def validate_specs_command(
         sys.exit(1)
 
 
-@main.command("list-messages")
+@main.command("list-logs")
 @click.option(
     "--recent",
     type=int,
     default=10,
     help="Number of most recent logs to fetch. Default: 10",
 )
+def list_logs(recent: int) -> None:
+    """List available chat logs with metadata (without messages).
+
+    Returns lightweight metadata for logs including IDs, providers, and timestamps.
+    Does NOT fetch message content, making it very fast and token-efficient.
+
+    This command is designed for AI agents to discover available logs before
+    selectively fetching messages with 'tigs list-messages <log-id>'.
+
+    Examples:
+      tigs list-logs              # Most recent 10 logs (default)
+      tigs list-logs --recent 20  # Most recent 20 logs
+      tigs list-logs --recent 5   # Most recent 5 logs
+    """
+    try:
+        # Get chat parser
+        parser = get_chat_parser()
+
+        # List all logs (already sorted by modification time, newest first)
+        logs_data = parser.list_logs()
+
+        # Take most recent N logs
+        filtered_logs = logs_data[:recent]
+
+        # Build lightweight output (no message parsing required)
+        output_logs = []
+        for log_uri, metadata in filtered_logs:
+            log_entry = {
+                "id": log_uri,
+                "provider": metadata.get("provider", ""),
+                "provider_label": metadata.get("provider_label", ""),
+                "modified": metadata.get("modified", ""),
+            }
+            output_logs.append(log_entry)
+
+        # Output YAML
+        output = {"logs": output_logs}
+        click.echo(yaml.dump(output, default_flow_style=False, sort_keys=False))
+
+    except Exception as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+
+
+@main.command("list-messages")
+@click.argument("log_id", type=str, required=False, default=None)
+@click.option(
+    "--recent",
+    type=int,
+    default=10,
+    help="Number of most recent logs to fetch. Default: 10 (ignored if LOG_ID provided)",
+)
 @click.option(
     "--since",
     type=str,
     default=None,
-    help='Time window for messages (e.g., "3h", "1d", "2025-10-29T10:00:00"). Overrides --recent if provided.',
+    help='Time window for messages (e.g., "3h", "1d", "2025-10-29T10:00:00"). Overrides --recent. Ignored if LOG_ID provided.',
 )
-def list_messages(recent: int, since: str) -> None:
+def list_messages(log_id: Optional[str], recent: int, since: Optional[str]) -> None:
     """List chat messages from configured providers for AI analysis.
 
-    Fetches messages from all configured chat providers (controlled by
-    TIGS_CHAT_PROVIDERS environment variable).
+    Two modes of operation:
 
-    By default, fetches the most recent 10 logs (--recent 10).
-    Use --since for time-based filtering instead.
+    MODE 1: Fetch specific log (efficient, recommended for AI agents)
+      tigs list-messages <log-id>
+
+    MODE 2: Fetch multiple logs (legacy behavior)
+      tigs list-messages --recent 10
+      tigs list-messages --since 3h
+
+    Mode 1 is designed for progressive analysis: AI agents can use 'tigs list-logs'
+    to discover available logs, then fetch messages one log at a time until they
+    find the complete conversation history.
 
     Examples:
+      # Mode 1: Specific log (efficient)
+      tigs list-messages claude-code:abc123.jsonl
+
+      # Mode 2: Multiple logs (legacy)
       tigs list-messages                    # Most recent 10 logs (default)
       tigs list-messages --recent 5         # Most recent 5 logs
       tigs list-messages --since 3h         # Last 3 hours
       tigs list-messages --since "2025-10-29T10:00:00"  # Since specific time
     """
     try:
+        # Get chat parser
+        parser = get_chat_parser()
+
+        # =================================================================
+        # MODE 1: SPECIFIC LOG REQUESTED (new, efficient mode)
+        # =================================================================
+        if log_id:
+            # Parse single log
+            chat = parser.parse(log_id)
+            if not chat or not chat.messages:
+                click.echo(f"Error: No messages found in log: {log_id}", err=True)
+                sys.exit(1)
+
+            # Extract messages
+            messages_list = []
+            for index, message in enumerate(chat.messages):
+                msg_dict = {
+                    "index": index,
+                    "role": message.role.value,
+                    "content": message.content,
+                }
+                # Include timestamp if available
+                if message.timestamp:
+                    msg_dict["timestamp"] = message.timestamp.isoformat()
+                messages_list.append(msg_dict)
+
+            # Get metadata for this log
+            all_logs = parser.list_logs()
+            metadata = {}
+            for uri, meta in all_logs:
+                if uri == log_id:
+                    metadata = meta
+                    break
+
+            # Build output for single log
+            log_entry = {
+                "uri": log_id,
+                "provider": metadata.get("provider", ""),
+                "modified": metadata.get("modified", ""),
+                "messages": messages_list,
+            }
+
+            # Output YAML
+            output = {"logs": [log_entry]}
+            click.echo(yaml.dump(output, default_flow_style=False, sort_keys=False))
+            return
+
+        # =================================================================
+        # MODE 2: MULTIPLE LOGS (existing behavior)
+        # =================================================================
+
         # Determine filtering mode: time-based or count-based
         use_time_filter = since is not None
 
@@ -810,9 +924,6 @@ def list_messages(recent: int, since: str) -> None:
             cutoff_time = _parse_since_parameter(since)
         else:
             cutoff_time = None
-
-        # Get chat parser
-        parser = get_chat_parser()
 
         # List all logs (already sorted by modification time, newest first)
         logs_data = parser.list_logs()
