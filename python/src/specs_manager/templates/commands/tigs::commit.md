@@ -19,15 +19,16 @@ Display the changes to the user.
 
 ### Step 2: Stage Files (if needed)
 
-If there are unstaged changes that should be committed:
+**If nothing is staged and nothing is unstaged (clean working tree):**
+- Inform the user: "No changes to commit. Will link chats to the most recent commit (HEAD)."
+- Set `COMMIT_SHA` to HEAD's SHA (get it with `git rev-parse HEAD`)
+- Skip to Step 4 (analyze and suggest messages for HEAD)
+
+**If there are unstaged changes that should be committed:**
 - Use AskUserQuestion to ask ONCE: "Which files should we stage?"
   - Options: "All files", "Modified files only", "Let me specify"
 - Run `git add <files>` to stage the selected files
 - **Do NOT ask for confirmation again** - proceed directly to Step 3
-
-If nothing is staged and nothing is unstaged:
-- Use AskUserQuestion to ask if they want to link chats to HEAD instead
-- If yes, skip to Step 4 (launch TUI for HEAD)
 
 ### Step 3: Create Commit
 
@@ -214,15 +215,9 @@ The tigs store TUI is now open in a separate terminal window.
 - Do NOT use the Claude Code co-author format
 
 ### Error Handling
-- **No changes to commit**: Ask if they want to link chats to HEAD instead (using AskUserQuestion)
+- **No changes to commit**: Automatically use HEAD (most recent commit) and proceed to analyze/link chats
 - **tigs store not available**: Inform user they can link chats later by running `tigs store` manually
 - **Terminal fails to open**: Fall back to telling user to run `tigs store` manually in their terminal
-
-### Alternative: Link Chats to Existing Commit
-
-If the user doesn't want to create a new commit but just wants to link chats to an existing commit:
-1. Use AskUserQuestion to ask which commit (with options like "HEAD", "Previous commit", "Specify SHA")
-2. Skip directly to Step 4 (launching terminal with `tigs store`)
 
 ## Example Flow
 
@@ -284,6 +279,28 @@ The tigs store TUI is now open in a separate terminal window.
 ```
 
 **Key**: AI analyzes and suggests relevant messages automatically. User can adjust before linking.
+
+---
+
+**Alternative flow - Nothing to commit:**
+
+**User runs**: `/tigs::commit` (after already creating a commit)
+
+**You respond**:
+
+1. Check git status:
+```
+No changes to commit. Will link chats to the most recent commit (HEAD).
+
+Getting commit info...
+✓ Target commit: a3f7d21 - Add user authentication with JWT tokens
+```
+
+2. Skip directly to Step 4 - analyze messages and launch TUI with suggestions for HEAD
+
+3. Continue with normal flow (analyze, suggest, open TUI)
+
+**Key**: When nothing to commit, automatically links chats to HEAD without asking.
 
 ## Tips
 
