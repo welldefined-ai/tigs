@@ -33,16 +33,44 @@ Tigs provides two main interactive TUI (Terminal User Interface) commands:
 With Claude Code, run `tigs` inside any directory of a Git repo that has Claude Code sessions.
 All your chat history associated with the repo will be loaded and ready to store with commits!
 
+### AI-Powered Workflow (Claude Code)
+
+For Claude Code users, Tigs provides an intelligent slash command that automatically analyzes your code changes and suggests relevant chat messages to link:
+
+```bash
+/tigs::commit
+```
+
+This command:
+1. **Creates your commit** - Follows your repo's commit message style
+2. **Analyzes your changes** - Examines the diff to understand what changed
+3. **Suggests relevant chats** - AI scores recent messages and pre-selects the most relevant ones
+4. **Opens interactive TUI** - Shows a focused 2-pane layout with suggestions marked
+
+The TUI will open in a new terminal window with:
+- **Pre-selected messages** marked with `[x]` based on AI analysis
+- **Suggested logs** marked with `*` for quick identification
+- **Simple workflow**: Adjust selections with Space, press Enter to link, or 'q' to skip
+
+This is the recommended workflow for linking chats to commits when using Claude Code!
+
 ### `tigs store` - Select and Store Chats
 
 Launch an interactive interface to select commits and messages to associate with code commits:
 
 ```bash
 tigs store
+
+# Focus on specific commit with 2-pane layout
+tigs store --commit abc123
+
+# Pre-select suggested messages (used by /tigs::commit)
+tigs store --commit abc123 --suggest "log-uri:0,5,7;other-log:2,8"
 ```
 
 The store interface features:
 - **Three-pane layout**: Commits (left), Messages (center), Logs (right)
+- **Two-pane layout**: Messages (left), Logs (right) when `--commit` is used
 - **Keyboard navigation**:
   - `j/k` or `↑/↓` - Navigate up/down
   - `Space` - Toggle selection
@@ -137,6 +165,11 @@ tigs list-chats
 
 # Remove chat from commit
 tigs remove-chat abc123
+
+# List recent chat messages for AI analysis (YAML output)
+tigs list-messages --recent 10        # Most recent 10 logs
+tigs list-messages --since 3h         # Last 3 hours
+tigs list-messages --since 2025-10-29 # Since specific date
 ```
 
 ### Interactive Editor
