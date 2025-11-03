@@ -311,6 +311,10 @@ The tigs store TUI is now open in a separate terminal window.
 - Adjust selection as needed, then press Enter to link
 - Press 'q' to skip linking
 - View linked chats later with: tigs show {SHORT_SHA}
+
+When you're done linking chats, push your changes:
+  git push              # Push your commits
+  tigs push             # Push chat links
 ```
 
 ## Important Notes
@@ -408,6 +412,10 @@ The tigs store TUI is now open in a separate terminal window.
 - Adjust selection as needed, then press Enter to link
 - Press 'q' to skip linking
 - View linked chats later with: tigs show a3f7d21
+
+When you're done linking chats, push your changes:
+  git push              # Push your commits
+  tigs push             # Push chat links
 ```
 
 **Key**: AI analyzes and suggests relevant messages automatically. User can adjust before linking.
