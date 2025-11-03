@@ -118,10 +118,8 @@ As you progressively fetch and analyze logs:
 **Step 4.6: Build suggestion string**
 
 Once you have the complete conversation history:
-   - Format with ranges for efficiency: `<start>-<end>` for contiguous messages
-   - Format with commas for scattered messages: `<idx>,<idx>,...`
-   - Combine both: `<start>-<end>,<idx>,<other_start>-<other_end>`
-   - Full format: `"<log_id>:<ranges>;<log_id>:<ranges>"`
+   - Format with comma-separated indices: `<idx>,<idx>,<idx>,...`
+   - Full format: `"<log_id>:<indices>;<log_id>:<indices>"`
    - Order logs chronologically (oldest first) to tell the story in order
    - Use the log IDs from `tigs list-logs` output
 
@@ -148,7 +146,7 @@ Analysis:
 
 Assessment: COMPLETE! All phases found in one log.
 
-Suggestion string: "claude-code:e8f7d11f.jsonl:5-12,19-35,41-48"
+Suggestion string: "claude-code:e8f7d11f.jsonl:5,6,7,8,9,10,11,12,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,41,42,43,44,45,46,47,48"
 ```
 
 **Example 2: Conversation spanning multiple logs (progressive search)**
@@ -190,7 +188,7 @@ Assessment: COMPLETE! Found all phases across 3 logs
 Stopped after 3 logs (saved 7 log fetches).
 
 Suggestion string (ordered oldest→newest):
-"claude-code:abc123.jsonl:25-40;claude-code:def456.jsonl:9-22;claude-code:xyz789.jsonl:0-10"
+"claude-code:abc123.jsonl:25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40;claude-code:def456.jsonl:9,10,11,12,13,14,15,16,17,18,19,20,21,22;claude-code:xyz789.jsonl:0,1,2,3,4,5,6,7,8,9,10"
 ```
 
 **If no coherent conversation found:** Don't pass `--suggest` flag at all.
@@ -201,69 +199,75 @@ Suggestion string (ordered oldest→newest):
 
 The TUI requires a fully interactive terminal. Auto-open a new terminal window/tab:
 
-**If suggestions found:**
+**For macOS with suggestions**:
 ```bash
-tigs store --commit <COMMIT_SHA> --suggest "<SUGGESTIONS>"
-```
-
-**If no suggestions found:**
-```bash
-tigs store --commit <COMMIT_SHA>
-```
-
-**For macOS**, run:
-```bash
-# Build the tigs command (with or without suggestions)
-if [ -n "<SUGGESTIONS>" ]; then
-    TIGS_CMD="tigs store --commit <COMMIT_SHA> --suggest \"<SUGGESTIONS>\""
-else
-    TIGS_CMD="tigs store --commit <COMMIT_SHA>"
-fi
-
-osascript -e "
-tell application \"System Events\"
-    set terminalRunning to (name of processes) contains \"Terminal\"
+osascript <<EOF
+tell application "System Events"
+    set terminalRunning to (name of processes) contains "Terminal"
 end tell
 
-tell application \"Terminal\"
-    do script \"cd '$PWD' && $TIGS_CMD\"
+tell application "Terminal"
+    do script "cd '$(pwd)' && tigs store --commit <COMMIT_SHA> --suggest \"<SUGGESTIONS>\""
     if terminalRunning then
         activate
     end if
 end tell
-" 2>/dev/null
+EOF
 ```
 
-**For Linux**, try terminals in order (gnome-terminal, konsole, xterm):
+**For macOS without suggestions**:
 ```bash
-# Build the tigs command (with or without suggestions)
-if [ -n "<SUGGESTIONS>" ]; then
-    TIGS_CMD="tigs store --commit <COMMIT_SHA> --suggest \"<SUGGESTIONS>\""
-else
-    TIGS_CMD="tigs store --commit <COMMIT_SHA>"
-fi
+osascript <<EOF
+tell application "System Events"
+    set terminalRunning to (name of processes) contains "Terminal"
+end tell
 
+tell application "Terminal"
+    do script "cd '$(pwd)' && tigs store --commit <COMMIT_SHA>"
+    if terminalRunning then
+        activate
+    end if
+end tell
+EOF
+```
+
+**For Linux with suggestions**:
+```bash
 # Try gnome-terminal first
 if command -v gnome-terminal >/dev/null 2>&1; then
-    gnome-terminal --working-directory="$(pwd)" -- bash -c "$TIGS_CMD; exec bash" &
-    sleep 0.2
+    gnome-terminal --working-directory="$(pwd)" -- bash -c "tigs store --commit <COMMIT_SHA> --suggest \"<SUGGESTIONS>\"; exec bash" &
     wmctrl -a "Terminal" 2>/dev/null || true
 elif command -v konsole >/dev/null 2>&1; then
-    konsole --workdir "$(pwd)" -e bash -c "$TIGS_CMD; exec bash" &
-    sleep 0.2
+    konsole --workdir "$(pwd)" -e bash -c "tigs store --commit <COMMIT_SHA> --suggest \"<SUGGESTIONS>\"; exec bash" &
     wmctrl -a "Konsole" 2>/dev/null || true
 elif command -v xterm >/dev/null 2>&1; then
-    xterm -e "cd \"$(pwd)\" && $TIGS_CMD; bash" &
-    sleep 0.2
-    wmctrl -a "XTerm" 2>/dev/null || true
+    xterm -e bash -c "cd \"$(pwd)\" && tigs store --commit <COMMIT_SHA> --suggest \"<SUGGESTIONS>\"; exec bash" &
 else
-    echo "No supported terminal found. Please run '$TIGS_CMD' manually in your terminal."
+    echo "No supported terminal found. Please run manually: tigs store --commit <COMMIT_SHA> --suggest \"<SUGGESTIONS>\""
+fi
+```
+
+**For Linux without suggestions**:
+```bash
+# Try gnome-terminal first
+if command -v gnome-terminal >/dev/null 2>&1; then
+    gnome-terminal --working-directory="$(pwd)" -- bash -c "tigs store --commit <COMMIT_SHA>; exec bash" &
+    wmctrl -a "Terminal" 2>/dev/null || true
+elif command -v konsole >/dev/null 2>&1; then
+    konsole --workdir "$(pwd)" -e bash -c "tigs store --commit <COMMIT_SHA>; exec bash" &
+    wmctrl -a "Konsole" 2>/dev/null || true
+elif command -v xterm >/dev/null 2>&1; then
+    xterm -e bash -c "cd \"$(pwd)\" && tigs store --commit <COMMIT_SHA>; exec bash" &
+else
+    echo "No supported terminal found. Please run manually: tigs store --commit <COMMIT_SHA>"
 fi
 ```
 
 **Important**:
+- Choose the appropriate command based on whether you found suggestions
 - Replace `<COMMIT_SHA>` with the actual commit SHA
-- Replace `<SUGGESTIONS>` with the built suggestion string (or empty if no suggestions)
+- Replace `<SUGGESTIONS>` with the built suggestion string
+- The heredoc (<<EOF) and escaped quotes (\\") prevent quoting issues with long suggestion strings
 - The TUI will show a 2-pane layout (Messages | Logs) since --commit is specified
 - Suggested messages will be pre-selected with `[x]`
 - Logs with suggestions will show `*` marker
@@ -378,7 +382,7 @@ Fetching messages from log3.jsonl...
 
 Stopping search (found complete conversation in 3 logs, saved 7 log fetches)
 
-Suggestion string: "claude-code:log3.jsonl:40-45;claude-code:log2.jsonl:12-28;claude-code:log1.jsonl:0-5"
+Suggestion string: "claude-code:log3.jsonl:40,41,42,43,44,45;claude-code:log2.jsonl:12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28;claude-code:log1.jsonl:0,1,2,3,4,5"
 ```
 
 5. Open terminal with suggestions:
