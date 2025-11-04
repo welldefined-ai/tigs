@@ -22,6 +22,8 @@ from .validators import (
     ArchitectureValidator,
     ValidationResult,
 )
+from .structure_loader import StructureLoader, Structure
+from .config import SpecsConfig
 
 
 class SpecsManager:
@@ -29,9 +31,12 @@ class SpecsManager:
 
     # Directory structure
     SPECS_DIR = "specs"
-    SUBDIRS = ["capabilities", "data-models", "api", "architecture", "changes"]
 
-    # File naming conventions for each type
+    # Default structure (for backwards compatibility)
+    DEFAULT_STRUCTURE = "web-app"
+
+    # Legacy hardcoded values (kept for backwards compatibility)
+    SUBDIRS = ["capabilities", "data-models", "api", "architecture", "changes"]
     SPEC_FILES = {
         "capabilities": "spec.md",
         "data-models": "schema.md",
@@ -47,11 +52,60 @@ class SpecsManager:
         """
         self.root_path = Path(root_path)
         self.specs_path = self.root_path / self.SPECS_DIR
+        self.structure_loader = StructureLoader()
+        self.config = SpecsConfig(self.specs_path)
+        self._loaded_structure: Optional[Structure] = None
 
-    def init_structure(self, with_examples: bool = False) -> dict:
+    def get_structure(self) -> Structure:
+        """Get the structure for this specs directory.
+
+        Returns:
+            Structure object
+        """
+        if self._loaded_structure is not None:
+            return self._loaded_structure
+
+        # Try to load from config
+        if self.config.exists():
+            structure_name = self.config.get_structure()
+        else:
+            # Try to detect from existing directory structure
+            detected = SpecsConfig.detect_structure_from_directory(self.specs_path)
+            structure_name = detected or self.DEFAULT_STRUCTURE
+
+        self._loaded_structure = self.structure_loader.load_structure(structure_name)
+        return self._loaded_structure
+
+    def get_spec_types(self) -> List[str]:
+        """Get list of spec type names for the current structure.
+
+        Returns:
+            List of spec type names (e.g., ['capabilities', 'data-models', ...])
+        """
+        try:
+            structure = self.get_structure()
+            return structure.get_spec_type_names()
+        except (FileNotFoundError, ValueError):
+            # Fallback to legacy for backwards compatibility
+            return list(self.SPEC_FILES.keys())
+
+    def get_spec_file(self, spec_type: str) -> str:
+        """Get the spec filename for a given type.
+
+        Args:
+            spec_type: Spec type name
+
+        Returns:
+            Filename (e.g., "spec.md" or "schema.md")
+        """
+        # For now, use a simple convention: data-models uses schema.md, others use spec.md
+        return "schema.md" if spec_type == "data-models" else "spec.md"
+
+    def init_structure(self, structure_name: Optional[str] = None, with_examples: bool = False) -> dict:
         """Initialize specs directory structure and Claude Code slash commands.
 
         Args:
+            structure_name: Name of structure to use (default: web-app)
             with_examples: Whether to generate example specs
 
         Returns:
@@ -59,11 +113,19 @@ class SpecsManager:
 
         Raises:
             FileExistsError: If specs/ already exists
+            ValueError: If structure_name is invalid
         """
         if self.specs_path.exists():
             raise FileExistsError(
                 f"Specs directory already exists at {self.specs_path}"
             )
+
+        # Load structure
+        if structure_name is None:
+            structure_name = self.DEFAULT_STRUCTURE
+
+        structure = self.structure_loader.load_structure(structure_name)
+        self._loaded_structure = structure
 
         created = []
 
@@ -71,29 +133,38 @@ class SpecsManager:
         self.specs_path.mkdir()
         created.append(str(self.specs_path))
 
-        # Create subdirectories
-        for subdir in self.SUBDIRS:
-            subdir_path = self.specs_path / subdir
+        # Create subdirectories based on structure
+        for spec_type_name, spec_type in structure.spec_types.items():
+            subdir_path = self.specs_path / spec_type.directory
             subdir_path.mkdir()
             created.append(str(subdir_path))
 
+        # Create changes directory
+        changes_path = self.specs_path / "changes"
+        changes_path.mkdir()
+        created.append(str(changes_path))
+
         # Create changes/archive directory
-        archive_path = self.specs_path / "changes" / "archive"
+        archive_path = changes_path / "archive"
         archive_path.mkdir()
         created.append(str(archive_path))
 
+        # Save structure configuration
+        self.config.set_structure(structure.name, structure.version)
+        created.append(str(self.config.config_file))
+
         # Generate README
         readme_path = self.specs_path / "README.md"
-        self._generate_readme(readme_path)
+        self._generate_readme(readme_path, structure)
         created.append(str(readme_path))
 
         # Create .claude/commands/ directory and copy slash command templates
-        claude_commands_paths = self._create_claude_commands()
+        claude_commands_paths = self._create_claude_commands(structure)
         created.extend(claude_commands_paths)
 
         # Generate examples if requested
         if with_examples:
-            example_paths = self._generate_examples()
+            example_paths = self._generate_examples(structure)
             created.extend(example_paths)
 
         return {"created": created, "existed": []}
@@ -251,27 +322,51 @@ class SpecsManager:
             "content": content,
         }
 
-    def _generate_readme(self, target_path: Path) -> None:
-        """Generate README from template.
+    def _generate_readme(self, target_path: Path, structure: Structure) -> None:
+        """Generate README with structure information.
 
         Args:
             target_path: Where to write README.md
+            structure: Structure to document
         """
-        template_path = Path(__file__).parent / "templates" / "README_template.md"
+        # Generate README with structure info
+        spec_types_list = "\n".join(
+            f"- **{name}/** - {spec_type.description}"
+            for name, spec_type in structure.spec_types.items()
+        )
 
-        if not template_path.exists():
-            # Fallback: create basic README
-            content = (
-                "# Specifications\n\nThis directory contains project specifications.\n"
-            )
-            target_path.write_text(content)
-            return
+        content = f"""# Specifications
 
-        # Copy template (no variable substitution needed for README)
-        shutil.copy(template_path, target_path)
+This directory contains project specifications using the **{structure.name}** structure.
 
-    def _create_claude_commands(self) -> List[str]:
+## Structure: {structure.name}
+
+{structure.description}
+
+## Spec Types
+
+{spec_types_list}
+
+## Organization
+
+Each specification lives in its own subdirectory under the appropriate spec type.
+Changes are tracked incrementally in `changes/` until archived.
+
+## Commands
+
+Use these Claude Code slash commands:
+- `/bootstrap` - Generate initial specs from code
+- `/change` - Create a change proposal
+- `/validate` - Validate specs format
+- `/archive` - Archive completed changes
+"""
+        target_path.write_text(content)
+
+    def _create_claude_commands(self, structure: Structure) -> List[str]:
         """Create .claude/commands/ directory and copy slash command templates.
+
+        Args:
+            structure: Structure to copy commands from
 
         Returns:
             List of created file paths
@@ -284,66 +379,65 @@ class SpecsManager:
         commands_dir.mkdir(parents=True, exist_ok=True)
         created.append(str(commands_dir))
 
-        # Get templates directory
-        templates_dir = Path(__file__).parent / "templates" / "commands"
-
-        if not templates_dir.exists():
-            # No templates to copy
-            return created
-
-        # Copy all command templates
-        command_files = [
+        # Copy structure-specific commands
+        structure_command_files = [
             "bootstrap.md",
             "change.md",
             "validate.md",
             "archive.md",
-            "tigs::commit.md",
         ]
 
-        for command_file in command_files:
-            template_path = templates_dir / command_file
-            if template_path.exists():
+        for command_file in structure_command_files:
+            source_path = structure.structure_path / command_file
+            if source_path.exists():
                 target_path = commands_dir / command_file
-                shutil.copy(template_path, target_path)
+                shutil.copy(source_path, target_path)
                 created.append(str(target_path))
+
+        # Copy universal tigs::commit command (not structure-specific)
+        tigs_commit_path = Path(__file__).parent / "templates" / "commands" / "tigs::commit.md"
+        if tigs_commit_path.exists():
+            target_path = commands_dir / "tigs::commit.md"
+            shutil.copy(tigs_commit_path, target_path)
+            created.append(str(target_path))
 
         return created
 
-    def _generate_examples(self) -> List[str]:
-        """Generate example specs for each type.
+    def _generate_examples(self, structure: Structure) -> List[str]:
+        """Generate example specs from structure templates.
+
+        Args:
+            structure: Structure to copy examples from
 
         Returns:
             List of created file paths
         """
         created = []
 
-        # Example capability
-        cap_dir = self.specs_path / "capabilities" / "example-feature"
-        cap_dir.mkdir()
-        cap_spec = cap_dir / "spec.md"
-        cap_spec.write_text(self._get_example_capability())
-        created.append(str(cap_spec))
+        examples_dir = structure.structure_path / "examples"
+        if not examples_dir.exists():
+            return created
 
-        # Example data model
-        dm_dir = self.specs_path / "data-models" / "example-model"
-        dm_dir.mkdir()
-        dm_spec = dm_dir / "schema.md"
-        dm_spec.write_text(self._get_example_data_model())
-        created.append(str(dm_spec))
+        # Copy example files to their respective spec type directories
+        for example_file in examples_dir.glob("*.md"):
+            # Determine which spec type this example belongs to
+            # Convention: capabilities_example.md -> capabilities
+            filename = example_file.stem  # e.g., "capabilities_example"
 
-        # Example API
-        api_dir = self.specs_path / "api" / "example-api"
-        api_dir.mkdir()
-        api_spec = api_dir / "spec.md"
-        api_spec.write_text(self._get_example_api())
-        created.append(str(api_spec))
+            # Try to match to a spec type
+            for spec_type_name, spec_type in structure.spec_types.items():
+                # Check if filename starts with spec type name
+                if filename.startswith(spec_type_name.replace("-", "_")):
+                    # Create example directory
+                    example_dir = self.specs_path / spec_type.directory / "example"
+                    example_dir.mkdir(parents=True, exist_ok=True)
 
-        # Example architecture
-        arch_dir = self.specs_path / "architecture" / "example-component"
-        arch_dir.mkdir()
-        arch_spec = arch_dir / "spec.md"
-        arch_spec.write_text(self._get_example_architecture())
-        created.append(str(arch_spec))
+                    # Copy to spec.md or schema.md based on type
+                    target_filename = self.get_spec_file(spec_type_name)
+                    target_path = example_dir / target_filename
+                    shutil.copy(example_file, target_path)
+                    created.append(str(target_path))
+                    break
 
         return created
 
