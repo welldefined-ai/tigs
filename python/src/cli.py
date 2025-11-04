@@ -14,6 +14,7 @@ import yaml
 from .storage import TigsRepo
 from .tui import TigsStoreApp, TigsViewApp, CURSES_AVAILABLE
 from .specs_manager import SpecsManager
+from .specs_manager.structure_loader import StructureLoader
 from .chat_providers import get_chat_parser
 
 
@@ -323,6 +324,13 @@ def view_command(ctx: click.Context) -> None:
 
 @main.command("init-specs")
 @click.option(
+    "--structure",
+    "-s",
+    type=str,
+    default=None,
+    help="Spec structure to use (web-app, embedded-system, pipeline). Use 'tigs list-structures' to see all options.",
+)
+@click.option(
     "--examples", is_flag=True, help="Generate example specifications for each type"
 )
 @click.option(
@@ -332,21 +340,23 @@ def view_command(ctx: click.Context) -> None:
     default=None,
     help="Path to initialize specs (defaults to current directory)",
 )
-def init_specs(examples: bool, path: Optional[Path]) -> None:
+def init_specs(structure: Optional[str], examples: bool, path: Optional[Path]) -> None:
     """Initialize specs directory structure.
 
-    Creates a specs/ directory with subdirectories for:
-    - capabilities/  (behavioral specifications)
-    - data-models/   (database schemas and entities)
-    - api/          (REST/GraphQL endpoints)
-    - architecture/ (system design and ADRs)
-    - changes/      (incremental changes)
+    Creates a specs/ directory with subdirectories based on the chosen structure.
+    Default structure is 'web-app' with: capabilities, data-models, api, architecture.
+
+    Other structures include:
+    - embedded-system: hardware, firmware, protocols, power-management
+    - pipeline: sources, transforms, sinks, schemas, orchestration
+
+    Use 'tigs list-structures' to see all available structures.
     """
     root_path = path or Path.cwd()
     manager = SpecsManager(root_path)
 
     try:
-        result = manager.init_structure(with_examples=examples)
+        result = manager.init_structure(structure_name=structure, with_examples=examples)
 
         click.echo(f"✓ Initialized specs directory at {root_path / 'specs'}")
 
@@ -406,6 +416,83 @@ def init_specs(examples: bool, path: Optional[Path]) -> None:
         sys.exit(1)
     except Exception as e:
         click.echo(f"Error initializing specs: {e}", err=True)
+        sys.exit(1)
+
+
+@main.command("list-structures")
+def list_structures() -> None:
+    """List all available spec structures.
+
+    Shows all spec structure templates that can be used with 'tigs init-specs --structure'.
+    """
+    try:
+        loader = StructureLoader()
+        structures = loader.list_structures()
+
+        if not structures:
+            click.echo("No structures found.")
+            return
+
+        click.echo("Available spec structures:\n")
+        for structure_name in structures:
+            try:
+                structure = loader.load_structure(structure_name)
+                spec_types = ", ".join(structure.get_spec_type_names())
+                click.echo(f"  {structure.name}")
+                click.echo(f"    Description: {structure.description}")
+                click.echo(f"    Spec types: {spec_types}")
+                click.echo()
+            except Exception as e:
+                click.echo(f"  {structure_name} (error loading: {e})")
+
+        click.echo("Use 'tigs show-structure <name>' for details on a specific structure.")
+        click.echo("Use 'tigs init-specs --structure <name>' to initialize with a structure.")
+
+    except Exception as e:
+        click.echo(f"Error listing structures: {e}", err=True)
+        sys.exit(1)
+
+
+@main.command("show-structure")
+@click.argument("name", type=str)
+@click.option("--json", "output_json", is_flag=True, help="Output as JSON")
+def show_structure(name: str, output_json: bool) -> None:
+    """Show detailed information about a spec structure.
+
+    NAME is the structure name (e.g., web-app, embedded-system, pipeline)
+    """
+    try:
+        loader = StructureLoader()
+        info = loader.get_structure_info(name)
+
+        if output_json:
+            click.echo(json.dumps(info, indent=2))
+            return
+
+        click.echo(f"Structure: {info['name']}")
+        click.echo(f"Version: {info['version']}")
+        click.echo(f"Author: {info['author']}")
+        click.echo(f"\nDescription:")
+        click.echo(f"  {info['description']}")
+
+        click.echo(f"\nSpec Types:")
+        for spec_type, details in info['spec_types'].items():
+            click.echo(f"  {spec_type}/")
+            click.echo(f"    {details['description']}")
+
+        click.echo(f"\nRequired Commands:")
+        for cmd in info['required_commands']:
+            click.echo(f"  /{cmd}")
+
+        click.echo(f"\nUsage:")
+        click.echo(f"  tigs init-specs --structure {info['name']}")
+
+    except FileNotFoundError as e:
+        click.echo(f"Error: Structure '{name}' not found", err=True)
+        click.echo("\nUse 'tigs list-structures' to see available structures.", err=True)
+        sys.exit(1)
+    except Exception as e:
+        click.echo(f"Error showing structure: {e}", err=True)
         sys.exit(1)
 
 
