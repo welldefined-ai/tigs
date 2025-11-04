@@ -73,7 +73,7 @@ class StructureLoader:
         """Load a structure definition by name.
 
         Args:
-            name: Structure name (e.g., "web-app", "embedded-system")
+            name: Structure name (e.g., "web-app")
 
         Returns:
             Structure object

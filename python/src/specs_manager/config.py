@@ -117,15 +117,5 @@ class SpecsConfig:
         if web_app_types.issubset(existing_dirs):
             return 'web-app'
 
-        # Check for embedded-system structure
-        embedded_types = {'hardware', 'firmware', 'protocols', 'power-management'}
-        if embedded_types.issubset(existing_dirs):
-            return 'embedded-system'
-
-        # Check for pipeline structure
-        pipeline_types = {'sources', 'transforms', 'sinks', 'schemas', 'orchestration'}
-        if pipeline_types.issubset(existing_dirs):
-            return 'pipeline'
-
-        # Can't determine - default to web-app
+        # Can't determine - default to None (will use DEFAULT_STRUCTURE)
         return None

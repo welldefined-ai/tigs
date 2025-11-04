@@ -328,7 +328,7 @@ def view_command(ctx: click.Context) -> None:
     "-s",
     type=str,
     default=None,
-    help="Spec structure to use (web-app, embedded-system, pipeline). Use 'tigs list-structures' to see all options.",
+    help="Spec structure to use (currently only 'web-app' is available). Custom structures can be added to templates/structures/.",
 )
 @click.option(
     "--examples", is_flag=True, help="Generate example specifications for each type"
@@ -346,10 +346,7 @@ def init_specs(structure: Optional[str], examples: bool, path: Optional[Path]) -
     Creates a specs/ directory with subdirectories based on the chosen structure.
     Default structure is 'web-app' with: capabilities, data-models, api, architecture.
 
-    Other structures include:
-    - embedded-system: hardware, firmware, protocols, power-management
-    - pipeline: sources, transforms, sinks, schemas, orchestration
-
+    Custom structures can be created by adding directories to templates/structures/.
     Use 'tigs list-structures' to see all available structures.
     """
     root_path = path or Path.cwd()
@@ -459,7 +456,7 @@ def list_structures() -> None:
 def show_structure(name: str, output_json: bool) -> None:
     """Show detailed information about a spec structure.
 
-    NAME is the structure name (e.g., web-app, embedded-system, pipeline)
+    NAME is the structure name (e.g., web-app)
     """
     try:
         loader = StructureLoader()
