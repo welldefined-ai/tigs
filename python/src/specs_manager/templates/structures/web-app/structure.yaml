@@ -1,0 +1,29 @@
+name: "web-app"
+version: "1.0.0"
+description: "Standard web application specifications for REST APIs, databases, and system architecture"
+author: "Tigs Core Team"
+
+# Spec types used in this structure
+spec_types:
+  capabilities:
+    description: "Behavioral requirements with structured scenarios (WHEN/THEN/AND)"
+    directory: "capabilities"
+
+  data-models:
+    description: "Database schemas with entities, fields, constraints, and relationships"
+    directory: "data-models"
+
+  api:
+    description: "REST/GraphQL endpoint definitions with request/response formats"
+    directory: "api"
+
+  architecture:
+    description: "System design, components, and architectural decision records (ADRs)"
+    directory: "architecture"
+
+# Required commands that must be present in this structure
+required_commands:
+  - bootstrap
+  - change
+  - validate
+  - archive

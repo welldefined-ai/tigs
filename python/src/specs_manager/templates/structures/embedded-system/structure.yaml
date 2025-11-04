@@ -1,0 +1,29 @@
+name: "embedded-system"
+version: "1.0.0"
+description: "Hardware and firmware specifications for embedded systems, IoT devices, and real-time systems"
+author: "Tigs Core Team"
+
+# Spec types used in this structure
+spec_types:
+  hardware:
+    description: "Hardware specifications including components, interfaces, and electrical characteristics"
+    directory: "hardware"
+
+  firmware:
+    description: "Firmware modules, drivers, and low-level software components"
+    directory: "firmware"
+
+  protocols:
+    description: "Communication protocols for I2C, SPI, UART, CAN, and network interfaces"
+    directory: "protocols"
+
+  power-management:
+    description: "Power states, consumption profiles, and energy optimization strategies"
+    directory: "power-management"
+
+# Required commands that must be present in this structure
+required_commands:
+  - bootstrap
+  - change
+  - validate
+  - archive

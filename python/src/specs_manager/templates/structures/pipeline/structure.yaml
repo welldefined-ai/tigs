@@ -1,0 +1,33 @@
+name: "pipeline"
+version: "1.0.0"
+description: "Data pipeline and ETL specifications for data engineering and analytics projects"
+author: "Tigs Core Team"
+
+# Spec types used in this structure
+spec_types:
+  sources:
+    description: "Data sources including databases, APIs, files, and streaming systems"
+    directory: "sources"
+
+  transforms:
+    description: "Data transformations, processing logic, and business rules"
+    directory: "transforms"
+
+  sinks:
+    description: "Output destinations including warehouses, lakes, and downstream systems"
+    directory: "sinks"
+
+  schemas:
+    description: "Data schemas, contracts, and validation rules"
+    directory: "schemas"
+
+  orchestration:
+    description: "Workflow scheduling, dependencies, and execution strategies"
+    directory: "orchestration"
+
+# Required commands that must be present in this structure
+required_commands:
+  - bootstrap
+  - change
+  - validate
+  - archive
