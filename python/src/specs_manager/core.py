@@ -194,9 +194,11 @@ class SpecsManager:
                 f"Run 'tigs init-specs' first."
             )
 
+        # Get valid spec types for current structure
+        valid_types = self.get_spec_types()
+
         # Validate spec_type if provided
         if spec_type is not None:
-            valid_types = list(self.SPEC_FILES.keys())
             if spec_type not in valid_types:
                 raise ValueError(
                     f"Invalid spec type '{spec_type}'. "
@@ -204,7 +206,7 @@ class SpecsManager:
                 )
 
         result: Dict[str, List[Dict[str, str]]] = {}
-        types_to_scan = [spec_type] if spec_type else list(self.SPEC_FILES.keys())
+        types_to_scan = [spec_type] if spec_type else valid_types
 
         for stype in types_to_scan:
             specs = []
@@ -215,7 +217,7 @@ class SpecsManager:
                 continue
 
             # Scan for spec directories
-            expected_filename = self.SPEC_FILES[stype]
+            expected_filename = self.get_spec_file(stype)
             for spec_dir in sorted(type_dir.iterdir()):
                 if not spec_dir.is_dir():
                     continue
@@ -258,9 +260,11 @@ class SpecsManager:
                 f"Run 'tigs init-specs' first."
             )
 
+        # Get valid spec types for current structure
+        valid_types = self.get_spec_types()
+
         # Validate spec_type if provided
         if spec_type is not None:
-            valid_types = list(self.SPEC_FILES.keys())
             if spec_type not in valid_types:
                 raise ValueError(
                     f"Invalid spec type '{spec_type}'. "
@@ -269,7 +273,7 @@ class SpecsManager:
 
         # Search for the spec
         found_specs = []
-        types_to_search = [spec_type] if spec_type else list(self.SPEC_FILES.keys())
+        types_to_search = [spec_type] if spec_type else valid_types
 
         for stype in types_to_search:
             type_dir = self.specs_path / stype
@@ -277,7 +281,7 @@ class SpecsManager:
                 continue
 
             spec_dir = type_dir / name
-            expected_filename = self.SPEC_FILES[stype]
+            expected_filename = self.get_spec_file(stype)
             spec_file = spec_dir / expected_filename
 
             if spec_file.exists():
@@ -916,9 +920,11 @@ Demonstrates architecture specification format with component definitions and de
                 f"Run 'tigs init-specs' first."
             )
 
+        # Get valid spec types for current structure
+        valid_types = self.get_spec_types()
+
         # Validate spec_type if provided
         if spec_type is not None:
-            valid_types = list(self.SPEC_FILES.keys())
             if spec_type not in valid_types:
                 raise ValueError(
                     f"Invalid spec type '{spec_type}'. "
@@ -933,7 +939,7 @@ Demonstrates architecture specification format with component definitions and de
         else:
             base_path = self.specs_path
 
-        # Map spec types to validators
+        # Map spec types to validators (currently only for web-app types)
         validators_map = {
             "capabilities": CapabilityValidator,
             "data-models": DataModelValidator,
@@ -942,7 +948,7 @@ Demonstrates architecture specification format with component definitions and de
         }
 
         results: Dict[str, List[ValidationResult]] = {}
-        types_to_validate = [spec_type] if spec_type else list(self.SPEC_FILES.keys())
+        types_to_validate = [spec_type] if spec_type else valid_types
 
         for stype in types_to_validate:
             type_results = []
