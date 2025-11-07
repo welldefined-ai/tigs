@@ -72,6 +72,17 @@ class MessageView(VisualSelectionMixin, ScrollableMixin):
         except Exception:
             self.messages = []
 
+    def pre_select_messages(self, indices: list) -> None:
+        """Pre-select messages at the given indices.
+
+        Args:
+            indices: List of message indices to pre-select
+        """
+        self.selected_messages.clear()
+        for idx in indices:
+            if 0 <= idx < len(self.messages):
+                self.selected_messages.add(idx)
+
     def prepare_messages_for_display(self):
         """Prepare messages for display by grouping and ordering them if needed.
 

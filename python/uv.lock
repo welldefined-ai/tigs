@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.8"
 resolution-markers = [
     "python_full_version >= '3.10'",
@@ -40,14 +40,14 @@ wheels = [
 
 [[package]]
 name = "cligent"
-version = "0.1.6"
+version = "0.1.7"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pyyaml" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/49/26/6c0285786099bd2938fe483a1ed417598aa622a66f078344650fae581134/cligent-0.1.6.tar.gz", hash = "sha256:50cd6f40101731055ee1ee7bb238f2e9ef58d2c7dbe8372efe1b26fd7cddd182", size = 16950, upload-time = "2025-10-08T02:39:46.274Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/de/dc/e99c409d129a0136bdc00271eac08f8e317aac6cc8962c3e62cc119ace48/cligent-0.1.7.tar.gz", hash = "sha256:138eafa2d8e96feadefd3e7f6ef8bce79fe7a596d02cae014ac6c1aa8dba5ae5", size = 16911, upload-time = "2025-10-30T12:05:13.491Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/86/bb/cc34936445a6eea734ff3d2639c39ec35e478225e0c7819a3a33be93f41e/cligent-0.1.6-py3-none-any.whl", hash = "sha256:b3091e0ce3c60453470a2672bf6247ccedbe00fe852e8f2aa1ed6363b54326b7", size = 24989, upload-time = "2025-10-08T02:39:45.171Z" },
+    { url = "https://files.pythonhosted.org/packages/c3/e0/ee21b48f6b8ff5978da74e01155aa4db14eda60e55fba498d80fde199380/cligent-0.1.7-py3-none-any.whl", hash = "sha256:bf50b20e3382fdcba7c3d2992fb84320b2745f10b66d8ca047e1b03b863af139", size = 24964, upload-time = "2025-10-30T12:05:12.345Z" },
 ]
 
 [[package]]
@@ -714,7 +714,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "click", specifier = ">=8.0" },
-    { name = "cligent", specifier = ">=0.1.6" },
+    { name = "cligent", specifier = ">=0.1.7" },
     { name = "gitpython", specifier = ">=3.1.30" },
     { name = "pytest-timeout", specifier = ">=2.4.0" },
     { name = "wcwidth", specifier = ">=0.2.13" },

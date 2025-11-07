@@ -127,6 +127,32 @@ class CommitView(VisualSelectionMixin, ScrollableMixin):
             # Could be: not a git repo, no commits, or other git issue
             # For debugging, we could log: e.stderr
 
+    def filter_to_commit(self, commit_sha: str) -> None:
+        """Filter commits to only show the specified commit.
+
+        Args:
+            commit_sha: SHA (full or short) of commit to filter to
+        """
+        # Load all commits first
+        self.load_commits()
+
+        # Filter to only the target commit
+        filtered = []
+        for commit in self.commits:
+            if commit["full_sha"].startswith(commit_sha) or commit["sha"].startswith(
+                commit_sha
+            ):
+                filtered.append(commit)
+                break  # Found it, stop searching
+
+        self.commits = filtered
+        self.items = self.commits
+
+        # Auto-select the commit
+        if self.commits:
+            self.selected_commits.add(0)
+            self.cursor_idx = 0
+
     def get_display_lines(
         self, height: int, width: int = 32, colors_enabled: bool = False
     ) -> List[Union[str, List[Tuple[str, int]]]]:
