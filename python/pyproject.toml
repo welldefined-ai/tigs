@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.8"
 license = {text = "Apache-2.0"}
 authors = [
-    {name = "SubLang Community", email = "hi@sublang.ai"},
+    {name = "WellDefined.AI Community", email = "hi@welldefined.ai"},
 ]
 keywords = ["git", "chat", "version-control", "ai", "llm", "chatgpt", "claude", "gemini", "qwen", "specifications", "specs", "vibe-coding", "software-development", "spec-driven", "prompts", "development-tools"]
 classifiers = [

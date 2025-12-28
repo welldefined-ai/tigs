@@ -222,7 +222,7 @@ Chats capture your development conversations and AI interactions. Specs formaliz
 
 ## Development Philosophy
 
-Tigs is developed in a LLM-native way: its requirements and design are expressed through talks with an LLM and translated into code. By bootstrapping itself, Tigs will manage its own talks and define its own specifications.
+Tigs is developed in an LLM-native way: its requirements and design are expressed through talks with an LLM and translated into code. By bootstrapping itself, Tigs will manage its own talks and define its own specifications.
 
 The specifications are language-agnostic and can be translated into different programming languages. Currently, we provide implementations in Python and Node.js.
 
